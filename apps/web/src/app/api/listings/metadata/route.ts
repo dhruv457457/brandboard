@@ -38,9 +38,12 @@ export async function POST(req: Request) {
       ...(body.eventSlug ? { eventSlug: String(body.eventSlug).slice(0, 64) } : {}),
       ...(img(body.sourceImage) ? { sourceImage: img(body.sourceImage) } : {}),
       ...(img(body.canvasImage) ? { canvasImage: img(body.canvasImage) } : {}),
+      ...(img(body.canvasImageBack) ? { canvasImageBack: img(body.canvasImageBack) } : {}),
+      ...(body.style ? { style: String(body.style).slice(0, 120) } : {}),
       patches: body.patches.map((p, i) => ({
         id: i,
         name: String(p.name ?? "").trim().slice(0, 31) || `Patch ${i + 1}`,
+        side: p.side === "back" ? ("back" as const) : ("front" as const),
         x: num(p.x, 0, 100), y: num(p.y, 0, 100), w: num(p.w, 1, 100), h: num(p.h, 1, 100),
         rotation: num(p.rotation ?? 0, -45, 45),
       })),

@@ -43,3 +43,21 @@ export function slotFor(surface: SurfaceKind, i: number, label: string, meta?: S
   const defaults = DEFAULT_LAYOUTS[surface];
   return defaults.find((s) => s.name.toLowerCase() === label.toLowerCase()) ?? defaults[i % defaults.length];
 }
+
+/**
+ * Patch spots for AI model shots (full body, centered, 2:3 portrait), which always share the same
+ * framing. Used when the vision model can't suggest spots.
+ */
+export const MODEL_SHOT_LAYOUTS: Record<"front" | "back", Slot[]> = {
+  front: [
+    { name: "Chest", x: 38, y: 25, w: 24, h: 9 },
+    { name: "Left sleeve", x: 27, y: 30, w: 8, h: 8, r: -6 },
+    { name: "Right sleeve", x: 65, y: 30, w: 8, h: 8, r: 6 },
+    { name: "Left thigh", x: 38, y: 57, w: 10, h: 9 },
+    { name: "Right thigh", x: 52, y: 57, w: 10, h: 9 },
+  ],
+  back: [
+    { name: "Upper back", x: 36, y: 23, w: 28, h: 12 },
+    { name: "Lower back", x: 40, y: 39, w: 20, h: 6 },
+  ],
+};

@@ -19,7 +19,7 @@ export function ListingCardView({ card, mounted }: { card: ListingCard; mounted:
   const { label, Icon } = SURFACE_META[card.surface];
   const countdown = formatCountdown(card.biddingEndsAt);
   const live = card.status === 1 && !countdown.hasEnded;
-  const figurePatches: PatchData[] = card.patches.map((p) => ({
+  const figurePatches: PatchData[] = card.patches.filter((p) => p.side === "front").map((p) => ({
     id: p.id, name: p.label, x: p.x, y: p.y, w: p.w, h: p.h, r: p.r,
     floor: Number(p.floor) / 1e6, topBid: Number(p.topBid) / 1e6,
     brand: p.topBidder ? formatShortAddress(p.topBidder) : null,

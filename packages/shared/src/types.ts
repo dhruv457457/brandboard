@@ -61,7 +61,11 @@ export interface ListingMetadata {
   eventSlug?: string;
   sourceImage?: string;
   canvasImage?: string;
-  patches: { id: number; name: string; x: number; y: number; w: number; h: number; rotation?: number }[];
+  /** Back view (outfit / hoodie model shots). */
+  canvasImageBack?: string;
+  /** Short description of the outfit style the creator picked. */
+  style?: string;
+  patches: { id: number; name: string; side?: "front" | "back"; x: number; y: number; w: number; h: number; rotation?: number }[];
   milestones: { name: string; bps: number }[];
 }
 

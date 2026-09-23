@@ -10,6 +10,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
+import { Seg } from "@/components/ui/Seg";
 import { toast } from "@/components/ui/Toast";
 import { formatCountdown, formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { fromWire, type ListingView, type LivePatch, type Wire } from "@/lib/market/types";
@@ -55,6 +56,7 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
 
   const [selectedId, setSelectedId] = useState<number>(() => (patches.find((p) => p.topBidder) ?? patches[0]).id);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [viewSide, setViewSide] = useState<"front" | "back">("front");
   const [amountText, setAmountText] = useState("");
   // Time-based text (countdown, "2m ago") differs between server and browser, so render it after mount.
   const [mounted, setMounted] = useState(false);
@@ -84,6 +86,7 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
     const p = patches.find((x) => x.id === patchId);
     if (!p) return;
     setSelectedId(patchId);
+    setViewSide(p.side);
     setAmountText(String(Number(minNext(p)) / 1e6));
     reset();
     setSheetOpen(true);
@@ -104,7 +107,7 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
     }
   }
 
-  const figurePatches: PatchData[] = patches.map((p) => ({
+  const figurePatches: PatchData[] = patches.filter((p) => !listing.canvasImageBack || p.side === viewSide).map((p) => ({
     id: p.id,
     name: p.label,
     x: p.x, y: p.y, w: p.w, h: p.h, r: p.r,
@@ -132,10 +135,15 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
 
       <div className="grid gap-7 lg:grid-cols-[1.1fr_.9fr] items-start">
         <Card className="p-5">
+          {listing.canvasImageBack && (
+            <div className="flex justify-center mb-3">
+              <Seg options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} value={viewSide} onChange={(v) => setViewSide(v as "front" | "back")} />
+            </div>
+          )}
           <div className={listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto" : "max-w-[400px] mx-auto"}>
             <SurfaceFigure
               surface={listing.surface}
-              imageUrl={listing.canvasImage}
+              imageUrl={viewSide === "back" && listing.canvasImageBack ? listing.canvasImageBack : listing.canvasImage}
               patches={figurePatches}
               mode={biddingOpen ? "interactive" : "static"}
               selectedId={selectedId}

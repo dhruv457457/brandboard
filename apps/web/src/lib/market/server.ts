@@ -58,6 +58,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       topBid: p.topBid,
       topBidder: leader,
       bought: p.bought,
+      side: pos?.side === "back" ? "back" : "front",
       x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
       brandName: logo?.brand_name ?? null,
       logoUrl: logo?.logo_url ?? null,
@@ -94,6 +95,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     deadlines: L.deadlines.slice(0, L.milestoneCount).map((d) => d * 1000),
     title: metadata?.title ?? `${surface === "car" ? "Car" : surface === "hoodie" ? "Team hoodie" : "Outfit"} #${id}`,
     canvasImage: metadata?.canvasImage ?? null,
+    canvasImageBack: metadata?.canvasImageBack ?? null,
     patches: livePatches,
     bids: bidEvents,
     metadata,
@@ -148,7 +150,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
         return {
           id: p.patch_id, label: pos?.name ?? p.label,
           floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
-          topBidder: p.top_bidder, bought: p.bought,
+          topBidder: p.top_bidder, bought: p.bought, side: pos?.side === "back" ? "back" : "front",
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
           brandName: null, logoUrl: null,
         };

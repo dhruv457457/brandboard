@@ -11,6 +11,7 @@ export interface LivePatch {
   topBid: bigint;
   topBidder: `0x${string}` | null;
   bought: boolean;
+  side: "front" | "back";
   // position on the canvas, % of the drawing box
   x: number;
   y: number;
@@ -52,6 +53,7 @@ export interface ListingView {
   deadlines: number[];
   title: string;
   canvasImage: string | null;
+  canvasImageBack: string | null;
   patches: LivePatch[];
   bids: BidEvent[];
   metadata: ListingMetadata | null;
