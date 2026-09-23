@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Patched
+.env.local
+contracts/lib/
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+.next/
+.next-verify/
+!.env.example
