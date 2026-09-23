@@ -32,10 +32,16 @@ export function ListingCardView({ card, mounted }: { card: ListingCard; mounted:
       href={card.href}
       className="card-surface p-3.5 flex flex-col gap-3 no-underline text-[var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
     >
-      <div className="rounded-xl bg-[var(--stage)] p-4 grid place-items-center min-h-[222px]">
-        <div className={card.surface === "car" || card.canvasImage ? "w-full max-w-[260px]" : "h-[190px] aspect-[3/5]"}>
-          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={figurePatches} mode="static" showPrices={false} />
-        </div>
+      {/* Fixed-height stage so every card lines up; tall people shots fit by height, cars by width. */}
+      <div className="rounded-xl bg-[var(--stage)] h-[300px] p-4 flex items-center justify-center overflow-hidden">
+        <SurfaceFigure
+          surface={card.surface}
+          imageUrl={card.canvasImage}
+          patches={figurePatches}
+          mode="static"
+          showPrices={false}
+          className={card.surface === "car" ? "w-full" : "h-full !w-auto max-w-full"}
+        />
       </div>
       <div className="flex justify-between items-center gap-2">
         <Chip><Icon size={13} /> {label}</Chip>
