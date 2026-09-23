@@ -98,7 +98,7 @@ struct ListingParams {
 | `setBrandName(bytes32 name)` | shown on receipts |
 | `bid(uint256 listingId, uint8 patchId, uint96 amount)` | needs USDC allowance (batch approve+bid with Privy). `amount >= buyNow` buys the patch at `buyNow`. |
 | `bidWithPermit(uint256 listingId, uint8 patchId, uint96 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` | EIP-2612 permit + bid in one tx |
-| `bidFor(address bidder, uint256 listingId, uint8 patchId, uint96 amount)` | **Cross-chain bids (Aurora Intents Connect).** The caller (Aurora's intermediary) pays; the bid, receipt and refunds belong to `bidder`. If the bid is invalid when funds arrive (outbid meanwhile, bidding over, patch bought) the whole amount is forwarded to `bidder` instead of reverting (`BidForwarded` event). Anything above buy-now is forwarded too. |
+| `bidFor(address bidder, uint256 listingId, uint8 patchId, uint96 amount)` | **Bid on someone's behalf** (e.g. a relayer or a cross-chain intermediary). The caller pays; the bid, receipt and refunds belong to `bidder`. If the bid is invalid when funds arrive (outbid meanwhile, bidding over, patch bought) the whole amount is forwarded to `bidder` instead of reverting (`BidForwarded` event). Anything above buy-now is forwarded too. |
 | `dispute(uint256 listingId, uint8 milestone, uint8 patchId, string reasonURI)` | caller must hold that patch's receipt; only inside the review window |
 | `listForResale(uint256 tokenId, uint96 price)` / `cancelResale(uint256 tokenId)` | holder only, listing must be Delivering |
 | `buyResale(uint256 tokenId, uint96 maxPrice)` | pays seller, 5% royalty to creator/payees, moves the receipt |

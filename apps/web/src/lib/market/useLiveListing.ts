@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { patchedMarketAbi } from "@patched/shared";
 import { MARKET, publicClient } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 import type { BidEvent, ListingView, LivePatch } from "./types";
 
 export interface LiveBid extends BidEvent {
@@ -62,6 +63,9 @@ export function useLiveListing(initial: ListingView, onBid?: (bid: LiveBid, prev
             );
             setBids((bs) => [bid, ...bs].slice(0, 50));
             onBidRef.current?.(bid, current?.topBidder ?? null);
+            // Show the new leader's brand as soon as we know it.
+            supabase().from("profiles").select("brand_name, brand_logo_url").eq("wallet", bid.bidder).maybeSingle()
+              .then(({ data }) => data && setBranding(patchId, data.brand_name, data.brand_logo_url));
           } else if (log.eventName === "PatchBought") {
             const patchId = Number(args.patchId);
             setPatches((ps) => ps.map((p) => (p.id === patchId ? { ...p, bought: true } : p)));

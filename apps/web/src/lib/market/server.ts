@@ -38,7 +38,8 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       : Promise.resolve({ data: null }),
     db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
-    db.from("brand_logos").select("patch_id, wallet, brand_name, logo_url").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("profiles").select("wallet, brand_name, brand_logo_url")
+      .in("wallet", patches.map((p) => p.topBidder.toLowerCase()).filter((w) => w !== ZERO)),
   ]);
 
   const metadata = (meta.data?.metadata ?? null) as ListingMetadata | null;
@@ -49,7 +50,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     const pos = metadata?.patches.find((m) => m.id === i);
     const slot = slotFor(surface, i, label, pos ? { name: pos.name, x: pos.x, y: pos.y, w: pos.w, h: pos.h, r: pos.rotation } : null);
     const leader = p.topBidder === ZERO ? null : (p.topBidder.toLowerCase() as `0x${string}`);
-    const logo = leader ? logos.data?.find((l) => l.patch_id === i && l.wallet === leader) : undefined;
+    const brand = leader ? logos.data?.find((l) => l.wallet === leader) : undefined;
     return {
       id: i,
       label: pos?.name ?? label,
@@ -60,8 +61,8 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       bought: p.bought,
       side: pos?.side === "back" ? "back" : "front",
       x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
-      brandName: logo?.brand_name ?? null,
-      logoUrl: logo?.logo_url ?? null,
+      brandName: brand?.brand_name ?? null,
+      logoUrl: brand?.brand_logo_url ?? null,
     };
   });
 
@@ -119,7 +120,7 @@ export interface ListingCard {
 }
 
 /** Listings for Explore / profiles, from the indexed tables. Newest first. */
-export async function fetchListingCards(opts: { creator?: string; limit?: number; statuses?: number[] } = {}): Promise<ListingCard[]> {
+export async function fetchListingCards(opts: { creator?: string; limit?: number; statuses?: number[]; eventId?: number } = {}): Promise<ListingCard[]> {
   const db = supabase();
   let q = db
     .from("listing_cards")
@@ -129,6 +130,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
     .order("created_block", { ascending: false })
     .limit(opts.limit ?? 60);
   if (opts.creator) q = q.eq("creator", opts.creator.toLowerCase());
+  if (opts.eventId !== undefined) q = q.eq("event_id", opts.eventId);
   const { data: rows, error } = await q;
   if (error || !rows?.length) return [];
 
@@ -138,6 +140,10 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
     .eq("chain_id", CHAIN_ID)
     .in("listing_id", rows.map((r) => r.listing_id))
     .order("patch_id");
+  const leaders = [...new Set((patchRows ?? []).map((p) => p.top_bidder).filter(Boolean))] as string[];
+  const { data: brands } = leaders.length
+    ? await db.from("profiles").select("wallet, brand_name, brand_logo_url").in("wallet", leaders)
+    : { data: [] as { wallet: string; brand_name: string | null; brand_logo_url: string | null }[] };
 
   return rows.map((r) => {
     const surface = SURFACES[r.surface] ?? "outfit";
@@ -152,7 +158,8 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
           floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
           topBidder: p.top_bidder, bought: p.bought, side: pos?.side === "back" ? "back" : "front",
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
-          brandName: null, logoUrl: null,
+          brandName: brands?.find((b) => b.wallet === p.top_bidder)?.brand_name ?? null,
+          logoUrl: brands?.find((b) => b.wallet === p.top_bidder)?.brand_logo_url ?? null,
         };
       });
     const handle = r.creator_handle as string | null;

@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     "Creators sell ad space on their outfit, car or team hoodie; brands bid in USDC per patch; escrow on Monad pays out when the creator shows up.",
 };
 
-import { RoleProvider } from "@/lib/role";
+import { ProfileProvider } from "@/lib/profile";
 import { Navbar } from "@/components/navigation/Navbar";
 import { PrivyAuthProvider } from "@/components/providers/PrivyAuthProvider";
 
@@ -69,12 +69,12 @@ export default function RootLayout({
       <body className="antialiased selection:bg-[var(--accent)] selection:text-[var(--on-accent)] min-h-screen flex flex-col">
         <ThemeProvider>
           <PrivyAuthProvider>
-            <RoleProvider>
+            <ProfileProvider>
               <SurfaceDefs />
               <Navbar />
               <div className="flex-1">{children}</div>
               <Toaster />
-            </RoleProvider>
+            </ProfileProvider>
           </PrivyAuthProvider>
         </ThemeProvider>
       </body>

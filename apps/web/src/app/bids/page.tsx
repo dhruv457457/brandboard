@@ -1,399 +1,360 @@
 "use client";
 
-import React, { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  CreditCard,
-  Zap,
-  Shield,
-  Tag,
-} from "lucide-react";
+import { encodeFunctionData, erc20Abi, stringToHex } from "viem";
+import { CreditCard, ExternalLink, Upload } from "lucide-react";
+import { useAddFunds } from "@privy-io/react-auth";
+import { patchedMarketAbi, patchReceiptAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
-import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
-import { FIXTURE_BRAND_DASHBOARD } from "@/lib/data/fixtures";
-import { toast } from "sonner";
-import { useListForResale } from "@/lib/chain/useResale";
+import { Pill } from "@/components/ui/Pill";
+import { toast } from "@/components/ui/Toast";
+import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
+import { useProfile } from "@/lib/profile";
+import { useAuthedFetch } from "@/lib/authedFetch";
+import { CHAIN_ID, EXPLORER, MARKET, RECEIPT, USDC, publicClient } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
+import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
+import { friendlyError } from "@/lib/market/useBid";
+import { useTx } from "@/lib/market/useTx";
 
-export default function BrandDashboardPage() {
-  const [data, setData] = useState(FIXTURE_BRAND_DASHBOARD);
-  const [autoBidCap, setAutoBidCap] = useState(500);
-  const [autoBidActive, setAutoBidActive] = useState(false);
-  const [selectedReceiptForResale, setSelectedReceiptForResale] = useState<string | null>(null);
-  const [resaleAmount, setResaleAmount] = useState("450");
+const usd = (v: number | string | bigint) => formatUsdc(Number(v) / 1e6);
+const INPUT = "border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]";
 
-  const { execute: listResale } = useListForResale();
+interface Row {
+  listing_id: number;
+  patch_id: number;
+  label: string;
+  top_bid: number;
+  top_bidder: string | null;
+  bought: boolean;
+  title: string;
+  href: string;
+  status: number;
+}
+interface ReceiptRow {
+  token_id: string;
+  listing_id: number;
+  patch_id: number;
+  owner: string;
+  resale_price: number | null;
+  label: string;
+  title: string;
+  href: string;
+  image: string | null;
+}
 
-  const handleQuickRebid = (listingId: string, patchId: string | number, currentBid: bigint) => {
-    const nextBid = currentBid + 40n * 1000000n;
-    setData((prev) => ({
-      ...prev,
-      activeBids: prev.activeBids.map((b) =>
-        b.listingId === listingId && b.patchId === patchId
-          ? {
-              ...b,
-              yourBid: nextBid,
-              topBid: nextBid,
-              isTop: true,
-              status: "Top bid" as const,
-            }
-          : b
-      ),
-    }));
-    toast.success("Placed bid $320! You now lead Team Rektangle · Chest");
-  };
+export default function MyBidsPage() {
+  const { ready, authenticated, login, walletAddress } = usePatchedAuth();
+  const { profile, save } = useProfile();
+  const { addFunds } = useAddFunds();
+  const authedFetch = useAuthedFetch();
+  const send = useTx();
+  const me = walletAddress?.toLowerCase();
 
-  const handleToggleAutoBid = () => {
-    setAutoBidActive(!autoBidActive);
-    if (!autoBidActive) {
-      toast.success(
-        `Auto-bid activated! Session signer will outbid competitors up to $${autoBidCap}.`
-      );
-    } else {
-      toast("Auto-bid turned off.");
+  const [leading, setLeading] = useState<Row[]>([]);
+  const [outbid, setOutbid] = useState<Row[]>([]);
+  const [mine, setMine] = useState<ReceiptRow[]>([]);
+  const [market, setMarket] = useState<ReceiptRow[]>([]);
+  const [history, setHistory] = useState<{ id: string; label: string; title: string; amount: number; time: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [prices, setPrices] = useState<Record<string, string>>({});
+
+  const [brand, setBrand] = useState({ name: "", website: "", logo: "" });
+  const logoRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (profile) setBrand({ name: profile.brand_name ?? "", website: profile.brand_website ?? "", logo: profile.brand_logo_url ?? "" });
+  }, [profile]);
+
+  const load = useCallback(async () => {
+    if (!me) return;
+    const db = supabase();
+    const [{ data: myBids }, { data: myReceipts }, { data: forSale }] = await Promise.all([
+      db.from("bids").select("tx_hash, log_index, listing_id, patch_id, amount, block_time").eq("chain_id", CHAIN_ID).eq("bidder", me).order("block_number", { ascending: false }).limit(100),
+      db.from("receipts").select("token_id, listing_id, patch_id, owner, resale_price").eq("chain_id", CHAIN_ID).eq("owner", me),
+      db.from("receipts").select("token_id, listing_id, patch_id, owner, resale_price").eq("chain_id", CHAIN_ID).not("resale_price", "is", null).neq("owner", me),
+    ]);
+    const ids = [...new Set([...(myBids ?? []), ...(myReceipts ?? []), ...(forSale ?? [])].map((r) => r.listing_id))];
+    const [{ data: cards }, { data: patches }] = ids.length
+      ? await Promise.all([
+          db.from("listing_cards").select("listing_id, creator, creator_handle, status, metadata").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+          db.from("patches").select("listing_id, patch_id, label, top_bid, top_bidder, bought").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+        ])
+      : [{ data: [] as never[] }, { data: [] as never[] }];
+
+    const info = (listingId: number, patchId: number) => {
+      const c = cards?.find((x) => x.listing_id === listingId);
+      const meta = c?.metadata as { title?: string; patches?: { id: number; name: string }[] } | null;
+      const p = patches?.find((x) => x.listing_id === listingId && x.patch_id === patchId);
+      return {
+        title: meta?.title ?? `Listing #${listingId}`,
+        label: meta?.patches?.find((x) => x.id === patchId)?.name ?? p?.label ?? `Patch ${patchId}`,
+        href: `/${c?.creator_handle ?? c?.creator}/${listingId}`,
+        status: c?.status ?? 0,
+        patch: p,
+      };
+    };
+
+    const seen = new Set<string>();
+    const lead: Row[] = [];
+    const lost: Row[] = [];
+    for (const b of myBids ?? []) {
+      const key = `${b.listing_id}:${b.patch_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const i = info(b.listing_id, b.patch_id);
+      if (!i.patch || i.status !== 1) continue;
+      const row = { ...i.patch, title: i.title, label: i.label, href: i.href, status: i.status } as Row;
+      (i.patch.top_bidder === me ? lead : lost).push(row);
     }
-  };
+    setLeading(lead);
+    setOutbid(lost);
+    setHistory((myBids ?? []).slice(0, 30).map((b) => {
+      const i = info(b.listing_id, b.patch_id);
+      return { id: `${b.tx_hash}:${b.log_index}`, label: i.label, title: i.title, amount: b.amount, time: b.block_time };
+    }));
 
-  const handleResellSubmit = async (tokenId: string) => {
-    const priceNum = parseInt(resaleAmount) || 450;
-    await listResale({
-      tokenId,
-      price: BigInt(priceNum) * 1000000n,
-    });
-    toast.success(`Patch receipt #${tokenId} listed for $${priceNum} USDC (5% creator royalty)`);
-    setSelectedReceiptForResale(null);
-  };
+    const withImage = async (r: { token_id: string; listing_id: number; patch_id: number; owner: string; resale_price: number | null }): Promise<ReceiptRow> => {
+      const i = info(r.listing_id, r.patch_id);
+      let image: string | null = null;
+      try {
+        const uri = await publicClient.readContract({ address: RECEIPT, abi: patchReceiptAbi, functionName: "tokenURI", args: [BigInt(r.token_id)] });
+        const json = JSON.parse(atob(uri.replace("data:application/json;base64,", "")));
+        image = json.image ?? null;
+      } catch { /* token art unavailable */ }
+      return { ...r, token_id: String(r.token_id), label: i.label, title: i.title, href: i.href, image };
+    };
+    setMine(await Promise.all((myReceipts ?? []).map(withImage)));
+    setMarket(await Promise.all((forSale ?? []).map(withImage)));
+    setLoading(false);
+  }, [me]);
+
+  useEffect(() => {
+    fetch("/api/indexer/sync", { method: "POST" }).catch(() => {}).finally(() => load());
+  }, [load]);
+
+  async function run(key: string, label: string, calls: { to: `0x${string}`; data: `0x${string}` }[]) {
+    setBusy(key);
+    try {
+      for (const c of calls) await send(c.to, c.data);
+      await fetch("/api/indexer/sync", { method: "POST" });
+      toast(label);
+      await load();
+    } catch (err) {
+      toast(friendlyError(err).replace("The bid didn't", "That didn't"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveBrand() {
+    setBusy("brand");
+    const error = await save({ brandName: brand.name, brandWebsite: brand.website, brandLogoUrl: brand.logo || null });
+    if (error) {
+      setBusy(null);
+      return toast(error);
+    }
+    // Also record the name on-chain so receipt NFTs show it.
+    if (brand.name && brand.name !== profile?.brand_name) {
+      try {
+        await send(MARKET, encodeFunctionData({ abi: patchedMarketAbi, functionName: "setBrandName", args: [stringToHex(brand.name.slice(0, 31), { size: 32 })] }));
+      } catch (err) {
+        toast(`Saved, but the on-chain name wasn't updated: ${friendlyError(err)}`);
+        return setBusy(null);
+      }
+    }
+    toast("Brand saved. It shows on every patch you lead.");
+    setBusy(null);
+  }
+
+  async function uploadLogo(file: File) {
+    setBusy("logo");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("bucket", "logos");
+      const res = await authedFetch("/api/uploads", { method: "POST", body: form });
+      const json = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !json.url) throw new Error(json.error ?? "Upload failed.");
+      setBrand((b) => ({ ...b, logo: json.url! }));
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function topUp() {
+    if (!walletAddress) return;
+    try {
+      await addFunds({
+        destination: { address: walletAddress, chain: `eip155:${CHAIN_ID}`, asset: USDC },
+        fiat: { defaultAmount: "25", source: { defaultAsset: "usd" } },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (!/exit|close|cancel/i.test(msg)) toast("Adding funds isn't available for this network yet. Enable Funding in the Privy dashboard, or send USDC to your wallet.");
+    }
+  }
+
+  const leadTotal = useMemo(() => leading.reduce((s, r) => s + Number(r.top_bid), 0), [leading]);
+
+  if (!ready) return null;
+  if (!authenticated) {
+    return (
+      <main className="wrap pt-10 pb-24"><Card className="p-8 text-center grid gap-3 justify-items-center">
+        <h1 className="text-3xl font-extrabold">My bids</h1>
+        <p className="muted">Sign in to see your bids, the patches you won and their receipts.</p>
+        <Button variant="primary" onClick={login}>Sign in</Button>
+      </Card></main>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <main className="wrap pt-8 pb-24 grid gap-8">
+      <div className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <span className="font-mono text-xs uppercase tracking-widest text-[var(--muted)]">
-            Brand Dashboard
-          </span>
-          <h1 className="font-display font-extrabold text-3xl sm:text-5xl text-[var(--ink)] tracking-tight mt-1">
-            Nodeflux
-          </h1>
+          <span className="eyebrow">My bids</span>
+          <h1 className="font-extrabold text-4xl tracking-tight mt-1">{profile?.brand_name || "Your brand"}</h1>
         </div>
-
-        <Button
-          size="sm"
-          onClick={() =>
-            toast("Privy Card Onramp: Deposit native USDC via debit/credit card or Apple Pay")
-          }
-        >
-          <CreditCard className="w-4 h-4 mr-1.5" /> Add funds with card
-        </Button>
+        <Button onClick={topUp}><CreditCard size={15} /> Add funds</Button>
       </div>
 
-      {/* 4 KPI Tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <span className="text-xs text-[var(--muted)] block">In escrow</span>
-          <b className="font-mono text-2xl sm:text-3xl font-semibold text-[var(--ink)] mt-1 block">
-            $1,240
-          </b>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-[var(--muted)] block">Leading bids</span>
-          <b className="font-mono text-2xl sm:text-3xl font-semibold text-[var(--green)] mt-1 block">
-            3
-          </b>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-[var(--muted)] block">Patches won</span>
-          <b className="font-mono text-2xl sm:text-3xl font-semibold text-[var(--accent)] mt-1 block">
-            11
-          </b>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-[var(--muted)] block">Est. impressions</span>
-          <b className="font-mono text-2xl sm:text-3xl font-semibold text-[var(--ink)] mt-1 block">
-            184k
-          </b>
-        </Card>
-      </div>
-
-      {/* Bids Table */}
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse min-w-[620px]">
-            <thead>
-              <tr className="border-b-2 border-[var(--line)] bg-[var(--soft)]/50">
-                <th className="py-3 px-4 font-mono text-xs uppercase tracking-wider text-[var(--muted)]">
-                  Creator
-                </th>
-                <th className="py-3 px-4 font-mono text-xs uppercase tracking-wider text-[var(--muted)]">
-                  Patch
-                </th>
-                <th className="py-3 px-4 font-mono text-xs uppercase tracking-wider text-[var(--muted)]">
-                  Surface
-                </th>
-                <th className="py-3 px-4 font-mono text-xs uppercase tracking-wider text-[var(--muted)]">
-                  Your bid
-                </th>
-                <th className="py-3 px-4 font-mono text-xs uppercase tracking-wider text-[var(--muted)]">
-                  Status
-                </th>
-                <th className="py-3 px-4 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--soft)]">
-              {data.activeBids.map((bid) => {
-                const isLeading = bid.status === "Top bid";
-                const isWon = bid.status === "Won";
-                const isOutbid = bid.status === "Outbid";
-
-                return (
-                  <tr
-                    key={`${bid.listingId}-${bid.patchId}`}
-                    className="hover:bg-[var(--paper)] transition-colors"
-                  >
-                    <td className="py-3 px-4 font-bold text-[var(--ink)]">
-                      {bid.creatorHandle}
-                    </td>
-                    <td className="py-3 px-4">{bid.patchLabel}</td>
-                    <td className="py-3 px-4 text-[var(--muted)] text-xs">
-                      {bid.surface}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-semibold">
-                      ${Number(bid.yourBid / 1000000n)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {isLeading && <Pill variant="top">Top bid</Pill>}
-                      {isWon && <Pill variant="won">Won · receipt minted</Pill>}
-                      {isOutbid && (
-                        <Pill variant="outbid">
-                          Outbid · ${Number(bid.topBid / 1000000n)}
-                        </Pill>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {isOutbid ? (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() =>
-                            handleQuickRebid(
-                              bid.listingId,
-                              bid.patchId,
-                              bid.yourBid
-                            )
-                          }
-                        >
-                          Bid $320
-                        </Button>
-                      ) : (
-                        <Link href={`/${bid.creatorHandle.replace("@", "")}`}>
-                          <Button size="sm" variant="ghost">
-                            View
-                          </Button>
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      <Card className="grid grid-cols-2 sm:grid-cols-4">
+        <div className="kpi"><b>{usd(leadTotal)}</b><span>in escrow, leading</span></div>
+        <div className="kpi"><b>{leading.length}</b><span>patches you lead</span></div>
+        <div className="kpi"><b>{outbid.length}</b><span>outbid, still open</span></div>
+        <div className="kpi"><b>{mine.length}</b><span>patches won</span></div>
       </Card>
 
-      {/* Two Column Layout: Proof Review & Auto-Bid/Receipts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Proof Review */}
-        <Card className="p-6 space-y-4">
-          <h3 className="font-display font-bold text-xl text-[var(--ink)]">
-            Weekly proof · @dev.drives car
-          </h3>
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px] items-start">
+        <div className="grid gap-6">
+          <section className="grid gap-3">
+            <h2 className="font-extrabold text-2xl">Live auctions</h2>
+            {loading ? <p className="muted">Loading…</p> : leading.length + outbid.length === 0 ? (
+              <Card className="p-6"><p className="muted">You have no bids on live auctions. <Link href="/explore" className="underline">Find a patch</Link>.</p></Card>
+            ) : (
+              <Card className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[560px]">
+                  <thead><tr className="text-left font-mono text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                    {["Patch", "Listing", "Top bid", "Status", ""].map((h) => <th key={h} className="p-3 border-b-2 border-[var(--line)]">{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {[...leading, ...outbid].map((r) => (
+                      <tr key={`${r.listing_id}:${r.patch_id}`} className="border-b border-[var(--soft)]">
+                        <td className="p-3 font-semibold">{r.label}</td>
+                        <td className="p-3">{r.title}</td>
+                        <td className="p-3 font-mono">{usd(r.top_bid)}</td>
+                        <td className="p-3">{r.top_bidder === me ? <Pill variant="top">{r.bought ? "Bought" : "You lead"}</Pill> : <Pill variant="out">Outbid</Pill>}</td>
+                        <td className="p-3"><Link href={r.href} className="btn-base btn-small">{r.top_bidder === me ? "View" : "Bid again"}</Link></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            )}
+          </section>
 
-          {/* 4-Week Milestone indicators */}
-          <div className="flex gap-2 my-2">
-            <div className="flex-1 h-3 rounded-full border-2 border-[var(--line)] bg-[var(--soft)] overflow-hidden">
-              <div className="h-full bg-[var(--green)] w-full" />
-            </div>
-            <div className="flex-1 h-3 rounded-full border-2 border-[var(--line)] bg-[var(--soft)] overflow-hidden">
-              <div className="h-full bg-[var(--green)] w-full" />
-            </div>
-            <div className="flex-1 h-3 rounded-full border-2 border-[var(--line)] bg-[var(--soft)] overflow-hidden">
-              <div className="h-full bg-[var(--accent)] w-[65%]" />
-            </div>
-            <div className="flex-1 h-3 rounded-full border-2 border-[var(--line)] bg-[var(--soft)] overflow-hidden">
-              <div className="h-full bg-[var(--soft)] w-0" />
-            </div>
-          </div>
-
-          <p className="text-xs text-[var(--muted)]">
-            Week 1–2 released · Week 3 dispute window:{" "}
-            <b className="font-mono text-[var(--ink)]">41h left</b>
-          </p>
-
-          {/* Proof Evidence Grid */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="aspect-square rounded-xl border-2 border-[var(--line)] bg-[var(--p1)] flex items-center justify-center text-xs font-bold text-[var(--ink)] text-center p-2">
-              Dated photo
-            </div>
-            <div className="aspect-square rounded-xl border-2 border-[var(--line)] bg-[var(--p4)] flex items-center justify-center text-xs font-bold text-[var(--ink)] text-center p-2">
-              Check-in map
-            </div>
-            <div className="aspect-square rounded-xl border-2 border-[var(--line)] bg-[var(--p2)] flex items-center justify-center text-xs font-bold text-[var(--ink)] text-center p-2">
-              Odometer
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => toast.success("Approved! Escrow released to @dev.drives.")}
-            >
-              Looks good, release now
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => toast.error("Dispute opened. Monad escrow paused for review.")}
-            >
-              Open dispute
-            </Button>
-          </div>
-        </Card>
-
-        {/* Right Column: Auto-bid & Receipts */}
-        <div className="space-y-6">
-          {/* Auto-bid Card */}
-          <Card className="p-6 space-y-4">
-            <h3 className="font-display font-bold text-xl text-[var(--ink)]">
-              Auto-bid
-            </h3>
-            <p className="text-sm text-[var(--muted)]">
-              Stay on top of <b>team rektangle · Chest</b> without watching the page.
-            </p>
-
-            <div>
-              <div className="flex justify-between items-center text-sm font-semibold mb-2">
-                <span>Max bid cap</span>
-                <span className="font-mono font-bold text-[var(--accent)]">
-                  ${autoBidCap}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={320}
-                max={1500}
-                step={10}
-                value={autoBidCap}
-                onChange={(e) => setAutoBidCap(Number(e.target.value))}
-                className="w-full accent-[var(--accent)] cursor-pointer"
-              />
-            </div>
-
-            <div className="space-y-2 text-xs text-[var(--muted)] bg-[var(--paper)] p-3 rounded-xl border border-[var(--line)]">
-              <div className="flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 text-[var(--accent)] flex-none" />
-                <span>A session signer bids for you, up to your max only</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5 text-[var(--green)] flex-none" />
-                <span>Can only call the Patched escrow contract</span>
-              </div>
-            </div>
-
-            <Button
-              size="sm"
-              variant={autoBidActive ? "default" : "primary"}
-              onClick={handleToggleAutoBid}
-              className="w-full"
-            >
-              {autoBidActive ? "Turn off auto-bid" : "Turn on auto-bid"}
-            </Button>
-          </Card>
-
-          {/* Patch Receipts (NFT Cards) */}
-          <Card className="p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-display font-bold text-xl text-[var(--ink)]">
-                Patch receipts
-              </h3>
-              <span className="text-xs font-mono text-[var(--muted)]">
-                ERC-721 on Monad
-              </span>
-            </div>
-
-            <div className="flex items-center gap-4 flex-wrap">
-              {data.receipts.map((receipt, idx) => (
-                <div
-                  key={receipt.tokenId}
-                  className={`w-36 p-3 rounded-xl border-2 border-[var(--line)] bg-[var(--paper)] shadow-[3px_3px_0_var(--shadow)] transition-transform hover:scale-105 ${
-                    idx === 0 ? "-rotate-2" : "rotate-2"
-                  }`}
-                >
-                  <div
-                    className="h-16 rounded-lg border-2 border-[var(--line)] flex items-center justify-center font-display font-extrabold text-sm mb-2 relative"
-                    style={{
-                      backgroundColor: idx === 0 ? "var(--p2)" : "var(--p3)",
-                    }}
-                  >
-                    Nodeflux
-                    <div className="absolute inset-1 border border-dashed border-[var(--line)]/40 rounded-sm pointer-events-none" />
+          <section className="grid gap-3">
+            <h2 className="font-extrabold text-2xl">Patches you won</h2>
+            {!loading && mine.length === 0 && <Card className="p-6"><p className="muted">Won patches show up here with their receipt NFT when bidding closes.</p></Card>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {mine.map((r) => (
+                <Card key={r.token_id} className="p-4 grid gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {r.image && <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" />}
+                  <div>
+                    <b>{r.label}</b>
+                    <p className="text-sm muted">{r.title} · receipt #{r.listing_id}-{r.patch_id}</p>
                   </div>
-                  <div className="text-xs font-bold text-[var(--ink)]">
-                    #{receipt.tokenId}
-                  </div>
-                  <div className="text-[11px] text-[var(--muted)] line-clamp-1">
-                    {receipt.patchLabel}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedReceiptForResale(receipt.tokenId)}
-                    className="mt-2 w-full text-center text-[11px] font-bold text-[var(--accent)] hover:underline flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <Tag className="w-3 h-3" /> Resell
-                  </button>
-                </div>
+                  {r.resale_price ? (
+                    <div className="flex justify-between items-center gap-2">
+                      <Pill variant="wait">For resale at {usd(r.resale_price)}</Pill>
+                      <Button size="small" variant="ghost" disabled={!!busy}
+                        onClick={() => run(`c${r.token_id}`, "Resale listing removed.", [{ to: MARKET, data: encodeFunctionData({ abi: patchedMarketAbi, functionName: "cancelResale", args: [BigInt(r.token_id)] }) }])}>
+                        Stop selling
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input className={INPUT + " font-mono w-full"} placeholder="Resale price, USDC" inputMode="decimal"
+                        value={prices[r.token_id] ?? ""} onChange={(e) => setPrices((p) => ({ ...p, [r.token_id]: e.target.value }))} />
+                      <Button size="small" disabled={!!busy || !(parseUsdc(prices[r.token_id] ?? "") > 0n)}
+                        onClick={() => run(`l${r.token_id}`, "Listed for resale. The creator gets 5% when it sells.", [{
+                          to: MARKET, data: encodeFunctionData({ abi: patchedMarketAbi, functionName: "listForResale", args: [BigInt(r.token_id), parseUsdc(prices[r.token_id] ?? "")] }),
+                        }])}>
+                        Resell
+                      </Button>
+                    </div>
+                  )}
+                  <Link href={r.href} className="text-sm underline">Open listing</Link>
+                </Card>
               ))}
             </div>
+          </section>
 
-            {selectedReceiptForResale && (
-              <div className="p-3 bg-[var(--soft)] rounded-xl border border-[var(--line)] space-y-2 text-xs">
-                <div className="font-bold text-[var(--ink)]">
-                  List #{selectedReceiptForResale} on secondary market:
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center border border-[var(--line)] rounded-lg bg-[var(--card)] px-2">
-                    <span className="font-mono text-xs text-[var(--muted)] mr-1">$</span>
-                    <input
-                      type="number"
-                      value={resaleAmount}
-                      onChange={(e) => setResaleAmount(e.target.value)}
-                      className="w-full py-1 text-xs font-mono font-bold outline-hidden"
-                    />
-                    <span className="font-mono text-[10px] text-[var(--muted)]">USDC</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleResellSubmit(selectedReceiptForResale)}
-                  >
-                    List
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedReceiptForResale(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-                <div className="text-[11px] text-[var(--muted)]">
-                  5% royalty goes to the creator upon resale.
-                </div>
+          {market.length > 0 && (
+            <section className="grid gap-3">
+              <h2 className="font-extrabold text-2xl">Patches for resale</h2>
+              <p className="text-sm muted">Buy a won patch from another brand. You take over its spot and its rights; the creator gets 5%.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {market.map((r) => (
+                  <Card key={r.token_id} className="p-4 grid gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {r.image && <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" />}
+                    <div><b>{r.label}</b><p className="text-sm muted">{r.title} · held by {formatShortAddress(r.owner)}</p></div>
+                    <Button variant="primary" disabled={!!busy}
+                      onClick={() => run(`b${r.token_id}`, `You bought ${r.label}.`, [
+                        { to: USDC, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [MARKET, BigInt(r.resale_price!)] }) },
+                        { to: MARKET, data: encodeFunctionData({ abi: patchedMarketAbi, functionName: "buyResale", args: [BigInt(r.token_id), BigInt(r.resale_price!)] }) },
+                      ])}>
+                      {busy === `b${r.token_id}` ? "Buying…" : `Buy for ${usd(r.resale_price!)}`}
+                    </Button>
+                  </Card>
+                ))}
               </div>
+            </section>
+          )}
+
+          <section className="grid gap-3">
+            <h2 className="font-extrabold text-2xl">Bid history</h2>
+            {history.length === 0 ? <p className="muted text-sm">No bids yet.</p> : (
+              <Card><ul className="feed">
+                {history.map((h) => (
+                  <li key={h.id}><span>{h.label} · {h.title}</span><span className="font-mono">{usd(h.amount)} · {formatTimeAgo(h.time)}</span></li>
+                ))}
+              </ul></Card>
             )}
-          </Card>
+          </section>
         </div>
+
+        <Card className="p-5 grid gap-3 lg:sticky lg:top-24">
+          <h3 className="font-bold text-lg">Your brand</h3>
+          <p className="text-sm muted">Shown on every patch you lead and on your receipt NFTs.</p>
+          <div className="flex gap-3 items-center">
+            <button onClick={() => logoRef.current?.click()} disabled={!!busy}
+              className="w-16 h-16 rounded-xl border-2 border-dashed border-[var(--line)] grid place-items-center overflow-hidden bg-[var(--paper)] flex-none">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {brand.logo ? <img src={brand.logo} alt="Brand logo" className="w-full h-full object-contain" /> : <Upload size={18} />}
+            </button>
+            <span className="text-xs muted">Logo: PNG, SVG or WebP up to 2 MB. Transparent backgrounds look best.</span>
+            <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = ""; }} />
+          </div>
+          <label className="grid gap-1"><span className="field-label">Brand name</span>
+            <input className={INPUT} maxLength={31} value={brand.name} placeholder="Your brand name" onChange={(e) => setBrand({ ...brand, name: e.target.value })} /></label>
+          <label className="grid gap-1"><span className="field-label">Website</span>
+            <input className={INPUT} value={brand.website} placeholder="https://" onChange={(e) => setBrand({ ...brand, website: e.target.value })} /></label>
+          <Button variant="primary" onClick={saveBrand} disabled={!!busy || !profile}>{busy === "brand" ? "Saving…" : "Save brand"}</Button>
+          {walletAddress && (
+            <a className="text-xs muted inline-flex items-center gap-1" href={`${EXPLORER}/address/${walletAddress}`} target="_blank" rel="noopener noreferrer">
+              Wallet {formatShortAddress(walletAddress)} <ExternalLink size={11} />
+            </a>
+          )}
+        </Card>
       </div>
-    </div>
+    </main>
   );
 }
