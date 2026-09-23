@@ -12,6 +12,12 @@
     "shared:abi": "node packages/shared/scripts/export-abi.mjs",
     "web:dev": "pnpm --filter web dev",
     "web:build": "pnpm --filter web build",
-    "web:verify": "pnpm --filter web verify"
+    "web:verify": "pnpm --filter web verify",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "indexer": "pnpm --filter @patched/indexer run run"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9",
+    "tsx": "^4.23.15"
   }
 }

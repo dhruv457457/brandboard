@@ -44,7 +44,7 @@ Written by the **app** (server routes, RLS by wallet/user):
 | Table | Key columns |
 |---|---|
 | `profiles` | `user_id` (Privy DID), `wallet`, `handle` (slug), `display_name`, `x_handle`, `x_verified`, `avatar_url`, `banner_color`, `role_flags` |
-| `events_meta` | `event_id`, `slug`, `name`, `city`, `banner_url`, `description` |
+| `patched_events` | on-chain event info + `slug`, `city`, `banner_url`, `description` (named to avoid a clash with another app in the same project) |
 | `listing_meta` | `listing_id`, `metadata` (jsonb, the JSON above), `moderation` (jsonb from AI moderation) |
 | `proof_files` | `listing_id`, `milestone`, `files` (jsonb of storage URLs), `ai_check` (jsonb) |
 | `posts` | `id`, `author`, `listing_id?`, `body`, `media`, `created_at` |
