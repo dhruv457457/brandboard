@@ -40,9 +40,8 @@ brandboard/
 ├─ contracts/           ← Foundry. OWNER: Claude
 ├─ packages/shared/     ← ABIs, TS types, chain config, addresses. OWNER: Claude
 ├─ packages/ai/         ← OpenRouter client + prompts (canvas, layout, moderation, disputes, copy). OWNER: Claude
-├─ apps/web/            ← Next.js app. OWNER: Antigravity
-├─ services/indexer/    ← contract events → Supabase. OWNER: Claude (later)
-└─ supabase/            ← migrations + seed. OWNER: shared, see docs/data-model.md
+├─ apps/web/            ← Next.js app. OWNER: Claude (since 2026-09-23; Antigravity only on explicitly assigned tasks)
+└─ supabase/            ← migrations. OWNER: Claude
 ```
 
 Rules:
