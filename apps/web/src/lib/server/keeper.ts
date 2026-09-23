@@ -79,9 +79,20 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
       caip2: `eip155:${CHAIN_ID}`,
       params: { transaction: { to: MARKET, data, chain_id: CHAIN_ID } },
       sponsor: true,
-      authorization_context: { authorization_private_keys: [process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY!] },
+      // Wallets owned by an authorization key need a signed request; app-controlled wallets don't.
+      ...(process.env.KEEPER_USES_AUTH_KEY === "false"
+        ? {}
+        : { authorization_context: { authorization_private_keys: [process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY!] } }),
     });
-    const hash = res.hash as `0x${string}`;
+    // Sponsored sends are relayed asynchronously: the hash can be empty at first, so look it up by id.
+    let hash = res.hash as `0x${string}` | "";
+    for (let i = 0; !hash && res.transaction_id && i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const t = await privy.transactions().get(res.transaction_id);
+      if (t.status === "failed" || t.status === "execution_reverted" || t.status === "provider_error") throw new Error(`transaction ${t.status}`);
+      hash = (t.transaction_hash ?? "") as `0x${string}` | "";
+    }
+    if (!hash) return { ...job, status: "sent", reason: `submitted as ${res.transaction_id}` };
     await client.waitForTransactionReceipt({ hash, timeout: 30_000 });
     return { ...job, status: "sent", hash };
   } catch (err) {
