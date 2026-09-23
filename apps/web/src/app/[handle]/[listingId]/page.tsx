@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { fetchListingView } from "@/lib/market/server";
+import { fetchDelivery, fetchListingView } from "@/lib/market/server";
 import { toWire } from "@/lib/market/types";
 import { ListingRoom } from "./ListingRoom";
 
@@ -11,5 +11,6 @@ export default async function ListingPage({ params }: { params: Promise<{ handle
   if (!Number.isInteger(id) || id < 1) notFound();
   const listing = await fetchListingView(id);
   if (!listing) notFound();
-  return <ListingRoom initial={toWire(listing)} />;
+  const delivery = listing.status >= 2 ? await fetchDelivery(id, listing.metadata) : null;
+  return <ListingRoom initial={toWire(listing)} delivery={delivery ? toWire(delivery) : null} />;
 }

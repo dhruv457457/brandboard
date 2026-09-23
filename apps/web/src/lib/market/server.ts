@@ -173,3 +173,122 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
     };
   });
 }
+
+export interface MilestoneView {
+  idx: number;
+  name: string;
+  bps: number;
+  deadline: number;
+  status: number; // 0 open, 1 submitted, 2 released
+  reviewEndsAt: number | null;
+  disputedMask: number;
+  resolvedMask: number;
+  proof: { files: string[]; note: string | null } | null;
+}
+
+export interface DeliveryView {
+  nextMilestone: number;
+  totalEscrow: bigint;
+  milestones: MilestoneView[];
+  payouts: { kind: string; milestone: number | null; amount: bigint; fee: bigint; time: number; tx: string }[];
+  receipts: { patchId: number; owner: string; amount: bigint }[];
+  disputes: { milestone: number; patchId: number; holder: string; reason: string; resolved: boolean; toCreator: bigint | null; toHolder: bigint | null }[];
+}
+
+/** Everything about the post-bidding phase of a listing (milestones, proofs, payouts, winners, disputes). */
+export async function fetchDelivery(id: number, metadata: ListingMetadata | null): Promise<DeliveryView> {
+  const db = supabase();
+  const [listing, ms, proofs, payouts, receipts, patches, disputes] = await Promise.all([
+    db.from("listings").select("next_milestone, total_escrow").eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
+    db.from("milestones").select("*").eq("chain_id", CHAIN_ID).eq("listing_id", id).order("idx"),
+    db.from("proof_files").select("milestone, files, note").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("payouts").select("kind, milestone, amount, fee, block_time, tx_hash").eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_time"),
+    db.from("receipts").select("patch_id, owner").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("patches").select("patch_id, top_bid").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("disputes").select("*").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+  ]);
+  return {
+    nextMilestone: listing.data?.next_milestone ?? 0,
+    totalEscrow: BigInt(listing.data?.total_escrow ?? 0),
+    milestones: (ms.data ?? []).map((m) => {
+      const p = proofs.data?.find((x) => x.milestone === m.idx);
+      return {
+        idx: m.idx,
+        name: metadata?.milestones[m.idx]?.name ?? `Milestone ${m.idx + 1}`,
+        bps: m.bps,
+        deadline: new Date(m.deadline).getTime(),
+        status: m.status,
+        reviewEndsAt: m.review_ends_at ? new Date(m.review_ends_at).getTime() : null,
+        disputedMask: m.disputed_mask,
+        resolvedMask: m.resolved_mask,
+        proof: p ? { files: p.files as string[], note: p.note } : null,
+      };
+    }),
+    payouts: (payouts.data ?? []).map((p) => ({
+      kind: p.kind, milestone: p.milestone, amount: BigInt(p.amount), fee: BigInt(p.fee), time: new Date(p.block_time).getTime(), tx: p.tx_hash,
+    })),
+    receipts: (receipts.data ?? []).map((r) => ({
+      patchId: r.patch_id, owner: r.owner, amount: BigInt(patches.data?.find((p) => p.patch_id === r.patch_id)?.top_bid ?? 0),
+    })),
+    disputes: (disputes.data ?? []).map((d) => ({
+      milestone: d.milestone, patchId: d.patch_id, holder: d.holder, reason: d.reason_uri ?? "", resolved: d.resolved,
+      toCreator: d.to_creator === null ? null : BigInt(d.to_creator), toHolder: d.to_holder === null ? null : BigInt(d.to_holder),
+    })),
+  };
+}
+
+export interface AdminReviewItem {
+  listingId: number;
+  title: string;
+  milestone: number;
+  milestoneName: string;
+  reviewEndsAt: number | null;
+  proof: { files: string[]; note: string | null } | null;
+  disputes: { patchId: number; label: string; holder: string; reason: string }[];
+}
+
+/** Proofs under review and unresolved disputes, for the admin console. */
+export async function fetchAdminReview(): Promise<AdminReviewItem[]> {
+  const db = supabase();
+  const [{ data: submitted }, { data: open }] = await Promise.all([
+    db.from("milestones").select("listing_id, idx, review_ends_at").eq("chain_id", CHAIN_ID).eq("status", 1),
+    db.from("disputes").select("listing_id, milestone, patch_id, holder, reason_uri").eq("chain_id", CHAIN_ID).eq("resolved", false),
+  ]);
+  const keys = new Map<string, { listingId: number; milestone: number; reviewEndsAt: string | null }>();
+  for (const m of submitted ?? []) keys.set(`${m.listing_id}:${m.idx}`, { listingId: m.listing_id, milestone: m.idx, reviewEndsAt: m.review_ends_at });
+  for (const d of open ?? []) {
+    const k = `${d.listing_id}:${d.milestone}`;
+    if (!keys.has(k)) keys.set(k, { listingId: d.listing_id, milestone: d.milestone, reviewEndsAt: null });
+  }
+  if (!keys.size) return [];
+
+  const ids = [...new Set([...keys.values()].map((k) => k.listingId))];
+  const [{ data: cards }, { data: proofs }, { data: patches }] = await Promise.all([
+    db.from("listing_cards").select("listing_id, metadata").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+    db.from("proof_files").select("listing_id, milestone, files, note").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+    db.from("patches").select("listing_id, patch_id, label").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+  ]);
+  return [...keys.values()].map((k) => {
+    const meta = cards?.find((c) => c.listing_id === k.listingId)?.metadata as ListingMetadata | null;
+    const proof = proofs?.find((p) => p.listing_id === k.listingId && p.milestone === k.milestone);
+    return {
+      listingId: k.listingId,
+      title: meta?.title ?? `Listing #${k.listingId}`,
+      milestone: k.milestone,
+      milestoneName: meta?.milestones[k.milestone]?.name ?? `Milestone ${k.milestone + 1}`,
+      reviewEndsAt: k.reviewEndsAt ? new Date(k.reviewEndsAt).getTime() : null,
+      proof: proof ? { files: proof.files as string[], note: proof.note } : null,
+      disputes: (open ?? [])
+        .filter((d) => d.listing_id === k.listingId && d.milestone === k.milestone)
+        .map((d) => ({
+          patchId: d.patch_id,
+          label:
+            meta?.patches.find((p) => p.id === d.patch_id)?.name ??
+            patches?.find((p) => p.listing_id === k.listingId && p.patch_id === d.patch_id)?.label ??
+            `Patch ${d.patch_id}`,
+          holder: d.holder,
+          reason: (d.reason_uri ?? "").replace(/^text:/, ""),
+        })),
+    };
+  });
+}

@@ -15,6 +15,7 @@
     "@patched/ai": "workspace:*",
     "@patched/indexer": "workspace:*",
     "@patched/shared": "workspace:*",
+    "@privy-io/node": "^0.35.0",
     "@privy-io/react-auth": "^3.45.0",
     "@supabase/supabase-js": "^2.117.1",
     "clsx": "^2.1.1",

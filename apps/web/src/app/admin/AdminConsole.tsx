@@ -12,7 +12,8 @@ import { ListingCardView } from "@/components/market/ListingCardView";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { MARKET, publicClient } from "@/lib/config";
 import { fromWire, type Wire } from "@/lib/market/types";
-import type { ListingCard } from "@/lib/market/server";
+import type { AdminReviewItem, ListingCard } from "@/lib/market/server";
+import { formatCountdown, formatShortAddress } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
 import { useIndexerSync } from "@/lib/market/useIndexerSync";
@@ -27,7 +28,7 @@ export interface AdminEvent {
 
 const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
 
-export function AdminConsole({ pending: wire, events }: { pending: Wire<ListingCard[]>; events: AdminEvent[] }) {
+export function AdminConsole({ pending: wire, review, events }: { pending: Wire<ListingCard[]>; review: AdminReviewItem[]; events: AdminEvent[] }) {
   const pending = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
   const router = useRouter();
   const { walletAddress, authenticated, login, ready } = usePatchedAuth();
@@ -102,6 +103,68 @@ export function AdminConsole({ pending: wire, events }: { pending: Wire<ListingC
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-extrabold text-3xl tracking-tight mb-4">Proofs and disputes</h2>
+        {review.length === 0 ? (
+          <Card className="p-6"><p className="muted">No proofs are under review and no disputes are open.</p></Card>
+        ) : (
+          <div className="grid gap-4">
+            {review.map((r) => {
+              const window = r.reviewEndsAt ? formatCountdown(r.reviewEndsAt) : null;
+              return (
+                <Card key={`${r.listingId}:${r.milestone}`} className="p-5 grid gap-3">
+                  <div className="flex justify-between gap-3 flex-wrap items-start">
+                    <div>
+                      <b className="text-lg">{r.title} · {r.milestoneName}</b>
+                      <p className="text-sm muted">
+                        Listing #{r.listingId}
+                        {window ? (window.hasEnded ? " · review window over" : ` · review ends in ${window.text}`) : ""}
+                      </p>
+                    </div>
+                    {window && !window.hasEnded && (
+                      <Button size="small" disabled={!!busy}
+                        onClick={() => run(`ft${r.listingId}:${r.milestone}`, "Review window closed early. The payment can be released now.",
+                          encodeFunctionData({ abi: patchedMarketAbi, functionName: "fastTrack", args: [BigInt(r.listingId), r.milestone] }))}>
+                        {busy === `ft${r.listingId}:${r.milestone}` ? "Approving…" : "Proof looks good, skip the wait"}
+                      </Button>
+                    )}
+                  </div>
+                  {r.proof ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {r.proof.files.map((f) => (
+                        <a key={f} href={f} target="_blank" rel="noopener noreferrer" className="block w-24 h-24 rounded-xl overflow-hidden border-2 border-[var(--line)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={f} alt="Proof" className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                      {r.proof.note && <p className="text-sm muted basis-full">Creator: &ldquo;{r.proof.note}&rdquo;</p>}
+                    </div>
+                  ) : <p className="text-sm muted">No proof files stored.</p>}
+                  {r.disputes.map((d) => (
+                    <div key={d.patchId} className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-3 grid gap-2">
+                      <p className="text-sm"><b>{d.label}</b> disputed by {formatShortAddress(d.holder)}{d.reason ? `: “${d.reason}”` : ""}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {[
+                          { share: 10_000, label: "Pay creator" },
+                          { share: 5_000, label: "Split 50/50" },
+                          { share: 0, label: "Refund brand" },
+                        ].map((o) => (
+                          <Button key={o.share} size="small" variant={o.share === 10_000 ? "primary" : "default"} disabled={!!busy}
+                            onClick={() => run(`d${r.listingId}:${r.milestone}:${d.patchId}`, `Dispute on ${d.label} resolved.`,
+                              encodeFunctionData({ abi: patchedMarketAbi, functionName: "resolveDispute", args: [BigInt(r.listingId), r.milestone, d.patchId, o.share] }))}>
+                            {o.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>

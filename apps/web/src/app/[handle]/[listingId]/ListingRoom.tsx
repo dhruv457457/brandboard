@@ -17,7 +17,14 @@ import { fromWire, type ListingView, type LivePatch, type Wire } from "@/lib/mar
 import { useLiveListing } from "@/lib/market/useLiveListing";
 import { useBid } from "@/lib/market/useBid";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { EXPLORER } from "@/lib/config";
+import { EXPLORER, MARKET } from "@/lib/config";
+import { encodeFunctionData } from "viem";
+import { useRouter } from "next/navigation";
+import { patchedMarketAbi } from "@patched/shared";
+import { MilestoneList } from "@/components/market/MilestoneList";
+import type { DeliveryView } from "@/lib/market/server";
+import { useTx } from "@/lib/market/useTx";
+import { friendlyError } from "@/lib/market/useBid";
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 const STATUS_LABEL: Record<number, string> = {
@@ -35,8 +42,12 @@ function minNextFor(p: LivePatch, minIncrement: bigint, minIncrementBps: number)
   return next > p.buyNow ? p.buyNow : next;
 }
 
-export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
+export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingView>; delivery: Wire<DeliveryView> | null }) {
   const listing = useMemo(() => fromWire<ListingView>(initial), [initial]);
+  const delivery = useMemo(() => (dw ? fromWire<DeliveryView>(dw) : null), [dw]);
+  const router = useRouter();
+  const send = useTx();
+  const [disputing, setDisputing] = useState<string | null>(null);
   const { walletAddress, authenticated, login } = usePatchedAuth();
   const me = walletAddress?.toLowerCase();
   const minNext = (p: LivePatch) => minNextFor(p, listing.minIncrement, listing.minIncrementBps);
@@ -236,6 +247,63 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
           </Card>
         </div>
       </div>
+
+      {delivery && (
+        <section className="mt-10 grid gap-3">
+          <div className="flex justify-between items-end gap-3 flex-wrap">
+            <h2 className="font-extrabold text-2xl">Delivery</h2>
+            {me && me === listing.creator && <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage your listing</Link>}
+          </div>
+          <p className="text-sm text-[var(--muted)] max-w-[70ch]">
+            The winning bids sit in escrow. The creator gets paid in steps after posting proof, and each patch holder
+            has 72 hours to dispute a proof for their own patch.
+          </p>
+          <MilestoneList
+            milestones={delivery.milestones}
+            nextMilestone={delivery.nextMilestone}
+            listingStatus={status}
+            mounted={mounted}
+            renderAction={(m) => {
+              const inReview = m.status === 1 && m.reviewEndsAt && mounted && Date.now() < m.reviewEndsAt;
+              const mine = delivery.receipts.filter((r) => me && r.owner === me);
+              if (!inReview || !mine.length) return null;
+              return (
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {mine.map((r) => {
+                    const disputed = (m.disputedMask & (1 << r.patchId)) !== 0;
+                    const key = `${m.idx}:${r.patchId}`;
+                    const label = patches.find((p) => p.id === r.patchId)?.label ?? `Patch ${r.patchId}`;
+                    return disputed ? (
+                      <Pill key={key} variant="out">You disputed {label}</Pill>
+                    ) : (
+                      <Button key={key} size="small" variant="ghost" disabled={!!disputing}
+                        onClick={async () => {
+                          const reason = window.prompt?.(`What's wrong with the proof for ${label}?`) ?? "";
+                          setDisputing(key);
+                          try {
+                            await send(MARKET, encodeFunctionData({
+                              abi: patchedMarketAbi, functionName: "dispute",
+                              args: [BigInt(listing.id), m.idx, r.patchId, `text:${reason.slice(0, 280)}`],
+                            }));
+                            await fetch("/api/indexer/sync", { method: "POST" });
+                            toast(`Dispute opened for ${label}. That payment is on hold until an admin decides.`);
+                            router.refresh();
+                          } catch (err) {
+                            toast(friendlyError(err).replace("The bid didn't", "That didn't"));
+                          } finally {
+                            setDisputing(null);
+                          }
+                        }}>
+                        {disputing === key ? "Opening dispute…" : `Dispute ${label}`}
+                      </Button>
+                    );
+                  })}
+                </div>
+              );
+            }}
+          />
+        </section>
+      )}
 
       <Sheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={selected.label} description={
         selected.topBid > 0n ? `Top bid ${usd(selected.topBid)} · next bid at least ${usd(minNext(selected))}` : `No bids yet · floor ${usd(selected.floor)}`
