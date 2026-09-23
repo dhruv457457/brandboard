@@ -13,7 +13,7 @@ if (existsSync(rootEnv)) {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@patched/shared", "@patched/indexer"],
+  transpilePackages: ["@patched/shared", "@patched/indexer", "@patched/ai"],
   serverExternalPackages: ["postgres"],
   reactStrictMode: true,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",

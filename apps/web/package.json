@@ -12,11 +12,13 @@
   "dependencies": {
     "@next/env": "15.5.26",
     "@number-flow/react": "^0.5.5",
+    "@patched/ai": "workspace:*",
     "@patched/indexer": "workspace:*",
     "@patched/shared": "workspace:*",
     "@privy-io/react-auth": "^3.45.0",
     "@supabase/supabase-js": "^2.117.1",
     "clsx": "^2.1.1",
+    "jose": "^6.2.12",
     "lucide-react": "^1.47.0",
     "motion": "^12.4.1",
     "next": "^15.2.9",

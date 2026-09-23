@@ -23,6 +23,9 @@ importers:
       '@number-flow/react':
         specifier: ^0.5.5
         version: 0.5.14(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@patched/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@patched/indexer':
         specifier: workspace:*
         version: link:../../packages/indexer
@@ -38,6 +41,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
       lucide-react:
         specifier: ^1.47.0
         version: 1.47.0(react@19.3.0)
@@ -99,6 +105,8 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+
+  packages/ai: {}
 
   packages/indexer:
     dependencies:

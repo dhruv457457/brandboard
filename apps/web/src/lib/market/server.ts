@@ -99,3 +99,75 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     metadata,
   };
 }
+
+export interface ListingCard {
+  id: number;
+  href: string;
+  title: string;
+  surface: (typeof SURFACES)[number];
+  status: number;
+  creatorLabel: string;
+  eventName: string | null;
+  biddingEndsAt: number;
+  patchCount: number;
+  patchesWithBids: number;
+  topBidsTotal: bigint;
+  canvasImage: string | null;
+  patches: LivePatch[];
+}
+
+/** Listings for Explore / profiles, from the indexed tables. Newest first. */
+export async function fetchListingCards(opts: { creator?: string; limit?: number; statuses?: number[] } = {}): Promise<ListingCard[]> {
+  const db = supabase();
+  let q = db
+    .from("listing_cards")
+    .select("listing_id, creator, creator_handle, creator_name, surface, status, bidding_ends_at, patch_count, patches_with_bids, top_bids_total, metadata, event_name")
+    .eq("chain_id", CHAIN_ID)
+    .in("status", opts.statuses ?? [1, 2, 3])
+    .order("created_block", { ascending: false })
+    .limit(opts.limit ?? 60);
+  if (opts.creator) q = q.eq("creator", opts.creator.toLowerCase());
+  const { data: rows, error } = await q;
+  if (error || !rows?.length) return [];
+
+  const { data: patchRows } = await db
+    .from("patches")
+    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought")
+    .eq("chain_id", CHAIN_ID)
+    .in("listing_id", rows.map((r) => r.listing_id))
+    .order("patch_id");
+
+  return rows.map((r) => {
+    const surface = SURFACES[r.surface] ?? "outfit";
+    const metadata = r.metadata as ListingMetadata | null;
+    const patches: LivePatch[] = (patchRows ?? [])
+      .filter((p) => p.listing_id === r.listing_id)
+      .map((p) => {
+        const pos = metadata?.patches.find((m) => m.id === p.patch_id);
+        const slot = slotFor(surface, p.patch_id, p.label, pos ? { name: pos.name, x: pos.x, y: pos.y, w: pos.w, h: pos.h, r: pos.rotation } : null);
+        return {
+          id: p.patch_id, label: pos?.name ?? p.label,
+          floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
+          topBidder: p.top_bidder, bought: p.bought,
+          x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
+          brandName: null, logoUrl: null,
+        };
+      });
+    const handle = r.creator_handle as string | null;
+    return {
+      id: r.listing_id,
+      href: `/${handle ?? r.creator}/${r.listing_id}`,
+      title: metadata?.title ?? r.event_name ?? `${surface === "car" ? "Car" : surface === "hoodie" ? "Team hoodie" : "Outfit"} #${r.listing_id}`,
+      surface,
+      status: r.status,
+      creatorLabel: r.creator_name ?? (handle ? `@${handle}` : `${r.creator.slice(0, 6)}…${r.creator.slice(-4)}`),
+      eventName: r.event_name,
+      biddingEndsAt: new Date(r.bidding_ends_at).getTime(),
+      patchCount: r.patch_count,
+      patchesWithBids: Number(r.patches_with_bids),
+      topBidsTotal: BigInt(r.top_bids_total),
+      canvasImage: metadata?.canvasImage ?? null,
+      patches,
+    };
+  });
+}

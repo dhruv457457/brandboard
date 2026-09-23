@@ -17,6 +17,8 @@ interface SurfaceFigureProps {
   previewId?: string | number | null;
   showPrices?: boolean;
   animateDrop?: boolean;
+  /** A creator's AI canvas photo. When set, it replaces the generic drawing and sets the aspect ratio. */
+  imageUrl?: string | null;
   className?: string;
 }
 
@@ -165,9 +167,11 @@ export function SurfaceFigure({
   previewId,
   showPrices = true,
   animateDrop = false,
+  imageUrl,
   className,
 }: SurfaceFigureProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [imageRatio, setImageRatio] = React.useState<number | null>(null);
 
   const aspectRatioClass =
     surface === "outfit"
@@ -228,11 +232,25 @@ export function SurfaceFigure({
   return (
     <div
       ref={containerRef}
-      className={cn("relative w-full max-w-full overflow-hidden select-none", aspectRatioClass, className)}
+      className={cn("relative w-full max-w-full overflow-hidden select-none", !imageUrl && aspectRatioClass, className)}
+      style={imageUrl ? { aspectRatio: imageRatio ?? (surface === "car" ? 16 / 10 : 3 / 4) } : undefined}
     >
-      {surface === "outfit" && <OutfitSVG />}
-      {surface === "car" && <CarSVG />}
-      {surface === "hoodie" && <HoodieSVG />}
+      {imageUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={imageUrl}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none"
+          onLoad={(e) => setImageRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
+        />
+      ) : (
+        <>
+          {surface === "outfit" && <OutfitSVG />}
+          {surface === "car" && <CarSVG />}
+          {surface === "hoodie" && <HoodieSVG />}
+        </>
+      )}
 
       {/* Absolutely positioned patch layer */}
       <div className="absolute inset-0">

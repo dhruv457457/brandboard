@@ -135,6 +135,7 @@ export function ListingRoom({ initial }: { initial: Wire<ListingView> }) {
           <div className={listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto" : "max-w-[400px] mx-auto"}>
             <SurfaceFigure
               surface={listing.surface}
+              imageUrl={listing.canvasImage}
               patches={figurePatches}
               mode={biddingOpen ? "interactive" : "static"}
               selectedId={selectedId}
