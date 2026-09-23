@@ -1,171 +1,78 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { PrivyProvider as RealPrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
-import { monadTestnet } from "@patched/shared";
+import React, { createContext, useContext } from "react";
+import { PrivyProvider, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
+import { monadMainnet, monadTestnet } from "@patched/shared";
+import { CHAIN } from "@/lib/config";
 
 interface AuthContextValue {
   ready: boolean;
   authenticated: boolean;
-  user: {
-    id?: string;
-    walletAddress?: `0x${string}`;
-    xHandle?: string;
-    email?: string;
-  } | null;
+  user: { id: string; walletAddress?: `0x${string}`; xHandle?: string; email?: string } | null;
   walletAddress?: `0x${string}`;
+  wallet?: ConnectedWallet;
   xHandle?: string;
   isEmbeddedWallet: boolean;
   hasGasSponsorship: boolean;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
 }
 
-const AuthContext = createContext<AuthContextValue>({
-  ready: true,
-  authenticated: false,
-  user: null,
-  isEmbeddedWallet: false,
-  hasGasSponsorship: true,
-  login: () => {},
-  logout: () => {},
-});
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-export const usePatchedAuth = () => useContext(AuthContext);
+export function usePatchedAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("usePatchedAuth must be used inside PrivyAuthProvider");
+  return ctx;
+}
 
-function PrivyInnerBridge({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user, login, logout } = usePrivy();
+function Bridge({ children }: { children: React.ReactNode }) {
+  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
 
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const activeWallet = embeddedWallet || wallets[0];
-  const walletAddress = (activeWallet?.address || user?.wallet?.address) as `0x${string}` | undefined;
-  const xHandle = user?.twitter?.username || (user?.twitter as unknown as { handle?: string })?.handle;
-
-  const authValue: AuthContextValue = {
-    ready,
-    authenticated,
-    user: authenticated
-      ? {
-          id: user?.id,
-          walletAddress,
-          xHandle,
-          email: user?.email?.address,
-        }
-      : null,
-    walletAddress,
-    xHandle,
-    isEmbeddedWallet: Boolean(embeddedWallet),
-    hasGasSponsorship: true, // Monad testnet sponsored via EIP-7702 paymaster
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;
-}
-
-// Fallback Provider when no valid Privy App ID is configured
-function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [xHandle, setXHandle] = useState<string | undefined>(undefined);
-  const [walletAddress, setWalletAddress] = useState<`0x${string}` | undefined>(undefined);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("patched_mock_auth");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setAuthenticated(parsed.authenticated);
-        setXHandle(parsed.xHandle);
-        setWalletAddress(parsed.walletAddress);
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  const login = () => {
-    const mockAddr: `0x${string}` = "0xC6FFc5150A7fbe71c61480EBa60Bc0Ea805B6b98";
-    const handle = "nodeflux_labs";
-    setAuthenticated(true);
-    setXHandle(handle);
-    setWalletAddress(mockAddr);
-    localStorage.setItem(
-      "patched_mock_auth",
-      JSON.stringify({
-        authenticated: true,
-        xHandle: handle,
-        walletAddress: mockAddr,
-      })
-    );
-  };
-
-  const logout = () => {
-    setAuthenticated(false);
-    setXHandle(undefined);
-    setWalletAddress(undefined);
-    localStorage.removeItem("patched_mock_auth");
-  };
+  // Prefer the Privy embedded wallet: it gets gas sponsorship and silent signing.
+  const embedded = wallets.find((w) => w.walletClientType === "privy");
+  const wallet = embedded ?? wallets[0];
+  const walletAddress = wallet?.address as `0x${string}` | undefined;
+  const xHandle = user?.twitter?.username ?? undefined;
 
   const value: AuthContextValue = {
-    ready: true,
+    ready,
     authenticated,
-    user: authenticated
-      ? {
-          id: "did:privy:mock_user_10143",
-          walletAddress,
-          xHandle,
-        }
-      : null,
+    user: authenticated && user ? { id: user.id, walletAddress, xHandle, email: user.email?.address } : null,
     walletAddress,
+    wallet,
     xHandle,
-    isEmbeddedWallet: true,
-    hasGasSponsorship: true,
+    isEmbeddedWallet: Boolean(embedded),
+    hasGasSponsorship: Boolean(embedded),
     login,
     logout,
+    getAccessToken,
   };
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const rawAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  const isRealPrivyConfigured = Boolean(
-    rawAppId && rawAppId.trim().length > 5 && !rawAppId.includes("mock")
-  );
-
-  // Before mounting on client, render neutral children to avoid hydration mismatch
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
-  if (!isRealPrivyConfigured) {
-    return <FallbackAuthProvider>{children}</FallbackAuthProvider>;
-  }
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  if (!appId) throw new Error("NEXT_PUBLIC_PRIVY_APP_ID is missing from .env.local");
 
   return (
-    <RealPrivyProvider
-      appId={rawAppId as string}
+    <PrivyProvider
+      appId={appId}
       config={{
-        loginMethods: ["twitter", "wallet", "email"],
-        appearance: {
-          theme: "light",
-          accentColor: "#E65100",
-          showWalletLoginFirst: false,
-        },
+        loginMethods: ["twitter", "email", "wallet"],
+        appearance: { theme: "light", accentColor: "#FF5A1F", showWalletLoginFirst: false },
         embeddedWallets: {
-          ethereum: {
-            createOnLogin: "all-users",
-          },
+          ethereum: { createOnLogin: "users-without-wallets" },
+          // Bids are confirmed in our own UI; don't show Privy's extra confirmation modals.
+          showWalletUIs: false,
         },
-        defaultChain: monadTestnet,
-        supportedChains: [monadTestnet],
+        defaultChain: CHAIN,
+        supportedChains: [monadTestnet, monadMainnet],
       }}
     >
-      <PrivyInnerBridge>{children}</PrivyInnerBridge>
-    </RealPrivyProvider>
+      <Bridge>{children}</Bridge>
+    </PrivyProvider>
   );
 }

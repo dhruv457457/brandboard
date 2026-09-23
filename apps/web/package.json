@@ -10,15 +10,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@next/env": "15.5.26",
     "@number-flow/react": "^0.5.5",
+    "@patched/indexer": "workspace:*",
     "@patched/shared": "workspace:*",
     "@privy-io/react-auth": "^3.45.0",
+    "@supabase/supabase-js": "^2.117.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.47.0",
     "motion": "^12.4.1",
     "next": "^15.2.9",
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.1",
     "tailwind-merge": "^3.0.1",
     "viem": "^2.23.0"

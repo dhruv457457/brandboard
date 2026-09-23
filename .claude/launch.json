@@ -4,8 +4,8 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "web", "dev"],
-      "port": 3000
+      "runtimeArgs": ["--filter", "web", "exec", "cross-env", "NEXT_DIST_DIR=.next-claude", "next", "dev", "-p", "3100"],
+      "port": 3100
     }
   ]
 }

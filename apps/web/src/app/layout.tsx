@@ -37,7 +37,6 @@ export const metadata: Metadata = {
 
 import { RoleProvider } from "@/lib/role";
 import { Navbar } from "@/components/navigation/Navbar";
-import { PreviewRoleDock } from "@/components/navigation/PreviewRoleDock";
 import { PrivyAuthProvider } from "@/components/providers/PrivyAuthProvider";
 
 export default function RootLayout({
@@ -74,7 +73,6 @@ export default function RootLayout({
               <SurfaceDefs />
               <Navbar />
               <div className="flex-1">{children}</div>
-              <PreviewRoleDock />
               <Toaster />
             </RoleProvider>
           </PrivyAuthProvider>
