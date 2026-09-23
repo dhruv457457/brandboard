@@ -1,0 +1,1196 @@
+<title>Patched Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@600;700&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#FAFAF7; --card:#FFFFFF; --soft:#F0EEE7; --ink:#0B0B0C; --muted:#5F5B53; --line:#0B0B0C;
+  --accent:#FF5A1F; --accent-soft:#FFE3D6; --on-accent:#FFFFFF; --accent-text:#E0430B;
+  --monad:#836EF9; --green:#15803D; --green-soft:#DCF5E4; --red:#C2410C;
+  --p1:#BDEBD3; --p2:#D9CCFF; --p3:#FFE58F; --p4:#BFE3FF; --p5:#FFC9DA; --on-patch:#0B0B0C;
+  --shadow:#0B0B0C; --stage:#F1EFE8;
+  --display:"Bricolage Grotesque","Arial Black",system-ui,sans-serif;
+  --body:"Geist","Segoe UI",system-ui,sans-serif;
+  --mono:"Geist Mono",ui-monospace,"Cascadia Code",Consolas,monospace;
+  --hand:"Caveat","Comic Sans MS",cursive;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#121211; --card:#1B1B19; --soft:#272620; --ink:#F2F0E9; --muted:#A9A498; --line:#F2F0E9;
+  --accent:#FF6B35; --accent-soft:#3A2016; --on-accent:#140800; --accent-text:#FF7A45;
+  --green:#4ADE80; --green-soft:#15291C; --red:#FB923C;
+  --shadow:#000000; --stage:#211F1B;
+}
+@property --sw{syntax:'<angle>';inherits:false;initial-value:360deg}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding:0 16px 96px;transition:background .3s}
+h1,h2,h3{font-family:var(--display);line-height:1.02;margin:0;text-wrap:balance;letter-spacing:-.02em}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.ic{flex:none;vertical-align:-3px}
+
+/* view transitions */
+.top{view-transition-name:topbar}
+::view-transition-old(root){animation:vtOut .16s ease both}
+::view-transition-new(root){animation:vtIn .3s cubic-bezier(.2,.8,.3,1) both}
+@keyframes vtOut{to{opacity:0;transform:translateY(-6px)}}
+@keyframes vtIn{from{opacity:0;transform:translateY(10px)}}
+:root.vt-theme::view-transition-old(root),:root.vt-theme::view-transition-new(root){animation:none;mix-blend-mode:normal}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px);border-bottom:2px solid var(--line);margin:0 -16px;padding:10px 16px}
+.top .wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.logo{display:inline-flex;align-items:center;gap:9px;background:none;border:0;padding:0;color:var(--ink)}
+.logo svg{width:36px;height:36px;flex:none;transition:transform .4s cubic-bezier(.2,1.6,.4,1)}
+.logo:hover svg{transform:rotate(-10deg) scale(1.06)}
+.logo .wm{font-family:var(--display);font-weight:800;font-size:27px;letter-spacing:-.05em;line-height:1}
+nav.main{display:flex;gap:2px;flex-wrap:wrap}
+nav.main button{border:0;background:none;border-radius:10px;padding:7px 12px;font-weight:600;font-size:14px;color:var(--muted);position:relative}
+nav.main button:hover{color:var(--ink);background:var(--soft)}
+nav.main button[aria-current="page"]{color:var(--ink)}
+nav.main button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:1px;height:2px;background:repeating-linear-gradient(90deg,var(--accent) 0 5px,transparent 5px 8px)}
+.right{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:2px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink)}
+.iconbtn:hover{background:var(--soft)}
+.avatar{width:38px;height:38px;border-radius:12px;border:2px solid var(--line);display:grid;place-items:center;font-family:var(--display);font-weight:800;color:#0B0B0C}
+.walletchip{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:12px;padding:6px 12px;font-family:var(--mono);font-size:13px;font-weight:600;background:var(--card)}
+
+/* primitives */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:2px solid var(--line);border-radius:14px;padding:11px 18px;font-weight:700;background:var(--card);color:var(--ink);box-shadow:3px 3px 0 var(--shadow);transition:transform .12s,box-shadow .12s;text-decoration:none}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.primary{background:var(--accent);color:var(--on-accent)}
+.btn.small{padding:6px 12px;font-size:13px;border-radius:10px;box-shadow:2px 2px 0 var(--shadow)}
+.btn.ghost{box-shadow:none;background:transparent}
+.btn:disabled{opacity:.6;cursor:wait}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;box-shadow:4px 4px 0 var(--shadow)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border:1.5px solid var(--line);border-radius:99px;padding:3px 10px;background:var(--card)}
+.chip.monad::before{content:"";width:8px;height:8px;background:var(--monad);transform:rotate(45deg);border-radius:2px}
+.chip.green{background:var(--green-soft);border-color:var(--green)}
+.chip.orange{background:var(--accent-soft);border-color:var(--accent)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;flex:none}
+.dot.live{animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.eyebrow{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+section.view{display:none;padding-top:28px}
+section.view.active{display:block}
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:start}
+@media (max-width:880px){.grid2{grid-template-columns:1fr}}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:6px 14px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+/* figure + patches */
+.figure{position:relative;width:100%;max-width:100%}
+.figure svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.layer{position:absolute;inset:0}
+.patch{position:absolute;container-type:size;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:9px;transform:rotate(var(--r,0deg));transition:transform .2s,box-shadow .2s;line-height:1;overflow:hidden;padding:2px}
+.patch.filled{background:radial-gradient(130% 100% at 28% 18%,rgba(255,255,255,.55),transparent 55%),var(--pc,var(--p1));color:var(--on-patch);border:1.5px solid rgba(11,11,12,.85);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 0 rgba(0,0,0,.12),0 3px 6px -2px rgba(0,0,0,.35)}
+.patch.filled::after{content:"";position:absolute;inset:3px;border:1.5px dashed rgba(11,11,12,.5);border-radius:6px;pointer-events:none;-webkit-mask:conic-gradient(#000 var(--sw),transparent 0);mask:conic-gradient(#000 var(--sw),transparent 0)}
+.patch.open{background:color-mix(in srgb,var(--accent) 10%,transparent);border:2px dashed var(--accent-text);color:var(--accent-text);backdrop-filter:blur(1px)}
+.patch .bn{font-family:var(--display);font-weight:800;font-size:min(34cqh,15cqw);letter-spacing:-.03em;white-space:nowrap;display:block}
+.patch .pr{font-family:var(--mono);font-size:min(24cqh,11cqw);font-weight:600;margin-top:2px}
+.patch .lab{font-size:min(22cqh,9cqw);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.patch img{max-width:80%;max-height:58%;object-fit:contain}
+@container (max-height:24px){.patch .pr{display:none}}
+.patch.locked::before{content:"BOUGHT";position:absolute;top:3px;right:5px;font-family:var(--mono);font-size:min(14cqh,7cqw);font-weight:600;opacity:.7}
+.figure.interactive .patch:not(.locked){cursor:pointer}
+.figure.interactive .patch:not(.locked):hover{transform:rotate(0deg) scale(1.07);z-index:3;box-shadow:0 10px 18px -8px rgba(0,0,0,.45)}
+.patch.focus{outline:3px solid var(--ink);outline-offset:3px;z-index:4}
+.patch.preview{outline:3px solid var(--accent);outline-offset:3px;animation:wiggle 1.2s ease-in-out infinite}
+@keyframes wiggle{50%{transform:rotate(calc(var(--r,0deg)*-1)) scale(1.04)}}
+.patch.drop{animation:drop .7s cubic-bezier(.2,1.4,.4,1) both;animation-delay:var(--d,0s)}
+@keyframes drop{from{transform:translateY(-60px) rotate(-16deg) scale(1.4);opacity:0}60%{opacity:1}to{transform:rotate(var(--r,0deg))}}
+.patch.sewn::after{animation:sew .9s linear both;animation-delay:calc(var(--d,0s) + .45s)}
+@keyframes sew{from{--sw:0deg}to{--sw:360deg}}
+.patch.bump{animation:bump .55s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bump{40%{transform:rotate(var(--r,0deg)) scale(1.14)}}
+.patch.bump .bn{animation:swapIn .45s cubic-bezier(.2,1.2,.4,1)}
+@keyframes swapIn{from{transform:translateY(70%);opacity:0}}
+.patch.shake{animation:shake .5s}
+@keyframes shake{20%,60%{transform:translateX(-5px) rotate(-4deg)}40%,80%{transform:translateX(5px) rotate(4deg)}}
+.ping{position:absolute;border:2.5px solid var(--accent);border-radius:10px;pointer-events:none;animation:ping 1.1s ease-out forwards}
+@keyframes ping{from{transform:scale(1);opacity:.95}to{transform:scale(1.5);opacity:0}}
+.stamp{position:absolute;inset:auto;font-family:var(--display);font-weight:800;font-size:min(40cqh,20cqw);color:var(--green);border:3px solid var(--green);border-radius:8px;padding:0 6px;transform:rotate(-12deg);background:rgba(255,255,255,.85);animation:stamp .45s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes stamp{from{transform:rotate(-30deg) scale(2.4);opacity:0}}
+.patch.sel{outline:3px solid var(--ink);outline-offset:2px;z-index:4}
+.patch .handle{position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;background:var(--accent);border:2px solid #0B0B0C;border-radius:4px;cursor:nwse-resize}
+.figure.editable .patch{cursor:grab;touch-action:none}
+
+/* landing */
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:center;padding:18px 0 8px}
+@media (max-width:880px){.hero{grid-template-columns:1fr}}
+.hero h1{font-size:clamp(46px,8vw,104px);font-weight:800;letter-spacing:-.05em}
+.hero h1 .hl{color:var(--accent-text);position:relative;white-space:nowrap}
+.hero h1 .hl svg{position:absolute;left:0;right:0;bottom:-.12em;width:100%;height:.22em}
+.hero h1 .hl path{stroke-dasharray:10 7;animation:thread 1.4s ease-out both .3s}
+@keyframes thread{from{stroke-dashoffset:320;opacity:0}to{stroke-dashoffset:0;opacity:1}}
+.hero .note{font-family:var(--hand);font-size:26px;color:var(--muted);transform:rotate(-3deg);display:inline-block;margin-left:8px}
+.hero .sub{font-size:19px;max-width:34ch;margin:22px 0 26px;color:var(--muted)}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap}
+.facts{display:flex;gap:26px;flex-wrap:wrap;margin-top:28px}
+.facts div{display:flex;flex-direction:column}
+.facts b{font-family:var(--display);font-size:28px;letter-spacing:-.03em}
+.facts span{font-size:13px;color:var(--muted)}
+.stage{position:relative;max-width:380px;margin:0 auto;width:100%;padding:10px 0}
+.stage::before{content:"";position:absolute;left:6%;right:6%;top:4%;bottom:0;border-radius:50% 50% 24px 24px;background:var(--accent-soft);border:2px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
+.float{position:absolute;display:flex;align-items:center;gap:8px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:8px 12px;font-size:13px;box-shadow:3px 3px 0 var(--shadow);white-space:nowrap;animation:float 4s ease-in-out infinite;z-index:2}
+.float b{font-family:var(--mono)}
+.float .ib{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-text)}
+.float.flash{animation:float 4s ease-in-out infinite,flashc .8s}
+@keyframes flashc{from{background:var(--accent-soft)}}
+@keyframes float{50%{transform:translateY(-8px)}}
+.ticker{margin:36px -16px 0;border-block:2px solid var(--line);background:var(--ink);color:var(--paper);overflow:hidden;padding:10px 0}
+.ticker .track{display:flex;gap:44px;width:max-content;animation:marquee 40s linear infinite;font-family:var(--mono);font-size:14px}
+.ticker .track span{white-space:nowrap;display:inline-flex;gap:10px;align-items:center}
+.ticker .track span::before{content:"";width:10px;height:10px;border:1.5px dashed var(--accent);border-radius:3px}
+.ticker .track em{font-style:normal;color:var(--accent)}
+@keyframes marquee{to{transform:translateX(-50%)}}
+.block{margin-top:76px}
+.block > h2{font-size:clamp(32px,5vw,54px);font-weight:800;margin:8px 0 26px}
+.lead{max-width:62ch;margin:-12px 0 26px}
+.surfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media (max-width:880px){.surfgrid{grid-template-columns:1fr}}
+.surf{padding:16px;display:flex;flex-direction:column;gap:12px}
+.shot{background:var(--stage);border-radius:12px;padding:16px;display:grid;place-items:center;min-height:222px}
+.shot .figure{width:100%}
+.shot .figure.tall{width:auto;height:190px}
+.surf h3{font-size:24px;display:flex;align-items:center;gap:10px}
+.surf dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px}
+.surf dt{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-top:2px}
+.surf dd{margin:0}
+.surf .go{margin-top:auto;align-self:flex-start}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media (max-width:760px){.steps{grid-template-columns:1fr}}
+.step{padding:22px}
+.step .n{font-family:var(--display);font-weight:800;font-size:64px;line-height:.9;color:var(--accent);-webkit-text-stroke:2px var(--line)}
+.step h3{font-size:26px;margin:10px 0 6px}
+.escrow{display:grid;grid-template-columns:repeat(4,1fr)}
+@media (max-width:760px){.escrow{grid-template-columns:1fr 1fr;gap:14px;padding:14px}}
+.esc{padding:20px;border-right:2px dashed var(--line)}
+.esc:last-child{border-right:0}
+@media (max-width:760px){.esc{border:2px dashed var(--line)!important;border-radius:14px}}
+.esc .big{font-family:var(--display);font-size:40px;font-weight:800;letter-spacing:-.04em;height:44px;display:flex;align-items:center;color:var(--accent-text)}
+.esc h3{font-size:18px;margin:6px 0 4px}
+.tablewrap{overflow-x:auto}
+table.cmp{width:100%;border-collapse:collapse;min-width:560px}
+table.cmp th,table.cmp td{text-align:left;padding:14px 16px;border-bottom:1.5px solid var(--soft)}
+table.cmp th{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500}
+table.cmp td:last-child{font-weight:700}
+table.cmp tr:last-child td{border-bottom:0}
+.final{margin-top:76px;padding:44px 28px;text-align:center;background:var(--accent);color:var(--on-accent)}
+.final h2{font-size:clamp(34px,6vw,64px);font-weight:800}
+.final .btn{margin-top:20px}
+footer.foot{margin-top:56px;padding-top:24px;border-top:2px dashed var(--soft);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+
+/* explore */
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+.lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media (max-width:880px){.lgrid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.lgrid{grid-template-columns:1fr}}
+.lcard{padding:14px;display:flex;flex-direction:column;gap:12px;text-align:left;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.lcard:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--shadow)}
+.lcard .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.lcard h3{font-size:20px}
+.bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden;border:1.5px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+/* listing */
+.crumbs{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.figcard{padding:18px}
+.figcard .figure{margin:0 auto}
+.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.sw{width:18px;height:13px;border-radius:4px;border:1.5px solid #0B0B0C;flex:none;background:var(--p2)}
+.sw.open{background:transparent;border:1.5px dashed var(--accent-text)}
+.side{display:flex;flex-direction:column;gap:18px}
+.creator{padding:16px;display:flex;gap:14px;align-items:center}
+.av{width:56px;height:56px;border-radius:16px;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:22px;color:#0B0B0C;background:linear-gradient(135deg,var(--p5),var(--p2))}
+.creator h3{font-size:22px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr)}
+.kpis > div{padding:14px 16px;border-right:2px solid var(--soft)}
+.kpis > div:last-child{border-right:0}
+.kpis b{display:block;font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpis span{font-size:12px;color:var(--muted)}
+.kpis .hot b{color:var(--accent-text)}
+.ppanel{padding:18px}
+.ppanel .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ppanel h3{font-size:26px}
+.ppanel .price{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.03em;margin:10px 0 2px;font-variant-numeric:tabular-nums}
+.ladder{list-style:none;margin:14px 0;padding:0;border-top:1.5px solid var(--soft)}
+.ladder li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1.5px dashed var(--soft);font-size:14px}
+.ladder li:first-child{font-weight:700}
+.ladder li.new{animation:flash 1.2s}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px;border:1.5px solid;white-space:nowrap}
+.pill.top{background:var(--green-soft);border-color:var(--green)}
+.pill.out{background:var(--accent-soft);border-color:var(--accent)}
+.pill.won{background:var(--soft);border-color:var(--monad)}
+.pill.wait{background:var(--soft);border-color:var(--muted)}
+.ppanel .acts{display:flex;gap:10px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:12px}
+.feed{padding:4px 16px 14px;max-height:250px;overflow:auto}
+.feed ul{margin:0;padding:0}
+.feed li{list-style:none;padding:9px 0;border-bottom:1px dashed var(--soft);font-size:14px;display:flex;gap:8px;justify-content:space-between}
+.feed li.new{animation:flash 1.2s}
+@keyframes flash{from{background:var(--accent-soft)}}
+.cardhead{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 4px;gap:8px}
+.cardhead h3{font-size:18px}
+
+/* bid sheet */
+.scrim{position:fixed;inset:0;background:rgba(11,11,12,.25);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:61;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--card);border-left:2px solid var(--line);padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(105%);transition:transform .38s cubic-bezier(.2,.9,.3,1);overflow:auto;display:flex;flex-direction:column;gap:16px}
+.sheet.on{transform:none}
+@media (max-width:640px){.sheet{top:auto;left:0;width:100%;max-height:88%;border-left:0;border-top:2px solid var(--line);border-radius:20px 20px 0 0;transform:translateY(105%)}}
+.sheet h3{font-size:28px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.inp{width:100%;border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper)}
+.amt{display:flex;align-items:center;border:2px solid var(--line);border-radius:14px;background:var(--paper);padding:4px 12px}
+.amt input{border:0;background:none;font-family:var(--mono);font-size:32px;font-weight:600;width:100%;padding:4px 0;outline:none}
+.amt span{font-family:var(--mono);font-weight:600;color:var(--muted)}
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center;cursor:pointer;background:var(--paper)}
+.drop:hover{border-color:var(--accent)}
+.drop .ph{width:48px;height:48px;border-radius:10px;background:var(--soft);display:grid;place-items:center;overflow:hidden;flex:none;color:var(--muted)}
+.drop .ph img{width:100%;height:100%;object-fit:contain}
+.perks{display:grid;gap:7px;font-size:13px}
+.perks div{display:flex;gap:9px;align-items:center}
+.perks .pi{width:22px;height:22px;border-radius:7px;background:var(--accent-soft);color:var(--accent-text);display:grid;place-items:center;flex:none}
+.sheet .foot{margin-top:auto;display:grid;gap:10px}
+.sheet .x{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px}
+
+/* toast + confetti */
+.toasts{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:80;display:grid;gap:8px;width:min(460px,calc(100% - 32px))}
+.toast{background:var(--ink);color:var(--paper);border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:4px 4px 0 var(--accent);animation:toastIn .35s cubic-bezier(.2,1.3,.4,1)}
+.toast button{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:5px 10px;font-weight:700;font-size:13px;flex:none}
+@keyframes toastIn{from{transform:translateY(20px) scale(.95);opacity:0}}
+.confetti{position:fixed;z-index:90;pointer-events:none;width:16px;height:11px;border-radius:3px;border:1.5px solid #0B0B0C}
+
+/* role dock */
+.dock{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:6px 6px 6px 12px;box-shadow:3px 3px 0 var(--shadow);max-width:calc(100% - 32px);flex-wrap:wrap}
+.dock .eyebrow{font-size:10px}
+.dock .seg{border-width:1.5px}
+.dock .seg button{padding:5px 10px;font-size:12px}
+
+/* profile */
+.pbanner{height:180px;border:2px solid var(--line);border-radius:22px;background:var(--pa,var(--accent));position:relative;overflow:hidden;box-shadow:4px 4px 0 var(--shadow);transition:background .3s}
+.pbanner::before{content:"";position:absolute;inset:12px;border:2px dashed rgba(11,11,12,.35);border-radius:14px}
+.pbanner .big{position:absolute;right:20px;bottom:-18px;font-family:var(--display);font-weight:800;font-size:120px;letter-spacing:-.06em;color:rgba(11,11,12,.12);line-height:1}
+.phead{display:flex;gap:18px;align-items:flex-end;margin:-44px 0 0 22px;position:relative;flex-wrap:wrap}
+.phead .av{width:104px;height:104px;border-radius:28px;font-size:40px;box-shadow:4px 4px 0 var(--shadow);border-width:3px}
+.phead h2{font-size:clamp(30px,4.5vw,44px);font-weight:800}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pgrid{display:grid;grid-template-columns:1fr 320px;gap:24px;margin-top:28px;align-items:start}
+@media (max-width:880px){.pgrid{grid-template-columns:1fr}}
+.post{padding:16px;margin-top:18px}
+.post .ph{height:160px;border-radius:12px;border:2px solid var(--line);margin:12px 0;background:repeating-linear-gradient(45deg,var(--soft) 0 12px,var(--card) 12px 24px);display:grid;place-items:center;font-family:var(--hand);font-size:28px;color:var(--muted)}
+.custom{padding:18px;position:sticky;top:90px}
+.custom h3{font-size:20px;margin-bottom:12px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.swatches button{width:34px;height:34px;border-radius:10px;border:2px solid var(--line)}
+.swatches button[aria-pressed="true"]{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
+
+/* studio */
+.stepsbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.stepsbar span{border:2px solid var(--line);border-radius:99px;padding:6px 14px;font-weight:600;font-size:13px;background:var(--card);display:inline-flex;gap:6px;align-items:center}
+.stepsbar span.done{background:var(--green-soft);border-color:var(--green)}
+.stepsbar span.now{background:var(--ink);color:var(--paper)}
+.editor{display:grid;grid-template-columns:250px 1fr 290px;gap:18px;align-items:start}
+@media (max-width:1020px){.editor{grid-template-columns:1fr}}
+.panel{padding:16px}
+.panel h3{font-size:18px;margin-bottom:10px}
+.canvasbox{padding:18px;position:relative;background-color:var(--card);background-image:radial-gradient(var(--soft) 1.5px,transparent 1.5px);background-size:18px 18px}
+.canvasbox .figure{margin:0 auto}
+.loader{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--card);border-radius:16px;z-index:5}
+.loader.on{display:flex}
+.needle{width:220px;height:40px}
+.needle path{stroke:var(--accent);stroke-width:3;fill:none;stroke-dasharray:8 7;animation:sewl 1s linear infinite}
+@keyframes sewl{to{stroke-dashoffset:-30}}
+.tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.prop{display:grid;gap:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.src{display:flex;gap:10px;align-items:center;margin-top:12px}
+.src .th{width:54px;height:54px;border-radius:12px;border:2px solid var(--line);overflow:hidden;background:var(--soft);flex:none}
+.src .th img{width:100%;height:100%;object-fit:cover}
+.surfaces{display:grid;gap:8px}
+.surfaces button{border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper);font-weight:600;font-size:14px;text-align:left;display:flex;gap:10px;align-items:center}
+.surfaces button small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.surfaces button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+
+/* brand / admin */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media (max-width:880px){.tiles{grid-template-columns:1fr 1fr}}
+.tile{padding:16px}
+.tile span{font-size:13px;color:var(--muted)}
+.tile b{display:block;font-family:var(--mono);font-size:28px;font-weight:600;margin-top:4px}
+table.t{width:100%;border-collapse:collapse;min-width:620px;font-size:14px}
+table.t th{text-align:left;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;padding:12px 16px;border-bottom:2px solid var(--line)}
+table.t td{padding:12px 16px;border-bottom:1.5px solid var(--soft);vertical-align:middle}
+table.t tr:last-child td{border-bottom:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+@media (max-width:880px){.two{grid-template-columns:1fr}}
+.ms{display:flex;gap:6px;margin:10px 0}
+.ms div{flex:1;height:12px;border-radius:99px;border:2px solid var(--line);background:var(--soft);overflow:hidden}
+.ms div i{display:block;height:100%;background:var(--green)}
+.proof{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.proof div{aspect-ratio:1;border-radius:10px;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:600;text-align:center;padding:6px;color:#0B0B0C}
+.range{width:100%;accent-color:var(--accent)}
+.nfts{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.nft{width:124px;padding:10px;border:2px solid var(--line);border-radius:14px;background:var(--paper);transform:rotate(var(--r));font-size:12px}
+.nft .pv{height:70px;border-radius:8px;border:2px solid #0B0B0C;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:15px;color:#0B0B0C;margin-bottom:6px;position:relative}
+.nft .pv::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(11,11,12,.5);border-radius:5px}
+.admin{display:grid;grid-template-columns:200px 1fr;gap:22px;align-items:start}
+@media (max-width:880px){.admin{grid-template-columns:1fr}}
+.anav{padding:10px;display:grid;gap:4px}
+.anav button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:10px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.anav button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.anav .cnt{font-family:var(--mono);font-size:12px;background:var(--accent);color:var(--on-accent);border-radius:99px;padding:0 7px}
+.apane{display:none}
+.apane.on{display:block}
+.modq{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:880px){.modq{grid-template-columns:1fr}}
+.mod{padding:14px;transition:transform .35s,opacity .35s}
+.mod.gone{transform:translateX(40px) rotate(4deg);opacity:0}
+.mod .shot{min-height:0;margin:10px 0}
+.mod .shot .figure.tall{height:140px}
+.mod .acts{display:flex;gap:8px;margin-top:10px}
+.flag{font-size:12px;padding:6px 10px;border-radius:10px;margin-top:8px;display:flex;gap:6px;align-items:center}
+.flag.warn{background:var(--accent-soft);border:1.5px solid var(--accent)}
+.flag.ok{background:var(--green-soft);border:1.5px solid var(--green)}
+.form{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px;margin-bottom:18px;align-items:end}
+@media (max-width:880px){.form{grid-template-columns:1fr 1fr}}
+
+/* share */
+.sharegrid{display:grid;grid-template-columns:1.4fr 1fr;gap:22px;align-items:start}
+@media (max-width:900px){.sharegrid{grid-template-columns:1fr}}
+.og{aspect-ratio:1200/630;width:100%;max-width:100%;border:2px solid var(--line);border-radius:18px;overflow:hidden;background:#FFE58F;display:grid;grid-template-columns:34% 1fr;container-type:inline-size;box-shadow:4px 4px 0 var(--shadow);color:#0B0B0C}
+.og .l{background:#F1EFE8;border-right:2px solid #0B0B0C;display:grid;place-items:center;padding:2cqw}
+.og .l .figure{height:100%;width:auto}
+.og .r{padding:4cqw;display:flex;flex-direction:column;justify-content:space-between}
+.og .r .brand{font-family:var(--display);font-weight:800;font-size:3.6cqw;display:flex;align-items:center;gap:1cqw;letter-spacing:-.05em}
+.og .r .brand svg{width:5cqw;height:5cqw}
+.og .r h3{font-size:6.2cqw;font-weight:800;letter-spacing:-.04em;color:#0B0B0C}
+.og .r .stats{display:flex;gap:3cqw;font-family:var(--mono);font-size:2.4cqw}
+.og .r .stats b{display:block;font-size:4.4cqw}
+.og .r .url{font-family:var(--mono);font-size:2.4cqw;background:#0B0B0C;color:#FAFAF7;border-radius:1cqw;padding:.8cqw 1.6cqw;align-self:flex-start}
+.xpost{padding:16px}
+.xpost textarea{width:100%;min-height:128px;border:2px solid var(--line);border-radius:12px;padding:12px;background:var(--paper);resize:vertical}
+.tpl{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.story{aspect-ratio:9/16;width:100%;max-width:230px;border:2px solid var(--line);border-radius:22px;background:#FF5A1F;padding:18px;display:flex;flex-direction:column;justify-content:space-between;color:#0B0B0C;box-shadow:4px 4px 0 var(--shadow);container-type:inline-size}
+.story h3{font-size:13cqw;font-weight:800;letter-spacing:-.04em;color:#0B0B0C}
+.story .figure{height:62cqw*1;width:auto;margin:0 auto}
+.kit{display:grid;grid-template-columns:auto 1fr;gap:22px;margin-top:22px;align-items:start}
+@media (max-width:560px){.kit{grid-template-columns:1fr}}
+.qrbox{padding:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.qrbox canvas{border:2px solid var(--line);border-radius:12px;background:#fff;width:132px;height:132px}
+code.embed{display:block;font-family:var(--mono);font-size:12px;background:var(--soft);border-radius:10px;padding:10px;overflow-x:auto;white-space:nowrap}
+.badgeprev{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:99px;padding:5px 14px 5px 5px;font-weight:700;background:var(--card);box-shadow:2px 2px 0 var(--shadow)}
+.badgeprev svg{width:26px;height:26px}
+.hand{font-family:var(--hand);font-size:20px;color:var(--accent-text);transform:rotate(-2deg);display:inline-block}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .ticker .track{animation:none}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="gSkin" x1="0" x2="1"><stop offset="0" stop-color="#B97D57"/><stop offset=".35" stop-color="#E2AF88"/><stop offset=".6" stop-color="#EBC09A"/><stop offset="1" stop-color="#BF855E"/></linearGradient>
+    <linearGradient id="gDress" x1="0" x2="1"><stop offset="0" stop-color="#D3CFC5"/><stop offset=".18" stop-color="#F1EFE9"/><stop offset=".42" stop-color="#FFFFFF"/><stop offset=".68" stop-color="#FAF9F6"/><stop offset="1" stop-color="#D0CCC1"/></linearGradient>
+    <linearGradient id="gHair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A3326"/><stop offset="1" stop-color="#1D130D"/></linearGradient>
+    <linearGradient id="gCar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".45" stop-color="#F6F5F1"/><stop offset=".8" stop-color="#E2DFD7"/><stop offset="1" stop-color="#C6C2B8"/></linearGradient>
+    <linearGradient id="gGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#43505F"/><stop offset=".55" stop-color="#1B222B"/><stop offset="1" stop-color="#0F1318"/></linearGradient>
+    <radialGradient id="gRim"><stop offset="0" stop-color="#F4F4F4"/><stop offset=".7" stop-color="#BDBDBD"/><stop offset="1" stop-color="#8A8A8A"/></radialGradient>
+    <linearGradient id="gFab" x1="0" x2="1"><stop offset="0" stop-color="#D7D4CC"/><stop offset=".2" stop-color="#F3F1EC"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset=".8" stop-color="#F3F1EC"/><stop offset="1" stop-color="#D7D4CC"/></linearGradient>
+    <filter id="fBlur" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="fSoft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/></filter>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <button class="logo" data-go="home" aria-label="Patched home"><span data-logo></span><span class="wm">patched</span></button>
+    <nav class="main" id="nav" aria-label="Main"></nav>
+    <div class="right" id="right"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- LANDING -->
+<section class="view active" id="v-home">
+  <div class="hero">
+    <div>
+      <span class="chip monad">Live on Monad · USDC escrow</span>
+      <h1 style="margin-top:18px">Your fit is <span class="hl">ad space.<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M2 12 Q 75 2 150 10 T 298 8" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/></svg></span></h1>
+      <span class="note">yes, literally</span>
+      <p class="sub">Put patches on your outfit, your car or your team hoodie. Brands bid in USDC. Escrow pays you when you show up.</p>
+      <div class="ctas">
+        <button class="btn primary" data-role-go="creator">Get patched <i data-ic="arrow"></i></button>
+        <button class="btn" data-go="explore">Browse live patches</button>
+      </div>
+      <div class="facts">
+        <div><b>$0</b><span>to set up your page</span></div>
+        <div><b>0 gas</b><span>we sponsor every tx</span></div>
+        <div><b>5%</b><span>fee, not $300</span></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="figure" id="heroFig"></div>
+      <div class="float" id="fl1" style="top:12%;left:-8%"><span class="ib"><i data-ic="bolt" data-s="14"></i></span><span id="fl1t">Nodeflux bid <b>$420</b></span></div>
+      <div class="float" style="top:50%;right:-10%;animation-delay:-2s"><span class="ib"><i data-ic="check" data-s="14"></i></span><span>Skirt center <b>bought</b></span></div>
+      <div class="float" style="bottom:6%;left:-2%;animation-delay:-1s"><span class="ib"><i data-ic="clock" data-s="14"></i></span><b id="heroCd">2d 05:12:08</b></div>
+    </div>
+  </div>
+
+  <div class="ticker" aria-label="Recent bids"><div class="track" id="ticker"></div></div>
+
+  <div class="block">
+    <span class="eyebrow">Three surfaces</span>
+    <h2>Wear it, drive it, hack in it.</h2>
+    <p class="muted lead">Each surface is its own listing, and each patch on it is its own live auction. Brands bid on the exact spot they want, like the front door or the neckline.</p>
+    <div class="surfgrid" id="surfgrid"></div>
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">How it works</span>
+    <h2>Three steps. No Razorpay, no website, no tailor wait.</h2>
+    <div class="steps">
+      <div class="card step"><div class="n">1</div><h3>Upload</h3><p class="muted">Snap yourself, your car or your team hoodie. AI turns it into a clean white canvas.</p></div>
+      <div class="card step"><div class="n">2</div><h3>Patch</h3><p class="muted">Drag patches where logos go. Set a floor price and a buy-now price for each one.</p></div>
+      <div class="card step"><div class="n">3</div><h3>Get paid</h3><p class="muted">Brands outbid each other live. USDC sits in escrow and releases when you show up.</p></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">Escrow, explained</span>
+    <h2>Nobody has to trust anybody.</h2>
+    <div class="card escrow">
+      <div class="esc"><div class="big"><i data-ic="lock" data-s="36"></i></div><h3>Bid locked</h3><p class="muted">The brand's USDC goes into the contract. If they're outbid, it comes back right away.</p></div>
+      <div class="esc"><div class="big">40%</div><h3>Print proof</h3><p class="muted">The creator uploads the printed patches plus a ticket, and the first milestone unlocks.</p></div>
+      <div class="esc"><div class="big">60%</div><h3>Show-up proof</h3><p class="muted">Venue photos, or weekly photos for cars. The brand has 72 hours to dispute.</p></div>
+      <div class="esc"><div class="big"><i data-ic="receipt" data-s="36"></i></div><h3>Onchain receipt</h3><p class="muted">The brand gets an NFT receipt for its patch. The creator earns reputation.</p></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">Why not DIY</span>
+    <h2>Doing it yourself costs a lot more.</h2>
+    <div class="card tablewrap">
+      <table class="cmp">
+        <thead><tr><th></th><th>Doing it yourself</th><th>Patched</th></tr></thead>
+        <tbody>
+          <tr><td>Pricing</td><td class="muted">Fixed. Brands can't pay more.</td><td>Live bids on every patch</td></tr>
+          <tr><td>Payments</td><td class="muted">Razorpay/Stripe, ~$200–300 in fees</td><td>USDC · 5% flat · gas sponsored</td></tr>
+          <tr><td>Your page</td><td class="muted">Build a site from scratch</td><td>patched.fun/you in 2 minutes</td></tr>
+          <tr><td>Mockup</td><td class="muted">Hire a designer, wait</td><td>AI white canvas + patch editor</td></tr>
+          <tr><td>Trust</td><td class="muted">"Pay me and trust me"</td><td>Escrow + proof + dispute window</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card final">
+    <h2>Stop posting for free.</h2>
+    <p style="font-size:18px;margin-top:10px">Your next event could pay for your flight, and more.</p>
+    <button class="btn" data-role-go="creator">Get patched</button>
+  </div>
+  <footer class="foot"><span class="logo"><span data-logo></span><span class="wm" style="font-size:22px">patched</span></span><span class="muted" style="font-size:13px">Get patched. Get paid. · Built on Monad</span></footer>
+</section>
+
+<!-- EXPLORE -->
+<section class="view" id="v-explore">
+  <div class="filters">
+    <h2 style="font-size:clamp(34px,5vw,50px);font-weight:800;margin-right:auto">Live patches</h2>
+    <div class="seg" role="group" aria-label="Filter by surface" id="fseg">
+      <button aria-pressed="true" data-f="all">All</button><button aria-pressed="false" data-f="outfit">Outfits</button><button aria-pressed="false" data-f="car">Cars</button><button aria-pressed="false" data-f="hoodie">Team hoodies</button>
+    </div>
+  </div>
+  <div class="lgrid" id="lgrid"></div>
+</section>
+
+<!-- LISTING -->
+<section class="view" id="v-listing">
+  <div class="crumbs"><button class="btn small ghost" data-go="explore"><i data-ic="back" data-s="14"></i> Explore</button><span class="muted">/</span><b id="lEvent">Token2049 Singapore</b><span class="chip monad" style="margin-left:auto">USDC · Monad</span></div>
+  <div class="grid2">
+    <div class="card figcard">
+      <div class="figure interactive" id="listFig"></div>
+      <div class="legend"><span><i class="sw"></i>Leading bid</span><span><i class="sw open"></i>Open, no bids</span><span><i data-ic="eye" data-s="14"></i><b id="watch">7</b> watching</span></div>
+    </div>
+    <div class="side">
+      <div class="card creator">
+        <div class="av" id="lAv">M</div>
+        <div style="flex:1;min-width:0">
+          <h3 id="lName">Mira Chen</h3>
+          <p class="muted" style="font-size:14px" id="lMeta">@mirabuilds</p>
+          <div class="badges" style="margin-top:6px"><span class="chip green"><i data-ic="check" data-s="12"></i> X verified</span><span class="chip" id="lDone">4 deliveries</span></div>
+        </div>
+      </div>
+      <div class="card"><div class="kpis"><div class="hot"><b id="cd">—</b><span>bidding ends</span></div><div><b id="raised">$0</b><span>in escrow</span></div><div><b id="claimed">0/0</b><span>patches with bids</span></div></div></div>
+      <div class="card ppanel" id="ppanel"></div>
+      <div class="card"><div class="cardhead"><h3>Live activity</h3><span class="dot live"></span></div><div class="feed"><ul id="feed"></ul></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROFILE -->
+<section class="view" id="v-profile">
+  <div class="pbanner" id="pbanner"><span class="big">patched</span></div>
+  <div class="phead">
+    <div class="av">M</div>
+    <div style="padding-bottom:6px"><h2>Mira Chen</h2><p class="muted">patched.fun/<b>mirabuilds</b> · builder, DevRel, professional conference-goer</p></div>
+  </div>
+  <div class="badges" style="margin-left:22px"><span class="chip green"><i data-ic="check" data-s="12"></i> X verified</span><span class="chip">4/4 deliveries</span><span class="chip orange">$8.4k earned</span><span class="chip monad">Token2049 ’25 badge</span></div>
+  <div class="pgrid">
+    <div>
+      <div class="lgrid" id="plist" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"></div>
+      <article class="card post">
+        <div style="display:flex;gap:10px;align-items:center"><div class="av" style="width:36px;height:36px;border-radius:10px;font-size:15px">M</div><div><b>Mira Chen</b> <span class="muted" style="font-size:13px">· 2h</span></div></div>
+        <p style="margin-top:10px">Printed. Fabric came out great, and the Nodeflux purple really pops. 3 patches still open.</p>
+        <div class="ph">photo of the printed dress</div>
+        <div style="display:flex;gap:16px;font-size:14px;align-items:center" class="muted"><span>48 likes</span><span>12 replies</span><span class="chip green" style="margin-left:auto">Milestone 1 proof</span></div>
+      </article>
+    </div>
+    <aside class="card custom" id="customPanel">
+      <h3>Customize your page</h3>
+      <span class="eyebrow">Banner color</span>
+      <div class="swatches" id="swatches"></div>
+      <p class="hand">only you see this panel</p>
+    </aside>
+  </div>
+</section>
+
+<!-- STUDIO -->
+<section class="view" id="v-studio">
+  <div class="stepsbar"><span class="done"><i data-ic="check" data-s="13"></i> Event</span><span class="done"><i data-ic="check" data-s="13"></i> Surface</span><span class="now">3 · Patches</span><span>4 · Price and publish</span></div>
+  <div class="editor">
+    <div class="card panel">
+      <h3>Surface</h3>
+      <div class="surfaces" role="group" aria-label="Surface">
+        <button aria-pressed="true" data-kind="outfit"><i data-ic="dress" data-s="20"></i><span>Outfit<small>paid per event</small></span></button>
+        <button aria-pressed="false" data-kind="car"><i data-ic="car" data-s="20"></i><span>Car<small>paid per week</small></span></button>
+        <button aria-pressed="false" data-kind="hoodie"><i data-ic="shirt" data-s="20"></i><span>Team hoodie<small>per hackathon, split</small></span></button>
+      </div>
+      <h3 style="margin-top:18px">Your photo</h3>
+      <label class="drop" for="photo"><span class="ph"><i data-ic="camera" data-s="22"></i></span><span><b>Upload photo</b><br><span class="muted" style="font-size:13px">AI makes a clean white version</span></span></label>
+      <input type="file" id="photo" accept="image/*" hidden>
+      <div class="src" id="src" hidden><div class="th"><img id="srcImg" alt="Your uploaded photo"></div><span class="muted" style="font-size:13px">Source photo, turned into a white canvas by Hunyuan</span></div>
+    </div>
+    <div class="card canvasbox">
+      <div class="tools">
+        <button class="btn small" id="addPatch"><i data-ic="plus" data-s="14"></i> Add patch</button>
+        <button class="btn small" id="aiLayout"><i data-ic="sparkle" data-s="14"></i> AI suggest layout</button>
+        <button class="btn small ghost" id="clearPatches">Clear</button>
+      </div>
+      <div class="figure editable" id="editFig"></div>
+      <div class="loader" id="loader"><svg class="needle" viewBox="0 0 220 40" aria-hidden="true"><path d="M5 20 Q 55 0 110 20 T 215 20"/></svg><b style="font-family:var(--display);font-size:22px" id="loaderText">Stitching your white fit…</b><span class="muted" style="font-size:13px">Hunyuan image edit · ~6s</span></div>
+    </div>
+    <div class="card panel">
+      <h3>Patch settings</h3>
+      <div id="noSel" class="muted" style="font-size:14px">Select a patch on the canvas. Drag to move it, and use the orange corner to resize.</div>
+      <div class="prop" id="prop" hidden>
+        <div class="field"><label for="pName">Name</label><input class="inp" id="pName"></div>
+        <div class="row2">
+          <div class="field"><label for="pFloor">Floor (USDC)</label><input class="inp mono" id="pFloor" type="number" min="1"></div>
+          <div class="field"><label for="pBuy">Buy now</label><input class="inp mono" id="pBuy" type="number" min="1"></div>
+        </div>
+        <button class="btn small ghost" id="delPatch" style="justify-self:start">Delete patch</button>
+      </div>
+      <hr style="border:0;border-top:2px dashed var(--soft);margin:18px 0">
+      <div style="display:flex;justify-content:space-between"><span class="muted">Patches</span><b class="mono" id="eCount">0</b></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px"><span class="muted">Floor total</span><b class="mono" id="eFloor">$0</b></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px"><span class="muted">Your bond</span><b class="mono">$25</b></div>
+      <button class="btn primary" style="width:100%;margin-top:16px" data-go="share">Publish and share <i data-ic="arrow" data-s="16"></i></button>
+    </div>
+  </div>
+</section>
+
+<!-- BRAND -->
+<section class="view" id="v-brand">
+  <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    <div><span class="eyebrow">My bids</span><h2 style="font-size:44px;font-weight:800;margin-top:6px">Nodeflux</h2></div>
+    <button class="btn small"><i data-ic="card" data-s="14"></i> Add funds with card</button>
+  </div>
+  <div class="tiles">
+    <div class="card tile"><span>In escrow</span><b>$1,240</b></div>
+    <div class="card tile"><span>Leading bids</span><b>3</b></div>
+    <div class="card tile"><span>Patches won</span><b>11</b></div>
+    <div class="card tile"><span>Est. impressions</span><b>184k</b></div>
+  </div>
+  <div class="card tablewrap" style="margin-top:18px">
+    <table class="t">
+      <thead><tr><th>Creator</th><th>Patch</th><th>Surface</th><th>Your bid</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>@mirabuilds</b></td><td>Neckline</td><td>Outfit · Token2049</td><td class="mono">$420</td><td><span class="pill top">Top bid</span></td><td><button class="btn small ghost" data-open="mira">View</button></td></tr>
+        <tr><td><b>@samir.eth</b></td><td>Front door</td><td>Car · 4 weeks</td><td class="mono">$610</td><td><span class="pill top">Top bid</span></td><td><button class="btn small ghost" data-open="samir">View</button></td></tr>
+        <tr><td><b>team rektangle</b></td><td>Chest</td><td>Hoodie · ETHIndia</td><td class="mono">$280</td><td><span class="pill out">Outbid · $310</span></td><td><button class="btn small primary" data-open="rekt">Bid $320</button></td></tr>
+        <tr><td><b>@dev.drives</b></td><td>Rear door</td><td>Car · 2 weeks</td><td class="mono">$340</td><td><span class="pill won">Won · receipt minted</span></td><td><button class="btn small ghost">Proof</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two">
+    <div class="card panel">
+      <h3>Weekly proof · @dev.drives car</h3>
+      <div class="ms"><div><i style="width:100%"></i></div><div><i style="width:100%"></i></div><div><i style="width:40%"></i></div><div><i style="width:0"></i></div></div>
+      <p class="muted" style="font-size:13px">Week 1–2 released · Week 3 dispute window: <b class="mono">41h left</b></p>
+      <div class="proof"><div style="background:var(--p1)">Dated photo</div><div style="background:var(--p4)">Check-in map</div><div style="background:var(--p2)">Odometer</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary">Looks good, release now</button><button class="btn small ghost">Open dispute</button></div>
+    </div>
+    <div class="card panel">
+      <h3>Auto-bid</h3>
+      <p class="muted" style="font-size:14px">Stay on top of <b>team rektangle · Chest</b> without watching the page.</p>
+      <label for="cap" style="display:flex;justify-content:space-between;margin-top:14px;font-weight:600">Max bid <span class="mono" id="capv">$500</span></label>
+      <input type="range" class="range" id="cap" min="320" max="1500" step="10" value="500">
+      <div class="perks" style="margin-top:12px"><div><span class="pi"><i data-ic="bolt" data-s="12"></i></span>A session signer bids for you, up to your max only</div><div><span class="pi"><i data-ic="shield" data-s="12"></i></span>Can only call the Patched escrow contract</div></div>
+      <button class="btn small primary" style="margin-top:14px">Turn on auto-bid</button>
+      <h3 style="margin-top:22px">Patch receipts</h3>
+      <div class="nfts">
+        <div class="nft" style="--r:-3deg"><div class="pv" style="background:var(--p2)">Nodeflux</div><b>#0142</b> · Rear door</div>
+        <div class="nft" style="--r:2deg"><div class="pv" style="background:var(--p3)">Nodeflux</div><b>#0098</b> · Sleeve</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section class="view" id="v-admin">
+  <div class="admin">
+    <div class="card anav" role="group" aria-label="Admin sections">
+      <button aria-pressed="true" data-ap="events">Events</button>
+      <button aria-pressed="false" data-ap="mod">Moderation <span class="cnt" id="modCnt">3</span></button>
+      <button aria-pressed="false" data-ap="proofs">Proofs <span class="cnt">2</span></button>
+      <button aria-pressed="false" data-ap="disputes">Disputes <span class="cnt">1</span></button>
+      <button aria-pressed="false" data-ap="stats">Stats</button>
+    </div>
+    <div>
+      <div class="apane on" id="ap-events">
+        <h2 style="font-size:34px;margin-bottom:14px">Events</h2>
+        <form class="card form" id="evForm">
+          <div class="field"><label for="evName">Name</label><input class="inp" id="evName" placeholder="Devcon 8" required></div>
+          <div class="field"><label for="evCity">City</label><input class="inp" id="evCity" placeholder="Mumbai" required></div>
+          <div class="field"><label for="evDate">Bids close</label><input class="inp" id="evDate" type="date" required></div>
+          <button class="btn primary" type="submit"><i data-ic="plus" data-s="14"></i> Create event</button>
+        </form>
+        <div class="card tablewrap"><table class="t"><thead><tr><th>Event</th><th>City</th><th>Bids close</th><th>Listings</th><th>Volume</th><th>Status</th></tr></thead><tbody id="evRows">
+          <tr><td><b>Token2049</b></td><td>Singapore</td><td class="mono">2026-10-05</td><td class="mono">38</td><td class="mono">$41,200</td><td><span class="pill top">Live</span></td></tr>
+          <tr><td><b>ETHIndia</b></td><td>Bengaluru</td><td class="mono">2026-11-06</td><td class="mono">9</td><td class="mono">$3,100</td><td><span class="pill top">Live</span></td></tr>
+          <tr><td><b>City drives</b></td><td>Anywhere</td><td class="mono">rolling</td><td class="mono">14</td><td class="mono">$6,800</td><td><span class="pill top">Always on</span></td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="apane" id="ap-mod"><h2 style="font-size:34px;margin-bottom:14px">Moderation queue</h2><div class="modq" id="modq"></div></div>
+      <div class="apane" id="ap-proofs">
+        <h2 style="font-size:34px;margin-bottom:14px">Proof review</h2>
+        <div class="two" style="margin-top:0">
+          <div class="card panel"><h3>@mirabuilds · M1 print proof</h3><div class="proof"><div style="background:var(--p3)">Printed dress</div><div style="background:var(--p4)">Flight receipt</div><div style="background:var(--p1)">Event ticket</div></div><div class="flag ok"><i data-ic="check" data-s="13"></i> Receipt amounts match, ticket QR valid</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn small primary">Approve · release 40%</button><button class="btn small ghost">Ask for more</button></div></div>
+          <div class="card panel"><h3>team rektangle · M2 event proof</h3><div class="proof"><div style="background:var(--p5)">Stage photo</div><div style="background:var(--p2)">Team photo</div><div style="background:var(--p4)">Video 0:12</div></div><div class="flag warn"><i data-ic="alert" data-s="13"></i> 1 of 3 photos has no location data</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn small primary">Approve</button><button class="btn small ghost">Reject</button></div></div>
+        </div>
+      </div>
+      <div class="apane" id="ap-disputes">
+        <h2 style="font-size:34px;margin-bottom:14px">Disputes</h2>
+        <div class="card panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>Zeta Pay vs @kr1shna · Sleeve patch · $260</h3><span class="pill out">Needs decision</span></div><div class="two" style="margin-top:10px"><div><span class="eyebrow">Brand says</span><p style="margin-top:6px">"Logo was covered by a jacket the whole day."</p></div><div><span class="eyebrow">Creator says</span><p style="margin-top:6px">"Jacket off from 11am. 14 photos attached."</p></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn small primary">Pay creator</button><button class="btn small">Refund brand</button><button class="btn small ghost">Split 50/50</button></div></div>
+      </div>
+      <div class="apane" id="ap-stats"><h2 style="font-size:34px;margin-bottom:14px">Platform</h2><div class="tiles"><div class="card tile"><span>Total volume</span><b>$51.1k</b></div><div class="card tile"><span>Fees (5%)</span><b>$2,555</b></div><div class="card tile"><span>Gas sponsored</span><b>$38.20</b></div><div class="card tile"><span>Creators</span><b>59</b></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SHARE -->
+<section class="view" id="v-share">
+  <span class="eyebrow">Published · now get it seen</span>
+  <h2 style="font-size:clamp(34px,5vw,54px);font-weight:800;margin:8px 0 22px">Share kit</h2>
+  <div class="sharegrid">
+    <div>
+      <p class="muted" style="margin-bottom:10px;font-size:14px">Link preview: appears automatically when your link is pasted on X, Telegram or Discord</p>
+      <div class="og">
+        <div class="l"><div class="figure" id="ogFig"></div></div>
+        <div class="r">
+          <div class="brand"><span data-logo></span>patched</div>
+          <h3>Mira is getting patched at Token2049</h3>
+          <div class="stats"><div><b>4/7</b>patches</div><div><b>$1,355</b>top bids</div><div><b>2d 5h</b>left</div></div>
+          <span class="url">patched.fun/mirabuilds</span>
+        </div>
+      </div>
+      <div class="kit">
+        <div><p class="muted" style="margin-bottom:10px;font-size:14px">Story card · 9:16</p>
+          <div class="story"><div style="font-family:var(--display);font-weight:800;font-size:10cqw;letter-spacing:-.05em">patched</div><div class="figure" id="storyFig" style="height:70cqw;width:auto"></div><h3>3 patches left</h3></div>
+        </div>
+        <div style="display:grid;gap:18px">
+          <div class="card qrbox"><canvas id="qr" width="132" height="132" aria-label="QR code placeholder"></canvas><div><b>Printed on the patch itself</b><p class="muted" style="font-size:13px;max-width:30ch">People at the event scan it and land on your page, so the outfit brings in the next bidder.</p><p class="hand" style="font-size:18px;margin-top:6px">placeholder pattern</p></div></div>
+          <div class="card panel"><h3>Bio badge</h3><span class="badgeprev"><span data-logo></span>Patch me · patched.fun/mirabuilds</span><code class="embed" style="margin-top:12px">&lt;a href="https://patched.fun/mirabuilds"&gt;&lt;img src="https://patched.fun/b/mirabuilds.svg"&gt;&lt;/a&gt;</code></div>
+        </div>
+      </div>
+    </div>
+    <div class="card xpost">
+      <h3 style="font-size:22px;margin-bottom:12px">Post it on X</h3>
+      <div class="tpl" role="group" aria-label="Post template">
+        <button class="btn small" data-tpl="launch">Launch</button>
+        <button class="btn small ghost" data-tpl="left">Last call</button>
+        <button class="btn small ghost" data-tpl="sold">Sold out</button>
+        <button class="btn small ghost" data-tpl="brand">Brand</button>
+      </div>
+      <label for="xtext" class="muted" style="font-size:13px">Edit before posting</label>
+      <textarea id="xtext"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="mono muted" id="xlen" style="font-size:12px">0/280</span><button class="btn small" id="copyX">Copy</button></div>
+      <a class="btn primary" id="xintent" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener" style="width:100%;margin-top:14px">Post on X <i data-ic="ext" data-s="15"></i></a>
+      <hr style="border:0;border-top:2px dashed var(--soft);margin:20px 0">
+      <h3 style="font-size:18px;margin-bottom:8px">Also built in</h3>
+      <div class="perks">
+        <div><span class="pi"><i data-ic="link" data-s="12"></i></span>Referral link: earn 1% when a brand you invited bids anywhere</div>
+        <div><span class="pi"><i data-ic="camera" data-s="12"></i></span>Post-event recap carousel, generated automatically</div>
+        <div><span class="pi"><i data-ic="trophy" data-s="12"></i></span>Weekly leaderboard post from @patched</div>
+        <div><span class="pi"><i data-ic="grid" data-s="12"></i></span>Public wall of brands that got patched</div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-label="Bid on patch" aria-hidden="true">
+  <button class="btn small ghost x" id="closeSheet" aria-label="Close"><i data-ic="x" data-s="16"></i></button>
+  <div><span class="eyebrow">Claim a patch</span><h3 id="sName" style="margin-top:4px">Left hip</h3><p class="muted" style="font-size:14px" id="sTop"></p></div>
+  <div class="field"><label for="brandName">Brand name</label><input class="inp" id="brandName" value="Your Brand"></div>
+  <div class="field"><label for="logo">Logo <span class="muted" style="font-weight:400">· shows on the patch right away</span></label>
+    <label class="drop" for="logo"><span class="ph" id="logoPh"><i data-ic="upload" data-s="22"></i></span><span><b>Upload logo</b><br><span class="muted" style="font-size:13px">PNG or SVG, transparent works best</span></span></label>
+    <input type="file" id="logo" accept="image/*" hidden>
+  </div>
+  <div class="field"><label for="amt">Your bid</label><div class="amt"><span>$</span><input id="amt" type="number" inputmode="decimal"><span>USDC</span></div></div>
+  <div class="quick"><button class="btn small" data-add="10">+10</button><button class="btn small" data-add="50">+50</button><button class="btn small" data-add="100">+100</button><button class="btn small ghost" id="buyNow">Buy now</button></div>
+  <div class="perks">
+    <div><span class="pi"><i data-ic="bolt" data-s="12"></i></span>Gasless: Patched sponsors the fee</div>
+    <div><span class="pi"><i data-ic="check" data-s="12"></i></span>Approve + bid in one signature</div>
+    <div><span class="pi"><i data-ic="refund" data-s="12"></i></span>Outbid? Your USDC comes back automatically</div>
+  </div>
+  <div class="foot">
+    <button class="btn primary" id="placeBid">Place bid</button>
+    <button class="btn ghost small"><i data-ic="card" data-s="14"></i> No USDC? Pay with card</button>
+  </div>
+</aside>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="dock" aria-label="Prototype role preview"><span class="eyebrow">Preview as</span><div class="seg" role="group" aria-label="Role" id="roleSeg"><button data-role="visitor">Visitor</button><button data-role="creator">Creator</button><button data-role="brand">Brand</button><button data-role="admin">Admin</button></div></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k,d){try{return localStorage.getItem('patched.'+k)||d}catch(e){return d}},set(k,v){try{localStorage.setItem('patched.'+k,v)}catch(e){}}};
+
+/* ---------- icons ---------- */
+const IC={
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+ moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+ lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+ card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+ refund:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+ shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+ camera:'<path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/>',
+ upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/>',
+ sparkle:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+ receipt:'<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+ eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+ arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+ back:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+ trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+ grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ ext:'<path d="M14 4h6v6M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+ alert:'<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>',
+ wallet:'<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/>',
+ dress:'<path d="M9 2h6l-1 6 5 14H5l5-14z"/><path d="M10 8h4"/>',
+ car:'<path d="M3 16v-4l2.5-5h13L21 12v4"/><path d="M2 16h20"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
+ shirt:'<path d="M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0z"/>',
+ pin:'<path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>'
+};
+const ic=(n,s=16)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]||''}</svg>`;
+const LOGO=`<svg viewBox="0 0 40 40" aria-hidden="true"><g transform="rotate(-8 20 20)"><rect x="6" y="6" width="31" height="31" rx="9" fill="var(--ink)"/><rect x="3.5" y="3.5" width="31" height="31" rx="9" fill="var(--accent)" stroke="var(--ink)" stroke-width="2.4"/><rect x="7.8" y="7.8" width="22.4" height="22.4" rx="5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2.4"/><path d="M15.5 28V12.5h5.2a4.4 4.4 0 0 1 0 8.8h-5.2" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
+function hydrate(root=document){root.querySelectorAll('i[data-ic]').forEach(el=>el.outerHTML=ic(el.dataset.ic,+el.dataset.s||16));root.querySelectorAll('[data-logo]').forEach(el=>{el.outerHTML=LOGO})}
+hydrate();
+
+/* ---------- surfaces (realistic SVG) ---------- */
+const K='rgba(20,20,20,.55)';
+function wheel(cx,cy){let s=`<circle cx="${cx}" cy="${cy}" r="40" fill="#161616"/><circle cx="${cx}" cy="${cy}" r="33" fill="#222"/><circle cx="${cx}" cy="${cy}" r="26" fill="url(#gRim)" stroke="#6b6b6b"/>`;for(let i=0;i<5;i++){const a=(i*72-90)*Math.PI/180;s+=`<path d="M${cx} ${cy}L${(cx+23*Math.cos(a)).toFixed(1)} ${(cy+23*Math.sin(a)).toFixed(1)}" stroke="#8a8a8a" stroke-width="6" stroke-linecap="round"/>`}return s+`<circle cx="${cx}" cy="${cy}" r="7" fill="#4a4a4a"/>`}
+let ribs='';for(let x=110;x<=310;x+=8)ribs+=`M${x} 398V424`;
+const SURF={
+ outfit:{w:300,h:520,label:'Outfit',icon:'dress',unit:'Per event',proof:'Print photo + ticket, then venue photos',loader:'Stitching your white fit…',svg:`
+<ellipse cx="150" cy="502" rx="100" ry="8" fill="rgba(0,0,0,.25)" filter="url(#fBlur)"/>
+<path d="M122 50C110 72 108 112 114 146L186 146C192 112 190 72 178 50Z" fill="url(#gHair)"/>
+<path d="M103 110C92 116 87 138 85 170C83 202 83 232 85 258C86 270 97 270 99 258C101 230 103 200 107 172C110 150 113 132 115 122Z" fill="url(#gSkin)"/>
+<path d="M197 110C208 116 213 138 215 170C217 202 217 232 215 258C214 270 203 270 201 258C199 230 197 200 193 172C190 150 187 132 185 122Z" fill="url(#gSkin)"/>
+<ellipse cx="92" cy="266" rx="7" ry="10" fill="#D29C76"/><ellipse cx="208" cy="266" rx="7" ry="10" fill="#C98F68"/>
+<path d="M139 74L161 74L163 106L137 106Z" fill="url(#gSkin)"/>
+<path d="M100 114C112 102 130 99 150 99C170 99 188 102 200 114L203 128L97 128Z" fill="url(#gSkin)"/>
+<path d="M138 101Q150 109 162 101" stroke="rgba(90,50,30,.25)" stroke-width="3" fill="none"/>
+<ellipse cx="150" cy="50" rx="22" ry="27" fill="url(#gSkin)"/>
+<ellipse cx="160" cy="56" rx="9" ry="15" fill="rgba(120,70,40,.12)"/>
+<path d="M127 55C121 25 146 15 166 21C182 27 182 47 176 61C172 43 152 35 134 45C131 49 129 52 127 55Z" fill="url(#gHair)"/>
+<path d="M128 48C120 76 118 104 124 128L132 122C128 100 129 76 134 54Z" fill="url(#gHair)"/>
+<path d="M105 120C124 111 176 111 195 120L189 200C205 282 232 402 246 496C200 508 100 508 54 496C68 402 95 282 111 200Z" fill="url(#gDress)" stroke="${K}" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M108 121C126 113 174 113 192 121" stroke="#fff" stroke-width="2" fill="none"/>
+<path d="M132 124C134 150 136 176 138 202M168 124C166 150 164 176 162 202" stroke="rgba(0,0,0,.07)" stroke-width="1.2" fill="none"/>
+<path d="M111 200C135 208 165 208 189 200" stroke="rgba(0,0,0,.2)" stroke-width="1.4" fill="none"/>
+<g filter="url(#fSoft)" stroke="rgba(0,0,0,.1)" stroke-width="5" fill="none" stroke-linecap="round"><path d="M150 214C148 310 144 410 142 494"/><path d="M126 222C114 320 98 420 82 492"/><path d="M174 222C186 320 202 420 218 492"/><path d="M112 300C100 380 86 440 72 490"/><path d="M188 300C200 380 214 440 228 490"/></g>
+<g stroke="rgba(255,255,255,.95)" stroke-width="2" fill="none"><path d="M138 220C132 320 124 420 116 496"/><path d="M162 220C168 320 176 420 184 496"/></g>
+<path d="M54 496C80 490 100 502 126 496C150 490 170 502 196 496C220 490 236 500 246 496" stroke="rgba(0,0,0,.25)" stroke-width="1.2" fill="none"/>`},
+ car:{w:520,h:260,label:'Car',icon:'car',unit:'Per week, 1 to 8 weeks',proof:'Dated photo every week + location check-ins',loader:'Wrapping your car in white…',svg:`
+<ellipse cx="262" cy="244" rx="236" ry="9" fill="rgba(0,0,0,.28)" filter="url(#fBlur)"/>
+<path d="M34 190C30 172 34 158 48 150C70 140 110 134 140 132L186 94C200 82 214 78 236 77L330 77C356 78 374 86 392 100L428 128C462 132 484 140 492 156C498 168 498 182 494 192C492 200 486 204 476 204L448 204C446 176 426 156 400 156C374 156 354 176 352 204L178 204C176 176 154 156 128 156C102 156 80 176 78 204L46 204C38 204 35 198 34 190Z" fill="url(#gCar)" stroke="${K}" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M194 98C204 90 216 86 234 86L278 86L278 128L154 130Z" fill="url(#gGlass)"/>
+<path d="M288 86L328 86C350 87 364 94 378 106L398 126L288 128Z" fill="url(#gGlass)"/>
+<path d="M200 96L236 90L230 104Z" fill="rgba(255,255,255,.18)"/><path d="M300 90L330 90L318 104Z" fill="rgba(255,255,255,.14)"/>
+<path d="M150 134L420 132" stroke="#fff" stroke-width="2"/>
+<path d="M150 134L148 198M283 130L283 204M352 132L354 168" stroke="rgba(0,0,0,.22)" stroke-width="1.4"/>
+<rect x="236" y="144" width="20" height="5" rx="2.5" fill="#CFCAC0" stroke="rgba(0,0,0,.3)"/><rect x="318" y="144" width="20" height="5" rx="2.5" fill="#CFCAC0" stroke="rgba(0,0,0,.3)"/>
+<path d="M160 118C168 112 178 112 182 118L180 128L162 128Z" fill="#E8E5DD" stroke="${K}"/>
+<path d="M40 158C48 152 64 150 78 152L74 163C60 163 48 165 40 167Z" fill="#F7F4EA" stroke="${K}"/>
+<path d="M486 148L495 156L495 172L484 168Z" fill="#D64545" stroke="${K}"/>
+<path d="M80 196L176 196M180 196L350 196M450 196L490 194" stroke="rgba(0,0,0,.14)" stroke-width="3"/>
+${wheel(128,204)}${wheel(400,204)}`},
+ hoodie:{w:420,h:460,label:'Team hoodie',icon:'shirt',unit:'Per hackathon, split across the team',proof:'Team check-in + stage or demo photos',loader:'Blanking your team hoodie…',svg:`
+<ellipse cx="210" cy="440" rx="170" ry="8" fill="rgba(0,0,0,.22)" filter="url(#fBlur)"/>
+<path d="M128 70C150 60 170 56 210 56C250 56 270 60 292 70L352 104C366 112 374 124 378 140L406 300C408 312 402 320 390 322L360 326C350 327 344 322 342 312L318 200L318 408C318 420 310 426 298 426L122 426C110 426 102 420 102 408L102 200L78 312C76 322 70 327 60 326L30 322C18 320 12 312 14 300L42 140C46 124 54 112 68 104Z" fill="url(#gFab)" stroke="${K}" stroke-width="1.2" stroke-linejoin="round"/>
+<g filter="url(#fSoft)" stroke="rgba(0,0,0,.08)" stroke-width="6" fill="none"><path d="M160 200C156 260 158 320 162 390"/><path d="M262 200C266 260 264 320 258 390"/><path d="M60 170C52 220 46 260 40 300"/><path d="M360 170C368 220 374 260 380 300"/></g>
+<path d="M150 66L102 200M270 66L318 200" stroke="rgba(0,0,0,.14)" stroke-width="1.3" stroke-dasharray="3 3"/>
+<path d="M16 290L80 300L78 312C76 322 70 327 60 326L30 322C18 320 12 312 14 300Z" fill="#E4E1D9" stroke="${K}"/>
+<path d="M404 290L340 300L342 312C344 322 350 327 360 326L390 322C402 320 408 312 406 300Z" fill="#E4E1D9" stroke="${K}"/>
+<path d="M102 396L318 396L318 408C318 420 310 426 298 426L122 426C110 426 102 420 102 408Z" fill="#E4E1D9" stroke="${K}"/>
+<path d="${ribs}" stroke="rgba(0,0,0,.07)"/>
+<path d="M140 302L280 302L298 388L122 388Z" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="1.3" stroke-dasharray="4 3"/>
+<path d="M150 66C150 24 180 8 210 8C240 8 270 24 270 66C258 90 236 100 210 100C184 100 162 90 150 66Z" fill="url(#gFab)" stroke="${K}" stroke-width="1.2"/>
+<path d="M168 70C170 40 188 28 210 28C232 28 250 40 252 70C240 84 226 90 210 90C194 90 180 84 168 70Z" fill="#CFCBC2"/>
+<path d="M196 92C194 118 193 140 192 160M224 92C226 118 227 140 228 160" stroke="#D2CEC5" stroke-width="3" fill="none" stroke-linecap="round"/>
+<rect x="189" y="158" width="6" height="12" rx="2" fill="#9A958B"/><rect x="225" y="158" width="6" height="12" rx="2" fill="#9A958B"/>`}
+};
+function mountFig(el,kind='outfit'){const s=SURF[kind];el.style.aspectRatio=s.w+'/'+s.h;el.dataset.kind=kind;el.innerHTML=`<svg viewBox="0 0 ${s.w} ${s.h}" aria-hidden="true">${s.svg}</svg><div class="layer"></div>`;return el.querySelector('.layer')}
+function patchEl(p,o={}){
+  const d=document.createElement('div');const filled=!!p.brand;
+  d.className='patch '+(filled?'filled':'open')+(p.locked?' locked':'');
+  d.style.cssText=`left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%;--r:${p.r||0}deg;`+(filled?`--pc:var(--${p.c||'p1'});`:'');
+  d.dataset.id=p.id||'';
+  if(filled)d.innerHTML=(p.logo?`<img src="${p.logo}" alt="">`:`<span class="bn">${esc(p.brand)}</span>`)+(o.prices!==false?`<span class="pr">${fmt(p.top)}</span>`:'');
+  else d.innerHTML=o.prices===false?'':`<span class="lab">open</span><span class="pr">${fmt(p.floor)}+</span>`;
+  if(o.anim!=null){d.classList.add('drop');if(filled)d.classList.add('sewn');d.style.setProperty('--d',o.anim+'s')}
+  return d;
+}
+function drawStatic(el,kind,patches,o={}){const L=mountFig(el,kind);patches.forEach((p,i)=>L.appendChild(patchEl(p,{...o,anim:o.anim ? 0.25+i*0.16 : null})));return L}
+
+/* ---------- data ---------- */
+const H=(...a)=>a.map(([b,v,t])=>({b,v,t}));
+const LST={
+ mira:{kind:'outfit',name:'Mira Chen',ini:'M',handle:'mirabuilds',event:'Token2049 Singapore',meta:'@mirabuilds · Outfit · Oct 7–8',done:'4 deliveries',end:Date.now()+(2*86400+5*3600+12*60)*1000,patches:[
+  {id:'neck',name:'Neckline',x:38,y:24.5,w:24,h:7,floor:150,buy:600,top:420,brand:'Nodeflux',c:'p2',r:-2,hist:H(['Nodeflux',420,'4m'],['Zeta Pay',380,'19m'],['Nodeflux',300,'1h'])},
+  {id:'belt',name:'Waist belt',x:39,y:37.6,w:22,h:4.6,floor:120,buy:450,top:260,brand:'Zeta Pay',c:'p3',r:1.5,hist:H(['Zeta Pay',260,'26m'],['Orbit',200,'2h'])},
+  {id:'hipL',name:'Left hip',x:36,y:44,w:13,h:8,floor:60,buy:300,top:95,brand:'Orbit',c:'p4',r:-3,hist:H(['Orbit',95,'1h'])},
+  {id:'hipR',name:'Right hip',x:51,y:44,w:13,h:8,floor:60,buy:300,top:0,r:2},
+  {id:'skirt',name:'Skirt center',x:40,y:57,w:20,h:11,floor:200,buy:540,top:540,brand:'Kappa Labs',c:'p1',r:-1.5,locked:true,hist:H(['Kappa Labs',540,'11m'])},
+  {id:'hemL',name:'Hem left',x:27,y:78,w:19,h:9,floor:80,buy:320,top:0,r:-2.5},
+  {id:'hemR',name:'Hem right',x:54,y:78,w:19,h:9,floor:80,buy:320,top:0,r:3}]},
+ samir:{kind:'car',name:'Samir Rao',ini:'S',handle:'samir.eth',event:'Bengaluru city drive',meta:'@samir.eth · Car · 4 weeks · ~1,200 km a week',done:'2 campaigns',end:Date.now()+(3*86400+2*3600)*1000,patches:[
+  {id:'fend',name:'Front fender',x:11,y:56,w:12,h:5.5,floor:60,buy:220,top:80,brand:'Hexa',c:'p5',hist:H(['Hexa',80,'3h'])},
+  {id:'fdoor',name:'Front door',x:34,y:53,w:19,h:19,floor:250,buy:900,top:610,brand:'Nodeflux',c:'p2',r:-1,hist:H(['Nodeflux',610,'8m'],['Kappa Labs',560,'40m'],['Nodeflux',400,'5h'])},
+  {id:'rdoor',name:'Rear door',x:55.5,y:53,w:11.5,h:19,floor:150,buy:500,top:0,r:1},
+  {id:'rq',name:'Rear quarter',x:71,y:52.5,w:18,h:6,floor:80,buy:260,top:120,brand:'Zeta Pay',c:'p3',hist:H(['Zeta Pay',120,'2h'])},
+  {id:'rwin',name:'Rear window',x:58,y:37,w:14,h:9,floor:50,buy:180,top:0}]},
+ rekt:{kind:'hoodie',name:'Team Rektangle',ini:'R',handle:'rektangle',event:'ETHIndia 2026',meta:'@rektangle · Team hoodie · 4 builders',done:'1 hackathon',end:Date.now()+(5*86400+7*3600)*1000,patches:[
+  {id:'chest',name:'Chest',x:36,y:36,w:28,h:13,floor:150,buy:500,top:310,brand:'Kappa Labs',c:'p1',r:-1,hist:H(['Kappa Labs',310,'22m'],['Nodeflux',280,'1h'])},
+  {id:'sl',name:'Left sleeve',x:9,y:44,w:11,h:12,floor:50,buy:180,top:0,r:-10},
+  {id:'sr',name:'Right sleeve',x:80,y:44,w:11,h:12,floor:50,buy:180,top:70,brand:'Orbit',c:'p4',r:10,hist:H(['Orbit',70,'3h'])},
+  {id:'pocket',name:'Pocket',x:35,y:70,w:30,h:13,floor:90,buy:300,top:0,r:1},
+  {id:'band',name:'Waistband',x:30,y:87.6,w:40,h:5,floor:40,buy:150,top:0}]}
+};
+
+
+const KIND_LST={outfit:'mira',car:'samir',hoodie:'rekt'};
+const EXTRA=[
+ {key:'mira',title:'Lena · Devcon dress',kind:'outfit',claimed:'2/7',top:'$640',ends:'6d'},
+ {key:'samir',title:'Dev · Pune weekend drive',kind:'car',claimed:'1/5',top:'$180',ends:'1d'},
+ {key:'rekt',title:'Buildoors · ETHIndia',kind:'hoodie',claimed:'3/5',top:'$520',ends:'4d'}];
+const BR=[['Nodeflux','p2'],['Zeta Pay','p3'],['Kappa Labs','p1'],['Orbit','p4'],['Hexa','p5']];
+const sumTop=l=>l.patches.reduce((a,p)=>a+(p.top||0),0);
+const cdStr=end=>{let s=Math.max(0,Math.floor((end-Date.now())/1000));const d=Math.floor(s/86400);s%=86400;const h=String(Math.floor(s/3600)).padStart(2,'0');s%=3600;return `${d}d ${h}:${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`};
+
+/* ---------- theme ---------- */
+const root=document.documentElement;
+let theme=store.get('theme','light');
+function paintTheme(){root.setAttribute('data-theme',theme);store.set('theme',theme);const b=$('#themeBtn');if(b){b.innerHTML=ic(theme==='dark'?'sun':'moon',18);b.setAttribute('aria-label',theme==='dark'?'Switch to light mode':'Switch to dark mode')}}
+function toggleTheme(e){
+  const next=theme==='dark'?'light':'dark';
+  if(!document.startViewTransition||reduce){theme=next;paintTheme();return}
+  const r=e.currentTarget.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,R=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+  root.classList.add('vt-theme');
+  const t=document.startViewTransition(()=>{theme=next;paintTheme()});
+  t.ready.then(()=>root.animate({clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${R}px at ${x}px ${y}px)`]},{duration:550,easing:'cubic-bezier(.4,0,.2,1)',pseudoElement:'::view-transition-new(root)'}));
+  t.finished.finally(()=>root.classList.remove('vt-theme'));
+}
+
+/* ---------- roles + nav ---------- */
+const ROLES={
+ visitor:{home:'home',nav:[['Explore','explore'],['How it works','home']],right:()=>`<button class="btn small ghost" data-role-go="creator">Sign in</button><button class="btn small primary" data-role-go="creator">Get patched</button>`},
+ creator:{home:'studio',nav:[['Explore','explore'],['Studio','studio'],['My page','profile'],['Share','share']],right:()=>`<span class="walletchip">${ic('lock',14)} $1,355 in escrow</span><span class="avatar" style="background:linear-gradient(135deg,var(--p5),var(--p2))">M</span>`},
+ brand:{home:'brand',nav:[['Explore','explore'],['My bids','brand']],right:()=>`<span class="walletchip">${ic('wallet',14)} 2,480 USDC</span><span class="avatar" style="background:var(--p2)">N</span>`},
+ admin:{home:'admin',nav:[['Console','admin'],['Explore','explore']],right:()=>`<span class="avatar" style="background:var(--p3)">A</span>`}
+};
+let role=store.get('role','visitor');if(!ROLES[role])role='visitor';
+let view='home';
+function renderNav(){
+  $('#nav').innerHTML=ROLES[role].nav.map(([l,v])=>`<button data-go="${v}" ${v===view?'aria-current="page"':''}>${l}</button>`).join('');
+  $('#right').innerHTML=`<button class="iconbtn" id="themeBtn"></button>`+ROLES[role].right();
+  $('#themeBtn').onclick=toggleTheme;paintTheme();
+  $$('#roleSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.role===role));
+  $('#customPanel').hidden=role!=='creator';
+}
+function setRole(r,goHome=true){role=r;store.set('role',r);if(goHome)go(ROLES[r].home);else renderNav()}
+function show(v){
+  view=v;$$('section.view').forEach(s=>s.classList.toggle('active',s.id==='v-'+v));
+  renderNav();window.scrollTo(0,0);
+  if(v==='home')heroAnim();
+  if(v==='listing')renderListing(true);
+}
+function go(v){if(document.startViewTransition&&!reduce)document.startViewTransition(()=>show(v));else show(v)}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g){e.preventDefault();go(g.dataset.go);return}
+  const rg=e.target.closest('[data-role-go]');if(rg){setRole(rg.dataset.roleGo);return}
+  const o=e.target.closest('[data-open]');if(o){openListing(o.dataset.open)}
+});
+$$('#roleSeg button').forEach(b=>b.onclick=()=>setRole(b.dataset.role));
+
+/* ---------- hero ---------- */
+function heroAnim(){drawStatic($('#heroFig'),'outfit',LST.mira.patches.filter(p=>p.brand).concat(LST.mira.patches.filter(p=>!p.brand).slice(0,2)),{anim:true,prices:false})}
+const tick=["@mirabuilds · Neckline · <em>$420</em> by Nodeflux","@samir.eth · Front door · <em>$610</em>","team rektangle · Chest · <em>$310</em>","@dev.drives · Rear door · <em>won $340</em>","@kr1shna · Sleeve · <em>$260</em>","Buildoors · Pocket · <em>$120</em>","@mirabuilds · Skirt center · <em>bought $540</em>"];
+$('#ticker').innerHTML=[...tick,...tick].map(t=>`<span>${t}</span>`).join('');
+
+/* ---------- surfaces showcase ---------- */
+function buildSurfaces(){
+  $('#surfgrid').innerHTML='';
+  Object.entries(KIND_LST).forEach(([k,key])=>{
+    const s=SURF[k];const c=document.createElement('article');c.className='card surf';
+    c.innerHTML=`<div class="shot"><div class="figure${k!=='car'?' tall':''}"></div></div><h3>${ic(s.icon,22)} ${s.label}</h3><dl><dt>Pays</dt><dd>${s.unit}</dd><dt>Proof</dt><dd>${s.proof}</dd></dl><button class="btn small go">See a live ${s.label.toLowerCase()} ${ic('arrow',14)}</button>`;
+    drawStatic(c.querySelector('.figure'),k,LST[key].patches,{prices:false});
+    c.querySelector('.go').onclick=()=>openListing(key);
+    $('#surfgrid').appendChild(c);
+  });
+}
+buildSurfaces();
+
+/* ---------- explore ---------- */
+function card(key,o={}){
+  const L=LST[key];const claimed=o.claimed||`${L.patches.filter(p=>p.brand).length}/${L.patches.length}`;const [a,b]=claimed.split('/').map(Number);
+  const c=document.createElement('article');c.className='card lcard';c.tabIndex=0;c.dataset.kind=L.kind;
+  c.innerHTML=`<div class="shot"><div class="figure${L.kind!=='car'?' tall':''}"></div></div><div class="row"><span class="chip">${ic(SURF[L.kind].icon,13)} ${SURF[L.kind].label}</span><span class="chip orange"><span class="dot live" style="background:var(--accent)"></span>${o.ends||cdStr(L.end).split(' ')[0]} left</span></div><h3>${esc(o.title||L.name+' · '+L.event)}</h3><div class="bar"><i style="width:${a/b*100}%"></i></div><div class="row"><span class="muted" style="font-size:13px">${claimed} patches with bids</span><b class="mono">${o.top||fmt(sumTop(L))}</b></div>`;
+  drawStatic(c.querySelector('.figure'),L.kind,L.patches,{prices:false});
+  c.onclick=()=>openListing(key);c.onkeydown=e=>{if(e.key==='Enter')openListing(key)};
+  return c;
+}
+function buildExplore(){$('#lgrid').innerHTML='';['mira','samir','rekt'].forEach(k=>$('#lgrid').appendChild(card(k)));EXTRA.forEach(x=>$('#lgrid').appendChild(card(x.key,x)));applyFilter()}
+let filt='all';
+function applyFilter(){$$('#lgrid .lcard').forEach(c=>c.hidden=filt!=='all'&&c.dataset.kind!==filt);$$('#fseg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===filt))}
+$$('#fseg button').forEach(b=>b.onclick=()=>{filt=b.dataset.f;applyFilter()});
+buildExplore();
+
+/* ---------- listing + live bidding ---------- */
+let curKey='mira',focusId=null;
+const listFig=$('#listFig');
+function openListing(key){curKey=key;focusId=null;go('listing')}
+function L(){return LST[curKey]}
+function renderListing(first){
+  const l=L();
+  listFig.style.maxWidth=l.kind==='car'?'100%':l.kind==='hoodie'?'480px':'400px';
+  const layer=mountFig(listFig,l.kind);
+  l.patches.forEach((p,i)=>{const d=patchEl(p,{anim:first ? 0.1+i*0.08 : null});if(!p.locked)d.addEventListener('click',()=>{focusId=p.id;markFocus();renderPanel()});if(p.id===focusId)d.classList.add('focus');layer.appendChild(d)});
+  $('#lEvent').textContent=l.event;$('#lName').textContent=l.name;$('#lAv').textContent=l.ini;$('#lMeta').textContent=l.meta;$('#lDone').textContent=l.done;
+  if(first){$('#feed').innerHTML='';const all=l.patches.flatMap(p=>(p.hist||[]).map(h=>({...h,name:p.name})));all.slice(0,6).reverse().forEach(h=>addFeed(h.b,h.name,h.v,h.t))}
+  if(!focusId||!l.patches.find(p=>p.id===focusId&&!p.locked))focusId=(l.patches.find(p=>p.brand&&!p.locked)||l.patches[0]).id;
+  markFocus();renderPanel();updateKpis(true);
+}
+function markFocus(){listFig.querySelectorAll('.patch').forEach(el=>el.classList.toggle('focus',el.dataset.id===focusId))}
+function minNext(p){return p.top?p.top+10:p.floor}
+function renderPanel(){
+  const p=L().patches.find(x=>x.id===focusId);if(!p)return;
+  const hist=p.hist||[];
+  const mine=p.brand&&p.mine;
+  $('#ppanel').innerHTML=`<div class="head"><div><span class="eyebrow">Patch · live auction</span><h3 style="margin-top:4px">${esc(p.name)}</h3></div>${p.locked?'<span class="pill won">Bought</span>':mine?'<span class="pill top">You lead</span>':p.brand?'<span class="pill top">Leading: '+esc(p.brand)+'</span>':'<span class="pill wait">No bids yet</span>'}</div>
+  <div class="price" id="pPrice">${fmt(p.top||p.floor)}</div><div class="muted" style="font-size:13px">${p.top?'top bid · next bid at least '+fmt(minNext(p)):'floor price'} · buy now ${fmt(p.buy)}</div>
+  <ul class="ladder">${hist.length?hist.slice(0,4).map((h,i)=>`<li class="${i===0&&p._fresh?'new':''}"><span>${esc(h.b)}</span><span class="mono">${fmt(h.v)} · ${h.t}</span></li>`).join(''):'<li><span class="muted">Be the first to bid on this patch</span></li>'}</ul>
+  <div class="acts"><button class="btn primary" id="bidBtn">Bid ${fmt(minNext(p))}+</button><button class="btn" id="buyBtn">Buy now ${fmt(p.buy)}</button></div>
+  <p class="hint">${ic('clock',13)} A bid in the last 5 minutes adds 5 minutes to the clock</p>`;
+  p._fresh=false;
+  $('#bidBtn').onclick=()=>openSheet(p);$('#buyBtn').onclick=()=>{openSheet(p);$('#amt').value=p.buy;preview()};
+}
+let shownRaised=0;
+function updateKpis(reset){const l=L();const tot=sumTop(l);$('#claimed').textContent=`${l.patches.filter(p=>p.brand).length}/${l.patches.length}`;rollTo($('#raised'),reset?tot:shownRaised,tot);shownRaised=tot}
+function rollTo(el,from,to){if(reduce||from===to){el.textContent=fmt(to);return}const t0=performance.now();const f=t=>{const k=Math.min(1,(t-t0)/700);el.textContent=fmt(from+(to-from)*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
+function addFeed(who,what,amt,when,isNew){const li=document.createElement('li');if(isNew)li.className='new';li.innerHTML=`<span><b>${esc(who)}</b> bid on ${esc(what)}</span><span class="mono">${fmt(amt)} · ${when}</span>`;$('#feed').prepend(li);while($('#feed').children.length>12)$('#feed').lastChild.remove()}
+function ping(p){const layer=listFig.querySelector('.layer');if(!layer)return;const r=document.createElement('div');r.className='ping';r.style.cssText=`left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%`;layer.appendChild(r);setTimeout(()=>r.remove(),1200)}
+function refreshPatch(p,cls){
+  const el=listFig.querySelector(`[data-id="${p.id}"]`);if(!el)return;
+  const n=patchEl(p);if(!p.locked)n.addEventListener('click',()=>{focusId=p.id;markFocus();renderPanel()});
+  if(p.id===focusId)n.classList.add('focus');if(cls)n.classList.add(cls);el.replaceWith(n);
+  if(p.locked){const s=document.createElement('span');s.className='stamp';s.textContent='SOLD';n.appendChild(s)}
+  return n;
+}
+function applyBid(p,brand,amt,opts={}){
+  const wasMine=p.mine;
+  p.hist=[{b:brand,v:amt,t:'now'},...(p.hist||[])];p._fresh=true;
+  Object.assign(p,{top:amt,brand,logo:opts.logo||null,c:opts.c||BR.find(b=>b[0]===brand)?.[1]||'p5',mine:!!opts.mine,locked:!!opts.locked});
+  if(view==='listing'&&LST[curKey].patches.includes(p)){
+    ping(p);refreshPatch(p,opts.shake?'shake':'bump');addFeed(brand,p.name+(opts.locked?' (buy now)':''),amt,'now',true);updateKpis();
+    if(p.id===focusId)renderPanel();
+    if(Date.now()>L().end-5*60000)L().end+=5*60000;
+  }
+  if(p.id==='neck'){$('#fl1t').innerHTML=`${esc(brand)} bid <b>${fmt(amt)}</b>`;$('#fl1').classList.remove('flash');void $('#fl1').offsetWidth;$('#fl1').classList.add('flash')}
+  return wasMine;
+}
+// simulated other brands bidding live
+function simTick(){
+  const l=view==='listing'?L():LST.mira;
+  const open=l.patches.filter(p=>!p.locked);if(!open.length)return;
+  const p=open[Math.floor(Math.random()*open.length)];
+  const pool=BR.filter(b=>b[0]!==p.brand);const [brand,c]=pool[Math.floor(Math.random()*pool.length)];
+  const amt=minNext(p)+[0,5,10,15,25,40][Math.floor(Math.random()*6)];
+  const wasMine=applyBid(p,brand,amt,{c,shake:p.mine});
+  if(wasMine)toast(`You got outbid on ${p.name} · your USDC was refunded`,{label:`Bid ${fmt(minNext(p))}`,fn:()=>{focusId=p.id;openSheet(p)}});
+}
+(function loop(){setTimeout(()=>{simTick();loop()},4500+Math.random()*4000)})();
+setInterval(()=>{$('#heroCd').textContent=cdStr(LST.mira.end);if(view==='listing'){$('#cd').textContent=cdStr(L().end)}if(Math.random()<.2)$('#watch').textContent=5+Math.floor(Math.random()*14)},1000);
+
+/* ---------- bid sheet ---------- */
+let cur=null,logoURL=null;
+function openSheet(p){
+  cur=p;$('#sName').textContent=p.name;
+  $('#sTop').textContent=p.top?`Top bid ${fmt(p.top)} by ${p.brand} · next bid at least ${fmt(minNext(p))}`:`No bids yet · floor ${fmt(p.floor)}`;
+  $('#amt').value=minNext(p);$('#buyNow').textContent=`Buy now ${fmt(p.buy)}`;
+  $('#sheet').classList.add('on');$('#scrim').classList.add('on');$('#sheet').setAttribute('aria-hidden','false');
+  preview();setTimeout(()=>$('#amt').focus(),300);
+}
+function closeSheet(){if(!cur)return;$('#sheet').classList.remove('on');$('#scrim').classList.remove('on');$('#sheet').setAttribute('aria-hidden','true');const p=cur;cur=null;refreshPatch(p)}
+$('#closeSheet').onclick=closeSheet;$('#scrim').onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cur)closeSheet()});
+function preview(){
+  if(!cur)return;const el=listFig.querySelector(`[data-id="${cur.id}"]`);if(!el)return;
+  const n=patchEl({...cur,brand:$('#brandName').value||'Your Brand',logo:logoURL,c:'p5',top:+$('#amt').value||minNext(cur)});n.classList.add('preview');el.replaceWith(n);
+}
+$('#brandName').addEventListener('input',preview);$('#amt').addEventListener('input',preview);
+$$('[data-add]').forEach(b=>b.onclick=()=>{$('#amt').value=(+$('#amt').value||0)+ +b.dataset.add;preview()});
+$('#buyNow').onclick=()=>{$('#amt').value=cur.buy;preview()};
+$('#logo').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{logoURL=r.result;$('#logoPh').innerHTML=`<img src="${logoURL}" alt="">`;preview()};r.readAsDataURL(f)});
+$('#placeBid').onclick=()=>{
+  if(!cur)return;const a=+$('#amt').value;
+  if(!(a>=minNext(cur))){toast(`Bid at least ${fmt(minNext(cur))} to take the top spot`);return}
+  const btn=$('#placeBid');btn.disabled=true;btn.textContent='Signing · gasless…';
+  setTimeout(()=>{
+    const p=cur,prevBrand=p.brand,bought=a>=p.buy;
+    btn.disabled=false;btn.textContent='Place bid';
+    $('#sheet').classList.remove('on');$('#scrim').classList.remove('on');$('#sheet').setAttribute('aria-hidden','true');cur=null;
+    focusId=p.id;applyBid(p,$('#brandName').value||'Your Brand',a,{logo:logoURL,c:'p5',mine:true,locked:bought});
+    confetti(listFig.querySelector(`[data-id="${p.id}"]`));
+    toast(bought?`${p.name} is yours. Receipt NFT minted.`:`You lead ${p.name} · ${fmt(a)} locked in escrow`+(prevBrand?`. ${prevBrand} was refunded.`:''));
+  },reduce?100:1000);
+};
+function toast(msg,action){
+  const t=document.createElement('div');t.className='toast';t.innerHTML=`<span>${esc(msg)}</span>`;
+  if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{t.remove();action.fn()};t.appendChild(b)}
+  $('#toasts').appendChild(t);setTimeout(()=>t.remove(),action?7000:4200);
+}
+function confetti(el){
+  if(reduce||!el)return;const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  const cols=['var(--p1)','var(--p2)','var(--p3)','var(--p4)','var(--p5)','var(--accent)'];
+  for(let i=0;i<28;i++){const c=document.createElement('div');c.className='confetti';c.style.background=cols[i%6];c.style.left=cx+'px';c.style.top=cy+'px';document.body.appendChild(c);
+    const a=Math.random()*Math.PI*2,d=80+Math.random()*140;
+    c.animate([{transform:'translate(-50%,-50%) rotate(0)'},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d+120}px) rotate(${Math.random()*720-360}deg)`,opacity:0}],{duration:1100+Math.random()*500,easing:'cubic-bezier(.2,.7,.4,1)'}).onfinish=()=>c.remove()}
+}
+
+/* ---------- profile ---------- */
+$('#plist').appendChild(card('mira'));$('#plist').appendChild(card('rekt',{title:'ETHDenver hoodie · delivered',claimed:'5/5',top:'$2,110',ends:'0d'}));
+['#FF5A1F','#836EF9','#16A34A','#F5B400','#FF6FA4','#2F9BFF'].forEach((c,i)=>{const b=document.createElement('button');b.style.background=c;b.setAttribute('aria-label','Banner color '+c);b.setAttribute('aria-pressed',i===0);b.onclick=()=>{$('#pbanner').style.setProperty('--pa',c);$$('#swatches button').forEach(x=>x.setAttribute('aria-pressed',x===b))};$('#swatches').appendChild(b)});
+
+/* ---------- studio editor ---------- */
+const layoutFor=k=>LST[KIND_LST[k]].patches.map(({name,x,y,w,h,floor,buy,r})=>({name,x,y,w,h,floor,buy,r}));
+let ed=[],sel=null,uid=0,kind='outfit';
+const editFig=$('#editFig');let edLayer;
+function setKind(k,anim=true){
+  kind=k;$$('.surfaces button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.kind===k));
+  const done=()=>{$('#loader').classList.remove('on');editFig.style.maxWidth=k==='car'?'620px':k==='hoodie'?'440px':'360px';edLayer=mountFig(editFig,k);ed=layoutFor(k);sel=null;renderEd(anim)};
+  if(!anim){done();return}
+  $('#loaderText').textContent=SURF[k].loader;$('#loader').classList.add('on');setTimeout(done,reduce?100:1200);
+}
+function renderEd(anim){
+  edLayer.innerHTML='';
+  ed.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='patch open'+(sel===p?' sel':'')+(anim?' drop':'');
+    d.style.cssText=`left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%;--r:${p.r||0}deg;--d:${i*.1}s`;
+    d.innerHTML=`<span class="lab">${esc(p.name)}</span><span class="pr">${fmt(p.floor)}</span><span class="handle"></span>`;
+    d.addEventListener('pointerdown',e=>startDrag(e,p,e.target.classList.contains('handle')));
+    edLayer.appendChild(d);
+  });
+  $('#eCount').textContent=ed.length;$('#eFloor').textContent=fmt(ed.reduce((a,p)=>a+(+p.floor||0),0));
+  $('#noSel').hidden=!!sel;$('#prop').hidden=!sel;
+  if(sel){$('#pName').value=sel.name;$('#pFloor').value=sel.floor;$('#pBuy').value=sel.buy}
+}
+function startDrag(e,p,resize){
+  e.preventDefault();sel=p;renderEd();
+  const R=edLayer.getBoundingClientRect(),sx=e.clientX,sy=e.clientY,o={...p};
+  const mv=ev=>{const dx=(ev.clientX-sx)/R.width*100,dy=(ev.clientY-sy)/R.height*100;
+    if(resize){p.w=Math.max(6,Math.min(100-p.x,o.w+dx));p.h=Math.max(3,Math.min(100-p.y,o.h+dy))}
+    else{p.x=Math.max(0,Math.min(100-p.w,o.x+dx));p.y=Math.max(0,Math.min(100-p.h,o.y+dy))}
+    const el=edLayer.querySelector('.sel');if(el){el.style.left=p.x+'%';el.style.top=p.y+'%';el.style.width=p.w+'%';el.style.height=p.h+'%'}};
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+}
+$$('.surfaces button').forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
+$('#addPatch').onclick=()=>{const p={name:'Patch '+(++uid),x:40,y:45,w:20,h:9,floor:50,buy:200};ed.push(p);sel=p;renderEd()};
+$('#aiLayout').onclick=()=>{ed=layoutFor(kind);sel=null;renderEd(true);toast(`AI placed ${ed.length} patches where people will see them`)};
+$('#clearPatches').onclick=()=>{ed=[];sel=null;renderEd()};
+$('#delPatch').onclick=()=>{ed=ed.filter(p=>p!==sel);sel=null;renderEd()};
+$('#pName').oninput=e=>{sel.name=e.target.value;renderEd()};
+$('#pFloor').oninput=e=>{sel.floor=+e.target.value;renderEd()};
+$('#pBuy').oninput=e=>{sel.buy=+e.target.value};
+editFig.addEventListener('pointerdown',e=>{if(!e.target.closest('.patch')){sel=null;renderEd()}});
+$('#photo').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#srcImg').src=r.result;$('#src').hidden=false;setKind(kind);setTimeout(()=>toast(`White ${SURF[kind].label.toLowerCase()} ready · ${ed.length} patch spots suggested`),reduce?150:1300)};r.readAsDataURL(f)});
+setKind('outfit',false);
+
+/* ---------- brand ---------- */
+$('#cap').oninput=e=>$('#capv').textContent=fmt(e.target.value);
+
+/* ---------- admin ---------- */
+$$('[data-ap]').forEach(b=>b.onclick=()=>{$$('[data-ap]').forEach(x=>x.setAttribute('aria-pressed',x===b));$$('.apane').forEach(p=>p.classList.toggle('on',p.id==='ap-'+b.dataset.ap))});
+[{u:'@lena.sol',k:'outfit',t:'Outfit · Devcon · 7 patches',f:['ok','check','X account 4 years old · 12k followers']},{u:'@newacc_2291',k:'car',t:'Car · 8 weeks · $5k floor',f:['warn','alert','Account 6 days old · over the new-creator cap']},{u:'Buildoors',k:'hoodie',t:'Team hoodie · 5 patches',f:['ok','check','Team verified via ETHIndia']}].forEach(m=>{
+  const c=document.createElement('div');c.className='card mod';
+  c.innerHTML=`<b>${m.u}</b><p class="muted" style="font-size:13px">${m.t}</p><div class="shot"><div class="figure${m.k!=='car'?' tall':''}"></div></div><div class="flag ${m.f[0]}">${ic(m.f[1],13)} ${m.f[2]}</div><div class="acts"><button class="btn small primary">Approve</button><button class="btn small ghost">Reject</button></div>`;
+  drawStatic(c.querySelector('.figure'),m.k,layoutFor(m.k),{prices:false});
+  c.querySelectorAll('.acts button').forEach(b=>b.onclick=()=>{c.classList.add('gone');setTimeout(()=>{c.remove();$('#modCnt').textContent=$$('#modq .mod').length},350);toast(`${m.u} ${b.textContent==='Approve'?'approved and live':'rejected'}`)});
+  $('#modq').appendChild(c)});
+$('#evForm').addEventListener('submit',e=>{e.preventDefault();const tr=document.createElement('tr');tr.innerHTML=`<td><b>${esc($('#evName').value)}</b></td><td>${esc($('#evCity').value)}</td><td class="mono">${esc($('#evDate').value)}</td><td class="mono">0</td><td class="mono">$0</td><td><span class="pill wait">Draft</span></td>`;$('#evRows').prepend(tr);toast('Event created as a draft');e.target.reset()});
+
+/* ---------- share ---------- */
+drawStatic($('#ogFig'),'outfit',LST.mira.patches,{prices:false});
+drawStatic($('#storyFig'),'outfit',LST.mira.patches,{prices:false});
+const TPL={
+ launch:"I'm getting patched at Token2049.\n\n7 spots on my outfit. Brands bid in USDC, and the top bid gets worn in front of 20k people.\n\nBidding closes in 2 days:\npatched.fun/mirabuilds",
+ left:"3 patches left on my Token2049 fit.\n\nThe neckline already went for $420. Hips and hem are still open.\n\npatched.fun/mirabuilds",
+ sold:"Fully patched.\n\n7/7 spots sold · $2,340 raised on @patched\nSee you at Token2049.",
+ brand:"We just claimed a patch on @mirabuilds's Token2049 fit.\n\nFind us on the neckline.\npatched.fun/mirabuilds"};
+function setTpl(k){$('#xtext').value=TPL[k];upd();$$('[data-tpl]').forEach(b=>b.classList.toggle('ghost',b.dataset.tpl!==k))}
+function upd(){const v=$('#xtext').value;$('#xlen').textContent=v.length+'/280';$('#xintent').href='https://twitter.com/intent/tweet?text='+encodeURIComponent(v)}
+$$('[data-tpl]').forEach(b=>b.onclick=()=>setTpl(b.dataset.tpl));$('#xtext').oninput=upd;setTpl('launch');
+$('#copyX').onclick=()=>{navigator.clipboard.writeText($('#xtext').value).then(()=>toast('Copied to clipboard')).catch(()=>{$('#xtext').select();toast('Press Ctrl+C to copy')})};
+(function qr(){const c=$('#qr'),x=c.getContext('2d'),n=25,s=132/n;x.fillStyle='#fff';x.fillRect(0,0,132,132);x.fillStyle='#0B0B0C';let seed=7;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(rnd()>.52)x.fillRect(i*s,j*s,s,s);
+ [[0,0],[n-7,0],[0,n-7]].forEach(([a,b])=>{x.fillStyle='#0B0B0C';x.fillRect(a*s,b*s,7*s,7*s);x.fillStyle='#fff';x.fillRect((a+1)*s,(b+1)*s,5*s,5*s);x.fillStyle='#FF5A1F';x.fillRect((a+2)*s,(b+2)*s,3*s,3*s)})})();
+
+/* ---------- boot ---------- */
+show(role==='visitor'?'home':ROLES[role].home);
+})();
+</script>
