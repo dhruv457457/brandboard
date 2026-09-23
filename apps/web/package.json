@@ -1,0 +1,38 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "verify": "cross-env NEXT_DIST_DIR=.next-verify next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@number-flow/react": "^0.5.5",
+    "@patched/shared": "workspace:*",
+    "@privy-io/react-auth": "^3.45.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.47.0",
+    "motion": "^12.4.1",
+    "next": "^15.2.9",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.1",
+    "tailwind-merge": "^3.0.1",
+    "viem": "^2.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.2.9",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
