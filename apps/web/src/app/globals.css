@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Expose the next/font families as Tailwind utilities (font-display, font-hand, font-mono). */
+@theme inline {
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), "Arial Black", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-hand: var(--font-caveat), cursive;
+}
+
 @property --sw {
   syntax: '<angle>';
   inherits: false;
@@ -16,12 +24,12 @@
   --line: #0B0B0C;
   --accent: #FF5A1F;
   --accent-soft: #FFE3D6;
-  --on-accent: #FFFFFF;
-  --accent-text: #E0430B;
+  --on-accent: #0B0B0C;
+  --accent-text: #C2390A;
   --monad: #836EF9;
   --green: #15803D;
   --green-soft: #DCF5E4;
-  --red: #C2410C;
+  --red: #DC2626;
   --p1: #BDEBD3;
   --p2: #D9CCFF;
   --p3: #FFE58F;
@@ -39,15 +47,15 @@
   --soft: #272620;
   --ink: #F2F0E9;
   --muted: #A9A498;
-  --line: #F2F0E9;
+  --line: #D8D4C9;
   --accent: #FF6B35;
   --accent-soft: #3A2016;
   --on-accent: #140800;
   --accent-text: #FF7A45;
   --green: #4ADE80;
   --green-soft: #15291C;
-  --red: #FB923C;
-  --shadow: #000000;
+  --red: #F87171;
+  --shadow: #4A463D;
   --stage: #211F1B;
 }
 
@@ -85,7 +93,8 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: 2px;
 }
 
-/* Hard Shadows and Borders UI Tokens */
+/* Hard Shadows and Borders UI Tokens (in the components layer so utilities can override them) */
+@layer components {
 .card-surface {
   background-color: var(--card);
   border: 2px solid var(--line);
@@ -107,6 +116,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 3px 3px 0 var(--shadow);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -146,6 +156,8 @@ h1, h2, h3, h4, h5, h6 {
   background-color: var(--soft);
   box-shadow: none;
   transform: none;
+}
+
 }
 
 /* Patches */
@@ -325,6 +337,12 @@ h1, h2, h3, h4, h5, h6 {
   from {
     transform: rotate(-30deg) scale(2.4);
     opacity: 0;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
   }
 }
 

@@ -28,7 +28,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-[var(--paper)]/90 backdrop-blur-md border-b-2 border-[var(--line)] px-4 sm:px-8 py-2.5">
-      <div className="max-w-6xl mx-auto flex items-center gap-4 flex-wrap justify-between">
+      <div className="max-w-6xl mx-auto flex items-center gap-3 justify-between">
         <div className="flex items-center gap-4 sm:gap-6">
           <Link href="/" className="inline-flex items-center no-underline" aria-label="Patched home">
             <Logo size={34} />
@@ -43,6 +43,7 @@ export function Navbar() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "relative px-3 py-1.5 rounded-lg text-sm font-semibold no-underline transition-colors",
+                    link.href.startsWith("/#") && "hidden sm:inline-block",
                     active ? "text-[var(--ink)]" : "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--soft)]",
                   )}
                 >
@@ -72,7 +73,7 @@ export function Navbar() {
           ) : (
             <>
               <Button size="small" variant="ghost" onClick={login}>Sign in</Button>
-              <Link href="/studio"><Button size="small" variant="primary">Get patched</Button></Link>
+              <Link href="/studio" className="btn-base btn-small btn-primary hidden sm:inline-flex">Get patched</Link>
             </>
           )}
         </div>
