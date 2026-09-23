@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { ListingCardView } from "@/components/market/ListingCardView";
 import { fromWire, type SurfaceKind, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
+import { useIndexerSync } from "@/lib/market/useIndexerSync";
 
 type Filter = "all" | SurfaceKind;
 
@@ -14,6 +15,7 @@ export function ExploreGrid({ cards: wire }: { cards: Wire<ListingCard[]> }) {
   const cards = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
   const [filter, setFilter] = useState<Filter>("all");
   const [mounted, setMounted] = useState(false);
+  useIndexerSync();
   useEffect(() => setMounted(true), []);
 
   const shown = cards.filter((c) => filter === "all" || c.surface === filter);

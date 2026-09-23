@@ -15,6 +15,7 @@ import { fromWire, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
+import { useIndexerSync } from "@/lib/market/useIndexerSync";
 
 export interface AdminEvent {
   id: number;
@@ -31,6 +32,7 @@ export function AdminConsole({ pending: wire, events }: { pending: Wire<ListingC
   const router = useRouter();
   const { walletAddress, authenticated, login, ready } = usePatchedAuth();
   const send = useTx();
+  useIndexerSync();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [eventForm, setEventForm] = useState({ name: "", start: "", end: "" });

@@ -12,7 +12,8 @@ const CHAINS = { 10143: monadTestnet, 143: monadMainnet } as const;
 export type IndexedChainId = keyof typeof CHAINS;
 
 const MAX_RANGE = 1000n; // Monad RPC limit for eth_getLogs
-const CONFIRMATIONS = 2n;
+// Monad has single-slot finality (~0.8s), so the latest block is safe to index.
+const CONFIRMATIONS = 0n;
 
 type Decoded = { eventName: string; args: Record<string, unknown> };
 type MarketLog = Log & { blockTimestamp?: `0x${string}` };
@@ -51,6 +52,7 @@ export async function syncChain({ sql, chainId, rpcUrl, maxBlocks = 20_000n }: S
     const to = from + MAX_RANGE - 1n < end ? from + MAX_RANGE - 1n : end;
     const logs = (await client.getLogs({ address: deployment.market, fromBlock: from, toBlock: to })) as MarketLog[];
     const touched = new Set<bigint>();
+    await Promise.all(logs.map((l) => blockTime(l, client))); // warm the cache in parallel
 
     await sql.begin(async (tx) => {
       for (const log of logs) {
@@ -89,10 +91,16 @@ const b32 = (v: unknown) => {
   }
 };
 
+// One getBlock per block, not per log (a batch often has many logs in few blocks).
+const blockTimes = new Map<bigint, Promise<Date>>();
 async function blockTime(log: MarketLog, client: PublicClient): Promise<Date> {
   if (log.blockTimestamp) return new Date(Number(BigInt(log.blockTimestamp)) * 1000);
-  const block = await client.getBlock({ blockNumber: log.blockNumber! });
-  return new Date(Number(block.timestamp) * 1000);
+  const n = log.blockNumber!;
+  if (!blockTimes.has(n)) {
+    if (blockTimes.size > 5000) blockTimes.clear();
+    blockTimes.set(n, client.getBlock({ blockNumber: n }).then((b) => new Date(Number(b.timestamp) * 1000)));
+  }
+  return blockTimes.get(n)!;
 }
 
 async function handle(
