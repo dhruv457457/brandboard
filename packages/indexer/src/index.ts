@@ -85,6 +85,7 @@ function decode(log: MarketLog): Decoded | null {
   return null; // not one of our events (e.g. AccessControl internals we don't mirror)
 }
 
+const ZERO = "0x0000000000000000000000000000000000000000";
 const lc = (a: unknown) => (typeof a === "string" ? a.toLowerCase() : null);
 const num = (v: unknown) => (v === undefined || v === null ? null : String(v));
 const toDate = (s: unknown) => new Date(Number(s) * 1000);
@@ -128,6 +129,8 @@ async function handle(
     on conflict do nothing`;
 
   if ("listingId" in a) touched.add(a.listingId as bigint);
+  const note: Note = { sql, chainId, tx, idx, time };
+  const listingId = num(a.listingId);
 
   switch (eventName) {
     case "AutoBidSet":
@@ -152,23 +155,45 @@ async function handle(
         values (${chainId}, ${tx}, ${idx}, ${num(a.listingId)}, ${Number(a.patchId)}, ${lc(a.bidder)}, ${num(a.amount)},
                 ${a.prevBidder === "0x0000000000000000000000000000000000000000" ? null : lc(a.prevBidder)}, ${num(a.prevAmount)}, ${block}, ${time})
         on conflict do nothing`;
+      if (lc(a.prevBidder) !== lc(a.bidder)) {
+        await notify(note, lc(a.prevBidder), "outbid", { listingId, patchId: Number(a.patchId), amount: num(a.amount), refunded: num(a.prevAmount) });
+      }
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "new_bid", { listingId, patchId: Number(a.patchId), amount: num(a.amount), bidder: lc(a.bidder) });
+      break;
+    case "AutoBidPlaced":
+      await notify(note, lc(a.brand), "auto_bid", { listingId, patchId: Number(a.patchId), amount: num(a.amount) });
+      break;
+    case "ListingApproved":
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "listing_live", { listingId });
+      break;
+    case "ListingRejected":
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "listing_rejected", { listingId, reason: Number(a.reasonCode) });
+      break;
+    case "BiddingClosed": {
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "bidding_closed", { listingId, totalEscrow: num(a.totalEscrow) });
+      const winners = await sql<{ patch_id: number; top_bidder: string }[]>`
+        select patch_id, top_bidder from public.patches
+        where chain_id = ${chainId} and listing_id = ${listingId} and top_bidder is not null`;
+      for (const w of winners) await notify(note, w.top_bidder, "won", { listingId, patchId: w.patch_id });
+      break;
+    }
+    case "ProofSubmitted":
+      for (const h of await holdersOf(sql, chainId, a.listingId)) {
+        await notify(note, h.owner, "proof_submitted", { listingId, milestone: Number(a.milestone), patchId: h.patch_id, reviewEndsAt: num(a.reviewEndsAt) });
+      }
       break;
     case "PatchBought":
       await sql`update public.bids set is_buy_now = true where chain_id = ${chainId} and tx_hash = ${tx}`;
       break;
-    case "Refunded":
-      await notify(sql, lc(a.to)!, "outbid_refund", { amount: num(a.amount), pushed: a.pushed, tx });
-      break;
     case "BidForwarded":
-      await notify(sql, lc(a.bidder)!, "bid_forwarded", {
-        listingId: num(a.listingId), patchId: Number(a.patchId), amount: num(a.amount), reason: a.reason, tx,
-      });
+      await notify(note, lc(a.bidder), "bid_forwarded", { listingId, patchId: Number(a.patchId), amount: num(a.amount) });
       break;
     case "Disputed":
       await sql`
         insert into public.disputes (chain_id, listing_id, milestone, patch_id, holder, reason_uri, created_at)
         values (${chainId}, ${num(a.listingId)}, ${Number(a.milestone)}, ${Number(a.patchId)}, ${lc(a.holder)}, ${String(a.reasonURI ?? "")}, ${time})
         on conflict do nothing`;
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "disputed", { listingId, milestone: Number(a.milestone), patchId: Number(a.patchId) });
       break;
     case "DisputeResolved":
       await sql`
@@ -178,9 +203,13 @@ async function handle(
       break;
     case "MilestoneReleased":
       await payout(sql, chainId, tx, idx, a.listingId, "milestone", Number(a.milestone), a.toCreator, a.fee, time);
+      await notify(note, await creatorOf(sql, chainId, a.listingId), "paid", { listingId, milestone: Number(a.milestone), amount: num(a.toCreator) });
       break;
     case "ListingFailed":
       await payout(sql, chainId, tx, idx, a.listingId, "refund", Number(a.atMilestone), a.refunded, 0n, time);
+      for (const h of await holdersOf(sql, chainId, a.listingId)) {
+        await notify(note, h.owner, "listing_failed", { listingId, patchId: h.patch_id });
+      }
       break;
     case "ListingCompleted":
       await payout(sql, chainId, tx, idx, a.listingId, "bond", null, a.bondReturned, 0n, time);
@@ -195,6 +224,7 @@ async function handle(
       const tokenId = BigInt(a.tokenId as bigint);
       await sql`update public.receipts set owner = ${lc(a.buyer)}, resale_price = null where chain_id = ${chainId} and token_id = ${tokenId.toString()}`;
       await payout(sql, chainId, tx, idx, tokenId >> 8n, "royalty", null, a.royalty, 0n, time);
+      await notify(note, lc(a.seller), "resale_sold", { listingId: (tokenId >> 8n).toString(), patchId: Number(tokenId & 0xffn), price: num(a.price) });
       touched.add(tokenId >> 8n);
       break;
     }
@@ -211,9 +241,25 @@ async function payout(
     on conflict do nothing`;
 }
 
-async function notify(sql: Sql, wallet: string, kind: string, payload: Record<string, unknown>) {
-  await sql`insert into public.notifications (wallet, kind, payload) values (${wallet}, ${kind}, ${sql.json(JSON.parse(JSON.stringify(payload)))})`;
+type Note = { sql: Sql; chainId: number; tx: string; idx: number; time: Date };
+
+/** One notification per (event, wallet, kind); replaying a block range never duplicates them. */
+async function notify({ sql, chainId, tx, idx, time }: Note, wallet: string | null, kind: string, payload: Record<string, unknown>) {
+  if (!wallet || wallet === ZERO) return;
+  const json = sql.json(JSON.parse(JSON.stringify(payload, (_k, v) => (typeof v === "bigint" ? v.toString() : v))));
+  await sql`
+    insert into public.notifications (chain_id, tx_hash, log_index, wallet, kind, payload, created_at)
+    values (${chainId}, ${tx}, ${idx}, ${wallet}, ${kind}, ${json}, ${time})
+    on conflict do nothing`;
 }
+
+const creatorOf = async (sql: Sql, chainId: number, listingId: unknown) =>
+  (await sql<{ creator: string }[]>`select creator from public.listings where chain_id = ${chainId} and listing_id = ${num(listingId)}`)[0]?.creator ?? null;
+
+/** Current receipt holders of a listing (after bidding closed). */
+const holdersOf = async (sql: Sql, chainId: number, listingId: unknown) =>
+  (await sql<{ owner: string; patch_id: number }[]>`
+    select owner, patch_id from public.receipts where chain_id = ${chainId} and listing_id = ${num(listingId)}`);
 
 /** Re-read a listing from the contract and upsert listing, patches, milestones and receipts. */
 async function refreshListing(sql: Sql, client: PublicClient, chainId: number, market: `0x${string}`, id: bigint) {

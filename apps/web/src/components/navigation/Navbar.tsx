@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/useAuth";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./NotificationBell";
 import { AccountMenu } from "./AccountMenu";
 
 export function Navbar() {
@@ -69,7 +70,10 @@ export function Navbar() {
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           {!ready ? null : authenticated ? (
-            <AccountMenu />
+            <>
+              <NotificationBell />
+              <AccountMenu />
+            </>
           ) : (
             <>
               <Button size="small" variant="ghost" onClick={login}>Sign in</Button>

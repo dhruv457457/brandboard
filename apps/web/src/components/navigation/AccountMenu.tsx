@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { erc20Abi, formatUnits } from "viem";
-import { Check, ChevronDown, Copy, ExternalLink, Fingerprint, LogOut, Wallet } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, Fingerprint, KeyRound, LogOut, Wallet } from "lucide-react";
+import { useExportWallet } from "@privy-io/react-auth";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { CHAIN, EXPLORER, USDC, publicClient, GAS_SPONSORED } from "@/lib/config";
 import { formatShortAddress } from "@/lib/format";
@@ -12,6 +13,7 @@ import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 export function AccountMenu() {
   const { walletAddress, xHandle, logout, isEmbeddedWallet } = usePatchedAuth();
   const stepUp = useStepUp();
+  const { exportWallet } = useExportWallet();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usdc, setUsdc] = useState<string | null>(null);
@@ -115,6 +117,23 @@ export function AccountMenu() {
               <button onClick={() => { setOpen(false); stepUp.setUpPasskey(); }} className="btn-base btn-small flex-none">Set up</button>
             )}
           </div>
+          {isEmbeddedWallet && walletAddress && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border-[1.5px] border-[var(--soft)] p-2.5">
+              <span className="flex gap-2 items-start text-xs">
+                <KeyRound size={16} className="flex-none text-[var(--accent-text)]" />
+                <span>
+                  <b className="block text-sm">Your wallet is yours</b>
+                  Export the private key to MetaMask or any wallet. Patched never sees it.
+                </span>
+              </span>
+              <button
+                onClick={() => { setOpen(false); exportWallet({ address: walletAddress }).catch(() => {}); }}
+                className="btn-base btn-small flex-none"
+              >
+                Export
+              </button>
+            </div>
+          )}
           <button onClick={() => { setOpen(false); logout(); }} className="btn-base btn-small btn-ghost self-start">
             <LogOut size={13} /> Sign out
           </button>
