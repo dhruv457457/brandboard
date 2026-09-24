@@ -38,7 +38,7 @@ A signed-in user can be both creator and brand; the nav shows what applies. Sign
 
 - Left: the surface drawing (outfit / car / hoodie) with patches on top. Filled patch = has a leading bid (brand name or logo, pastel color, stitched border). Dashed orange patch = open. "Bought" patches are locked.
 - Right, top to bottom: creator card; KPIs (countdown, USDC in escrow, patches with bids); **selected patch panel** (name, live price, leader, last bids, min next bid, Bid / Buy-now buttons, anti-snipe note); live activity feed.
-- Click a patch → selects it. "Bid" opens the **bid sheet**: brand name, logo upload (previewed live on the patch), amount with +10/+50/+100 and Buy now, perks (gasless, one signature, auto-refund), Place bid, "Pay with card".
+- Click a patch → selects it. "Bid" opens the **bid sheet**: brand name, logo upload (previewed live on the patch), amount with +10/+50/+100 and Buy now, perks (gasless, one signature, auto-refund), Place bid.
 - Live updates: when anyone bids, that patch pings (expanding ring) and bounces, the new brand name slides in, the price rolls, the feed gets a row, the escrow total rolls up. If you were outbid: shake + toast "You got outbid on X · your USDC was refunded" with "Bid $Y".
 - Buy-now: a SOLD stamp lands on the patch.
 
@@ -79,4 +79,4 @@ Built; the README's "How Patched uses Privy" table links each one to its code.
 
 ## Non-goals for the hackathon
 
-KYC vendors, upgradeable contracts, mobile apps, surfaces other than the three above, streaming payouts (maybe later), Dutch auctions (maybe later).
+Anything with banks or fiat: card or bank on-ramps, off-ramps, cash-out to a bank, KYC/KYB (dropped 2026-09-24: too much onboarding friction; wallets are funded with USDC only). Upgradeable contracts, mobile apps, surfaces other than the three above, streaming payouts (maybe later), Dutch auctions (maybe later).

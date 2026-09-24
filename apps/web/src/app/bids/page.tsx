@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { encodeFunctionData, erc20Abi, stringToHex } from "viem";
-import { CreditCard, Droplet, ExternalLink, Upload } from "lucide-react";
-import { useAddFunds } from "@privy-io/react-auth";
+import { Copy, Droplet, ExternalLink, Upload } from "lucide-react";
 import { patchedMarketAbi, patchReceiptAbi, testUsdAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -49,7 +48,6 @@ interface ReceiptRow {
 export default function MyBidsPage() {
   const { ready, authenticated, login, walletAddress } = usePatchedAuth();
   const { profile, save } = useProfile();
-  const { addFunds } = useAddFunds();
   const authedFetch = useAuthedFetch();
   const send = useTx();
   const me = walletAddress?.toLowerCase();
@@ -203,17 +201,12 @@ export default function MyBidsPage() {
     }
   }
 
-  async function topUp() {
+  /** Wallets are funded with USDC only: copy the address to send USDC on Monad from another wallet or exchange. */
+  function copyAddress() {
     if (!walletAddress) return;
-    try {
-      await addFunds({
-        destination: { address: walletAddress, chain: `eip155:${CHAIN_ID}`, asset: USDC },
-        fiat: { defaultAmount: "25", source: { defaultAsset: "usd" } },
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (!/exit|close|cancel/i.test(msg)) toast("Adding funds isn't available for this network yet. Enable Funding in the Privy dashboard, or send USDC to your wallet.");
-    }
+    navigator.clipboard.writeText(walletAddress)
+      .then(() => toast("Wallet address copied. Send USDC on Monad to it."))
+      .catch(() => toast(walletAddress));
   }
 
   const leadTotal = useMemo(() => leading.reduce((s, r) => s + Number(r.top_bid), 0), [leading]);
@@ -241,7 +234,7 @@ export default function MyBidsPage() {
             <Droplet size={15} /> {busy === "faucet" ? "Minting…" : "Get 1,000 test USD"}
           </Button>
         ) : (
-          <Button onClick={topUp}><CreditCard size={15} /> Add funds</Button>
+          <Button onClick={copyAddress}><Copy size={15} /> Copy wallet address</Button>
         )}
       </div>
 

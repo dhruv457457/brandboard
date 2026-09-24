@@ -37,7 +37,7 @@ Work top to bottom. Each task ends with the app building (`pnpm --filter web bui
 
 ## D. Integrations (after A–C; coordinate through docs/requests.md)
 
-21. **Privy**: `PrivyProvider` with X login, embedded wallets on login, Monad testnet as default chain, gas sponsorship on; batched approve+bid; "Pay with card" onramp; auto-bid UI that creates a session signer.
+21. **Privy**: `PrivyProvider` with X login, embedded wallets on login, Monad testnet as default chain, gas sponsorship on; batched approve+bid; auto-bid UI that creates a session signer.
 22. *(Dropped: Aurora Intents.)*
 23. **API routes** in `apps/web/src/app/api/`: `ai/canvas`, `ai/layout`, `ai/moderate`, `ai/dispute-summary`, `ai/copy`, `metadata`. Each route only validates input and calls the matching function from `@patched/ai` (Claude builds that package on OpenRouter). Keys only from server env vars.
 24. Switch `NEXT_PUBLIC_DATA_MODE=live` once Claude publishes addresses in `@patched/shared`.

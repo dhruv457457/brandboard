@@ -61,7 +61,7 @@ This came out of a research and planning session with no code changes. Read it t
 - Already used: X login with an embedded wallet, and native gas sponsorship (`sponsor: true`) on Monad in `lib/market/useBid.ts` and `lib/server/keeper.ts`.
 - The keeper sends through a Privy server wallet with `@privy-io/node` 0.35 (`privy.wallets().ethereum().sendTransaction(walletId, { caip2, sponsor: true, authorization_context })`). Its Privy policy only allows `closeBidding`, `release` and `markFailed`.
 - Bidding uses a **USDC permit plus `bidWithPermit`**, which is one signature and one gasless tx. It does not batch approve+bid, though SPEC.md says it does.
-- Not built yet: card onramp, session signers (auto-bid), webhooks, passkey step-up.
+- Not built yet: session signers (auto-bid), webhooks, passkey step-up.
 
 **Contracts**
 - `Surface` is only a label in the contracts: it's used in the receipt NFT's name and traits and has no money logic (`contracts/src/PatchReceipt.sol:167`).
@@ -135,16 +135,13 @@ In priority order:
    - Several patches, one confirmation, gasless, and all-or-nothing.
    - Privy documents `wallet_sendCalls` with `sponsor: true`: the wallet is upgraded through EIP-7702 to a Kernel smart account.
    - The docs show this on the server (`privy.wallets().ethereum().sendCalls`). **The browser-side API is not verified yet.** If it's missing, run the sweep on the server with the auto-bid signer.
-3. **Add funds.**
-   - Use `useFiatOnramp` (card, Apple Pay, Google Pay through Stripe, Coinbase, MoonPay or Meld) or `useDepositFunds` (card or crypto from other chains).
-   - **Catch:** Monad isn't a listed onramp destination, and testnets fail even in sandbox mode.
-   - Options: buy USDC on Base by card, then move it with Circle CCTP V2 (which supports Monad); or show the sandbox flow (`environment: 'sandbox'`, card 4242…) for the demo.
+3. **Add funds: dropped (2026-09-24).** No card, bank, on-ramp or off-ramp anywhere in Patched, and no KYC/KYB. Wallets are funded with USDC sent from another wallet or exchange.
 4. **Passkey step-up** for large bids (for example over $1k) through Privy MFA with passkeys.
 5. **Verified brands:** the brand links a work email through Privy. If the email domain matches the brand's website, it gets a Verified badge. This fixes impersonation.
 6. **Our own wallet screens:** turn off Privy's confirmation pop-ups and use our bid sheet instead.
 7. **Webhooks:** use Privy user webhooks to create profiles. Transaction webhooks only cover server wallets and need Privy's Enterprise plan in production, so outbid and closing alerts come from our indexer plus Supabase Realtime.
 
-**Suggested 60-second Privy demo:** X login → add funds → sweep 3 patches in one gasless click → set auto-bid → another brand bids and the auto-bid answers within a second → passkey check on a large buy-now → the server wallet closes bidding.
+**Suggested 60-second Privy demo:** X login → sweep 3 patches in one gasless click → set auto-bid → another brand bids and the auto-bid answers within a second → passkey check on a large buy-now → the server wallet closes bidding.
 
 ### Privy bounty: official criteria (from the Metropolis dashboard)
 

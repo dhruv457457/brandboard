@@ -61,6 +61,7 @@ Rules:
 - **No emojis anywhere in the UI or copy.** Use lucide icons.
 - USDC amounts are `bigint` with 6 decimals in code; format only at the edge (`formatUsdc`).
 - All secrets live in `.env.local` (never committed). Every new variable goes into `.env.example` with a comment.
+- No banks or fiat: no card or bank on-ramps, no off-ramps or cash-out to a bank, no KYC/KYB. Wallets hold USDC only.
 - Money logic never lives in the frontend. The UI shows what the contract/indexer says.
 - Copy is short, active and specific: "Place bid", then a toast "You lead Neckline · $420 locked in escrow".
 - Respect `prefers-reduced-motion` in every animation.

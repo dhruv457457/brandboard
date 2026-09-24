@@ -102,7 +102,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
       {on && paused && (
         <p className="text-xs rounded-lg bg-[var(--accent-soft)] p-2" role="status">
           {paused === "balance"
-            ? `Auto-bid is paused: your wallet has less than ${usd(minNext)}, the next bid. Add funds and it picks up again.`
+            ? `Auto-bid is paused: your wallet has less than ${usd(minNext)}, the next bid. Send USDC to your wallet and it picks up again.`
             : "Auto-bid is paused: its spending permission ran out during the bidding. Press Update maximum to top it up."}
         </p>
       )}
