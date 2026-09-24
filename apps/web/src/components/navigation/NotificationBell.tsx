@@ -47,7 +47,7 @@ export function NotificationBell() {
   const authedFetch = useAuthedFetch();
   const wallet = walletAddress?.toLowerCase();
   const [rows, setRows] = useState<Row[]>([]);
-  const [labels, setLabels] = useState<Record<string, { patch: Record<number, string>; title: string }>>({});
+  const [labels, setLabels] = useState<Record<string, { patch: Record<number, string>; title: string; href: string }>>({});
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -62,16 +62,18 @@ export function NotificationBell() {
     if (!ids.length) return;
     const [{ data: patches }, { data: cards }] = await Promise.all([
       db.from("patches").select("listing_id, patch_id, label").eq("chain_id", CHAIN_ID).in("listing_id", ids),
-      db.from("listing_cards").select("listing_id, metadata").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+      db.from("listing_cards").select("listing_id, metadata, creator, creator_handle").eq("chain_id", CHAIN_ID).in("listing_id", ids),
     ]);
     const next: typeof labels = {};
     for (const id of ids) {
-      const meta = cards?.find((c) => String(c.listing_id) === id)?.metadata as { title?: string; patches?: { id: number; name: string }[] } | null;
+      const card = cards?.find((c) => String(c.listing_id) === id);
+      const meta = card?.metadata as { title?: string; patches?: { id: number; name: string }[] } | null;
       const patch: Record<number, string> = {};
       for (const p of patches?.filter((x) => String(x.listing_id) === id) ?? []) {
         patch[p.patch_id] = meta?.patches?.find((m) => m.id === p.patch_id)?.name ?? p.label;
       }
-      next[id] = { patch, title: meta?.title ?? `listing #${id}` };
+      // Link straight to the canonical listing URL, /<creator handle or wallet>/<id>.
+      next[id] = { patch, title: meta?.title ?? `listing #${id}`, href: `/${card?.creator_handle ?? card?.creator ?? "listing"}/${id}` };
     }
     setLabels(next);
   }, [wallet]);
@@ -136,7 +138,7 @@ export function NotificationBell() {
                 return (
                   <li key={n.id}>
                     <Link
-                      href={n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids"}
+                      href={l?.href ?? (n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids")}
                       onClick={() => setOpen(false)}
                       className={cn("block rounded-lg px-2 py-2 text-sm hover:bg-[var(--soft)]", !n.read_at && "bg-[var(--accent-soft)]")}
                     >

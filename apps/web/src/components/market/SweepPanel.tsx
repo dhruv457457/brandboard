@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { encodeFunctionData, erc20Abi } from "viem";
-import { Layers } from "lucide-react";
+import { ChevronDown, Layers } from "lucide-react";
 import { patchSweeperAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +36,7 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
   const signPermit = usePermitSigner();
   const send = useTx();
   const stepUp = useStepUp();
+  const [expanded, setExpanded] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,11 +82,22 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
 
   return (
     <Card className="p-4 grid gap-3">
-      <div className="flex items-center gap-2 font-bold">
-        <Layers size={18} className="text-[var(--accent-text)]" /> Sweep
-      </div>
-      <p className="text-sm text-[var(--muted)]">Take several spots at once. One signature, all bids land together or none do.</p>
-      <div className="grid gap-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((x) => !x)}
+        aria-expanded={expanded}
+        className="flex items-center justify-between gap-2 text-left"
+      >
+        <span className="flex items-center gap-2 font-bold">
+          <Layers size={18} className="text-[var(--accent-text)]" /> Sweep
+          <span className="font-normal text-sm text-[var(--muted)]">· take several spots at once</span>
+        </span>
+        <ChevronDown size={18} className={cn("transition-transform", expanded && "rotate-180")} />
+      </button>
+      {expanded && (
+      <>
+      <p className="text-sm text-[var(--muted)]">One signature, and all bids land together or none do.</p>
+      <div className="grid grid-cols-2 gap-1.5">
         {open.map((p) => {
           const on = picked.includes(p.id);
           return (
@@ -115,6 +127,8 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
               ? "Pick at least 2 patches"
               : `Bid on ${chosen.length} patches · ${usd(total)}`}
       </Button>
+      </>
+      )}
     </Card>
   );
 }
