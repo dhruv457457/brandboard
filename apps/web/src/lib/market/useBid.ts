@@ -6,6 +6,7 @@ import { useSendTransaction, useSignTypedData } from "@privy-io/react-auth";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
 import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
+import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
 
@@ -26,6 +27,9 @@ export function friendlyError(err: unknown): string {
     if (/user rejected|denied/i.test(err.message)) return "You cancelled the signature.";
   }
   const msg = err instanceof Error ? err.message : String(err);
+  if (err instanceof Error && err.name === "PasskeyRequired")
+    return `Moves of $${STEP_UP_USD.toLocaleString("en-US")} or more need a passkey. Set one up in your account menu, then try again.`;
+  if (/mfa/i.test(msg)) return "The passkey check didn't go through. Try again.";
   if (/rejected|denied|cancel/i.test(msg)) return "You cancelled the signature.";
   if (/FaucetCooldown/i.test(msg)) return "You already used the faucet today. Try again tomorrow.";
   if (/no gas/i.test(msg))
@@ -49,6 +53,7 @@ export function useBid() {
   const { walletAddress, wallet, isEmbeddedWallet, authenticated, login } = usePatchedAuth();
   const { signTypedData } = useSignTypedData();
   const { sendTransaction } = useSendTransaction();
+  const stepUp = useStepUp();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hash, setHash] = useState<`0x${string}` | null>(null);
@@ -61,6 +66,8 @@ export function useBid() {
     setError(null);
     setHash(null);
     try {
+      // Big bids: passkey check through Privy MFA before anything is signed.
+      await stepUp.ensure(amount);
       setStatus("signing");
       const [balance, nonce, name, version] = await Promise.all([
         publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),

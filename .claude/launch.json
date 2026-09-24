@@ -9,6 +9,7 @@
         "web",
         "exec",
         "cross-env",
+        "NEXT_PUBLIC_STEP_UP_USD=25",
         "NEXT_DIST_DIR=.next-claude",
         "next",
         "dev",

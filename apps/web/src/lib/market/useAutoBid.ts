@@ -8,6 +8,7 @@ import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { friendlyError } from "@/lib/market/useBid";
 import { usePermitSigner } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
+import { useStepUp } from "@/lib/market/stepUp";
 
 /** How many "max bids" of allowance one auto-bid adds. Outbid bids are refunded by the market but the
  *  allowance they used is not, so a long bidding war needs headroom. The contract still never bids
@@ -23,6 +24,7 @@ export function useAutoBid() {
   const { walletAddress } = usePatchedAuth();
   const signPermit = usePermitSigner();
   const send = useTx();
+  const stepUp = useStepUp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +63,8 @@ export function useAutoBid() {
         publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER] }),
       ]);
       if (balance < max) throw new Error("insufficient USDC");
+      // A high maximum lets the keeper spend that much for you, so it gets the same passkey check as a big bid.
+      await stepUp.ensure(max);
 
       // Enough allowance already: just set the rule.
       if (allowance >= max * 2n) {

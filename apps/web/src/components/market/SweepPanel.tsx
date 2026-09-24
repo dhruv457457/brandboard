@@ -14,6 +14,7 @@ import type { LivePatch } from "@/lib/market/types";
 import { friendlyError } from "@/lib/market/useBid";
 import { usePermitSigner } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
+import { useStepUp } from "@/lib/market/stepUp";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
@@ -34,6 +35,7 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
   const { authenticated, login, walletAddress } = usePatchedAuth();
   const signPermit = usePermitSigner();
   const send = useTx();
+  const stepUp = useStepUp();
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
       const amounts = chosen.map((p) => minNext(p));
       const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress!] });
       if (balance < total) throw new Error("insufficient USDC");
+      await stepUp.ensure(total);
       const { deadline, v, r, s } = await signPermit(SWEEPER!, total);
       // Fail fast with the contract's own reason (e.g. someone just outbid one of the picks).
       await publicClient.simulateContract({
