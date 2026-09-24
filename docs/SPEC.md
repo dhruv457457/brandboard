@@ -63,13 +63,19 @@ A signed-in user can be both creator and brand; the nav shows what applies. Sign
 
 ## Privy features we must show (bounty needs more than login)
 
-1. X login + embedded wallet created automatically.
-2. Gas sponsorship on Monad (EIP-7702 paymaster) — users never hold MON.
-3. Batched approve + bid in one confirmation.
-4. Fiat onramp ("Pay with card").
-5. Server wallet with a policy that may only call the Patched market (runs `closeBidding` / `release` crons).
-6. Session signer for auto-bid ("keep me on top up to $500").
-7. Webhooks → notifications.
+Built; the README's "How Patched uses Privy" table links each one to its code.
+
+1. X or email login + embedded wallet created automatically.
+2. Gas sponsorship on Monad (per network: on for testnet, off for the mainnet TestUSD run).
+3. One-signature bids: USDC permit signed silently + `bidWithPermit`.
+4. Server wallet with a policy that may only call `closeBidding` / `release` / `markFailed` on the market and `execute` on the auto-bidder (the keeper).
+5. Auto-bid ("keep me on top up to $X") through `PatchAutoBidder` + the policy-limited server wallet (session signers aren't enabled on our Privy app).
+6. Sweep: several patches in one signature and one transaction (`PatchSweeper`).
+7. Passkey MFA step-up for big bids, sweeps and auto-bid maximums.
+8. Verified brands through a Privy-linked work email.
+9. Wallet export.
+10. Notifications from our indexer + Supabase Realtime (Privy transaction webhooks need the Enterprise plan).
+11. Add funds (card or crypto) where Privy supports the network.
 
 ## Non-goals for the hackathon
 
