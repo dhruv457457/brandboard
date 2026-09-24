@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { erc20Abi, formatUnits } from "viem";
 import { Check, ChevronDown, Copy, ExternalLink, LogOut, Wallet } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { CHAIN, EXPLORER, USDC, publicClient } from "@/lib/config";
+import { CHAIN, EXPLORER, USDC, publicClient, GAS_SPONSORED } from "@/lib/config";
 import { formatShortAddress } from "@/lib/format";
 
 /** Signed-in account chip: address, live balances, copy, explorer link, sign out. */
@@ -94,7 +94,9 @@ export function AccountMenu() {
           <p className="text-xs text-[var(--muted)] flex gap-1.5 items-start">
             <Wallet size={13} className="mt-px flex-none" />
             {isEmbeddedWallet
-              ? `Patched wallet on ${CHAIN.name}. Gas is sponsored, so you don't need MON.`
+              ? GAS_SPONSORED
+                ? `Patched wallet on ${CHAIN.name}. Gas is sponsored, so you don't need MON.`
+                : `Patched wallet on ${CHAIN.name}. Send USDC to bid and a little MON for gas to this address.`
               : `External wallet on ${CHAIN.name}. You pay gas in MON for each transaction.`}
           </p>
           <button onClick={() => { setOpen(false); logout(); }} className="btn-base btn-small btn-ghost self-start">

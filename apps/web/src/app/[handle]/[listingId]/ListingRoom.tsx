@@ -17,7 +17,7 @@ import { fromWire, type ListingView, type LivePatch, type Wire } from "@/lib/mar
 import { useLiveListing } from "@/lib/market/useLiveListing";
 import { useBid } from "@/lib/market/useBid";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { EXPLORER, MARKET } from "@/lib/config";
+import { EXPLORER, GAS_SPONSORED, MARKET } from "@/lib/config";
 import { encodeFunctionData } from "viem";
 import { useRouter } from "next/navigation";
 import { patchedMarketAbi } from "@patched/shared";
@@ -332,7 +332,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             </Button>
           </div>
           <div className="perks">
-            <div><span className="pi"><Fuel size={12} /></span>No gas needed. Patched pays the network fee.</div>
+            <div><span className="pi"><Fuel size={12} /></span>{GAS_SPONSORED ? "No gas needed. Patched pays the network fee." : "You pay a tiny network fee in MON."}</div>
             <div><span className="pi"><ShieldCheck size={12} /></span>Your USDC goes into escrow, not to the creator.</div>
             <div><span className="pi"><RotateCcw size={12} /></span>Outbid? Your USDC comes back instantly.</div>
           </div>

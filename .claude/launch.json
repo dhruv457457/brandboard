@@ -26,6 +26,8 @@
         "exec",
         "cross-env",
         "NEXT_PUBLIC_CHAIN_ID=143",
+        "NEXT_PUBLIC_GAS_SPONSORED=false",
+        "KEEPER_GAS_SPONSORED=false",
         "NEXT_DIST_DIR=.next-mainnet",
         "next",
         "dev",

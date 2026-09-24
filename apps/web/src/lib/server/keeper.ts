@@ -78,7 +78,8 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
     const res = await privy.wallets().ethereum().sendTransaction(process.env.PRIVY_SERVER_WALLET_ID!, {
       caip2: `eip155:${CHAIN_ID}`,
       params: { transaction: { to: MARKET, data, chain_id: CHAIN_ID } },
-      sponsor: true,
+      // Sponsored by Privy unless turned off; then the keeper wallet pays its own MON.
+      sponsor: process.env.KEEPER_GAS_SPONSORED !== "false",
       // Wallets owned by an authorization key need a signed request; app-controlled wallets don't.
       ...(process.env.KEEPER_USES_AUTH_KEY === "false"
         ? {}

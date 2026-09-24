@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { Logo } from "@/components/brand/Logo";
-import { CHAIN_ID } from "@/lib/config";
+import { CHAIN_ID, GAS_SPONSORED } from "@/lib/config";
 import { formatCountdown } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PatchData } from "@/components/surface/Patch";
@@ -537,7 +537,7 @@ const SIDES = [
     points: [
       { icon: Scissors, text: "Set a floor and a buy-now price for every patch" },
       { icon: Wallet, text: "Paid in USDC per milestone, 5% fee on payouts" },
-      { icon: Zap, text: "Sign in with email. Gas is on us" },
+      { icon: Zap, text: GAS_SPONSORED ? "Sign in with email. Gas is on us" : "Sign in with email or X, no wallet app needed" },
       { icon: Users, text: "Team hoodies split payouts automatically" },
     ],
     cta: { href: "/studio", label: "Start a listing" },

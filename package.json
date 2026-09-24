@@ -11,7 +11,7 @@
     "contracts:test": "cd contracts && forge test",
     "shared:abi": "node packages/shared/scripts/export-abi.mjs",
     "web:dev": "pnpm --filter web dev",
-    "web:dev:mainnet": "pnpm --filter web exec cross-env NEXT_PUBLIC_CHAIN_ID=143 NEXT_DIST_DIR=.next-mainnet next dev -p 3200",
+    "web:dev:mainnet": "pnpm --filter web exec cross-env NEXT_PUBLIC_CHAIN_ID=143 NEXT_PUBLIC_GAS_SPONSORED=false KEEPER_GAS_SPONSORED=false NEXT_DIST_DIR=.next-mainnet next dev -p 3200",
     "web:build": "pnpm --filter web build",
     "web:verify": "pnpm --filter web verify",
     "db:migrate": "node scripts/db-migrate.mjs",

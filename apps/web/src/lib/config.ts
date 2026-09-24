@@ -13,6 +13,9 @@ export const RECEIPT = deployment.receipt;
 export const USDC = deployment.usdc;
 export { USDC_DECIMALS };
 
+/** Whether Privy pays gas for embedded wallets. Off: every wallet pays its own gas in MON. */
+export const GAS_SPONSORED = process.env.NEXT_PUBLIC_GAS_SPONSORED !== "false";
+
 export const EXPLORER = CHAIN_ID === 143 ? "https://monadvision.com" : "https://testnet.monadvision.com";
 
 /** Browser-safe client on the public RPC. Server code uses serverClient() with the private QuickNode URL. */

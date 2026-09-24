@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi, parseSignature } from "viem";
 import { useSendTransaction, useSignTypedData } from "@privy-io/react-auth";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
-import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient } from "@/lib/config";
+import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
@@ -27,7 +27,10 @@ export function friendlyError(err: unknown): string {
   }
   const msg = err instanceof Error ? err.message : String(err);
   if (/rejected|denied|cancel/i.test(msg)) return "You cancelled the signature.";
-  if (/no gas/i.test(msg)) return "Your wallet needs a little MON to pay gas. Use the Patched wallet (email or X login) for gas-free bids.";
+  if (/no gas/i.test(msg))
+    return GAS_SPONSORED
+      ? "Your wallet needs a little MON to pay gas. Use the Patched wallet (email or X login) for gas-free bids."
+      : "Your wallet needs a little MON to pay gas. Send some MON to your wallet address (in the account menu).";
   if (/insufficient/i.test(msg)) return "Not enough USDC in your wallet for this bid.";
   return "The bid didn't go through. Try again in a moment.";
 }
@@ -65,8 +68,9 @@ export function useBid() {
 
       // External wallets pay their own gas; check before asking them to sign anything.
       let external: ReturnType<typeof createWalletClient> | null = null;
+      const paysGas = !GAS_SPONSORED || (!isEmbeddedWallet && !!wallet);
+      if (paysGas && (await publicClient.getBalance({ address: walletAddress })) === 0n) throw new Error("no gas");
       if (!isEmbeddedWallet && wallet) {
-        if ((await publicClient.getBalance({ address: walletAddress })) === 0n) throw new Error("no gas");
         await wallet.switchChain(CHAIN_ID);
         external = createWalletClient({ account: walletAddress, chain: CHAIN, transport: custom(await wallet.getEthereumProvider()) });
       }
@@ -101,7 +105,7 @@ export function useBid() {
       const data = encodeFunctionData({ abi: patchedMarketAbi, functionName: "bidWithPermit", args });
       const txHash = external
         ? await external.sendTransaction({ account: walletAddress, chain: CHAIN, to: MARKET, data })
-        : (await sendTransaction({ to: MARKET, data, chainId: CHAIN_ID }, { sponsor: true })).hash;
+        : (await sendTransaction({ to: MARKET, data, chainId: CHAIN_ID }, { sponsor: GAS_SPONSORED })).hash;
       setHash(txHash);
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
       if (receipt.status !== "success") throw new Error("reverted");
