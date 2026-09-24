@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, Check, Clock, ExternalLink, Fuel, Link2, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, Clock, ExternalLink, Flame, Fuel, Link2, RotateCcw, ShieldCheck } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData, PatchHandle } from "@/components/surface/Patch";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +15,8 @@ import { toast } from "@/components/ui/Toast";
 import { formatCountdown, formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { fromWire, type ListingView, type LivePatch, type Wire } from "@/lib/market/types";
 import { useLiveListing } from "@/lib/market/useLiveListing";
+import { useWatchers } from "@/lib/market/useWatchers";
+import { spotHeat } from "@/lib/market/heat";
 import { useBid } from "@/lib/market/useBid";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { EXPLORER, GAS_SPONSORED, MARKET } from "@/lib/config";
@@ -71,11 +73,25 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     ref?.bump();
     if (prevLeader && prevLeader === me && bid.bidder !== me) {
       ref?.shake();
+      const p = patchesRef.current.find((x) => x.id === bid.patchId);
+      const next = p ? minNext({ ...p, topBid: bid.amount }) : 0n;
       toast(`You got outbid on ${bid.label}. Your USDC is back in your wallet.`, {
-        action: { label: "Bid again", onClick: () => openSheet(bid.patchId) },
+        action: p && next < p.buyNow
+          ? { label: `Bid ${usd(next)}`, onClick: () => rebid(bid.patchId, next) }
+          : { label: "Bid again", onClick: () => openSheet(bid.patchId) },
       });
     }
   });
+  const patchesRef = useRef(patches);
+  patchesRef.current = patches;
+  const watchers = useWatchers(listing.id);
+
+  // Anti-snipe: tell everyone on the page when a late bid pushes the end time back.
+  const lastEnd = useRef(endsAt);
+  useEffect(() => {
+    if (endsAt > lastEnd.current && lastEnd.current > 0) toast(`A late bid added time. Bidding now ends in ${formatCountdown(endsAt).text}.`);
+    lastEnd.current = endsAt;
+  }, [endsAt]);
 
   const [selectedId, setSelectedId] = useState<number>(() => (patches.find((p) => p.topBidder) ?? patches[0]).id);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -113,6 +129,10 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const biddingOpen = status === 1 && !countdown.hasEnded;
   const escrow = patches.reduce((s, p) => s + p.topBid, 0n);
   const withBids = patches.filter((p) => p.topBidder).length;
+  // The anti-snipe window: any bid now adds 5 minutes.
+  const finalMinutes = mounted && biddingOpen && endsAt - Date.now() < 5 * 60_000;
+  /** A bidder's display name: you, the brand name when they lead a spot, or the short address. */
+  const bidderName = (w: string) => (w === me ? "You" : patches.find((p) => p.topBidder === w && p.brandName)?.brandName ?? formatShortAddress(w));
 
   function openSheet(patchId: number) {
     const p = patches.find((x) => x.id === patchId);
@@ -135,6 +155,17 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     setBurst({ x: p.x + p.w / 2, y: p.y + p.h / 2, n: Date.now() });
     setTimeout(() => setBurst(null), 1000);
     toast(bought ? `${p.label} is yours. Receipt NFT comes when bidding closes.` : `You lead ${p.label} · ${usd(amount)} locked in escrow`);
+  }
+
+  /**
+   * One-tap rebid from the outbid toast, at the amount the button showed. If the price moved again since,
+   * open the bubble at the new minimum instead of bidding an amount that would fail.
+   */
+  function rebid(patchId: number, amount: bigint) {
+    const p = patchesRef.current.find((x) => x.id === patchId);
+    if (!p || p.bought) return;
+    openBubble(p);
+    if (minNext(p) === amount) void quickBid(p, amount);
   }
 
   /** Open the bubble for a spot (from a card or the stage), switching to its view. */
@@ -318,8 +349,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
               <span className={cn("font-semibold inline-flex items-center gap-1.5", countdown.isUrgent && "text-[var(--accent-text)]")}>
                 <Clock size={14} />
-                {!mounted ? " " : biddingOpen ? `Bidding ends in ${countdown.text}` : STATUS_LABEL[status] ?? "Closed"}
+                {!mounted ? " " : finalMinutes ? `Final minutes: ${countdown.text} left. Any bid adds 5 minutes.` : biddingOpen ? `Bidding ends in ${countdown.text}` : STATUS_LABEL[status] ?? "Closed"}
               </span>
+              {watchers > 1 && (
+                <span className="inline-flex items-center gap-1.5 text-[var(--muted)]">
+                  <Eye size={14} /> {watchers} watching now
+                </span>
+              )}
               {biddingOpen && !isCreator && <a href="#spots" className="btn-base btn-primary btn-small">Pick a spot</a>}
             </div>
           </Card>
@@ -354,6 +390,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                 <SpotBubble
                   patch={bubble}
                   minNext={minNext(bubble)}
+                  heat={spotHeat(bids, bubble.id)}
+                  history={bids.filter((b) => b.patchId === bubble.id).slice(0, 3).map((b) => ({ id: b.id, who: bidderName(b.bidder), amount: b.amount, time: b.time }))}
                   me={me}
                   isCreator={isCreator}
                   authenticated={authenticated}
@@ -391,6 +429,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             const mine = !!me && p.topBidder === me;
             const tier = PATCH_TIERS[p.tier];
             const viewName = listing.views.length > 1 ? listing.views.find((v) => v.id === p.side)?.label : null;
+            const heat = mounted && biddingOpen && !p.bought ? spotHeat(bids, p.id) : null;
             return (
               <div
                 key={p.id}
@@ -443,6 +482,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                     {p.brandVerified && <BadgeCheck size={14} className="text-[var(--green)] flex-none" aria-label={`Verified brand · ${p.brandVerified}`} />}
                   </p>
                 )}
+                {heat?.war ? (
+                  <p className="text-xs font-semibold text-[var(--accent-text)] flex items-center gap-1.5">
+                    <Flame size={14} /> Bidding war: {heat.recent} bids from {heat.bidders} brands in 15 min
+                  </p>
+                ) : heat && heat.recent > 0 ? (
+                  <p className="text-xs text-[var(--muted)]">{heat.recent} {heat.recent === 1 ? "bid" : "bids"} in the last 15 min</p>
+                ) : null}
                 {biddingOpen && !p.bought && !isCreator && (
                   <div className="flex gap-2">
                     <Button variant="primary" size="small" onClick={() => openBubble(p)}>Bid {usd(minNext(p))}</Button>
@@ -597,7 +643,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               const label = patches.find((p) => p.id === b.patchId)?.label ?? `Patch ${b.patchId}`;
               return (
                 <li key={b.id}>
-                  <span><b>{b.bidder === me ? "You" : formatShortAddress(b.bidder)}</b> bid on {label}</span>
+                  <span><b>{bidderName(b.bidder)}</b> bid on {label}</span>
                   <span className="font-mono">{usd(b.amount)} · {ago(b.time)}</span>
                 </li>
               );

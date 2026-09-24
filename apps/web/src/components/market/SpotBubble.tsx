@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BadgeCheck, Loader2, SlidersHorizontal, X } from "lucide-react";
+import { BadgeCheck, Flame, Loader2, SlidersHorizontal, X } from "lucide-react";
 import { PATCH_TIERS } from "@patched/shared";
 import { cn } from "@/lib/utils";
-import { formatShortAddress, formatUsdc } from "@/lib/format";
+import { formatShortAddress, formatTimeAgo, formatUsdc } from "@/lib/format";
 import type { LivePatch } from "@/lib/market/types";
+import type { SpotHeat } from "@/lib/market/heat";
 
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
 
@@ -14,6 +15,9 @@ interface Props {
   patch: LivePatch;
   /** Lowest bid that takes the lead right now (capped at buy-now). */
   minNext: bigint;
+  /** How contested the spot is, and its latest bids (newest first). */
+  heat?: SpotHeat;
+  history?: { id: string; who: string; amount: bigint; time: number }[];
   me?: string;
   isCreator: boolean;
   authenticated: boolean;
@@ -32,7 +36,7 @@ interface Props {
  * the minimum to take the lead. Quick chips change the amount; "More" opens the full sheet (custom amount,
  * auto-bid). Positioned next to the patch inside the stage.
  */
-export function SpotBubble({ patch, minNext, me, isCreator, authenticated, biddingOpen, busy, error, onLogin, onBid, onMore, onClose }: Props) {
+export function SpotBubble({ patch, minNext, heat, history = [], me, isCreator, authenticated, biddingOpen, busy, error, onLogin, onBid, onMore, onClose }: Props) {
   const [amount, setAmount] = useState(minNext);
   // Reset to the minimum when the spot changes or someone outbids.
   useEffect(() => setAmount(minNext), [patch.id, minNext]);
@@ -96,6 +100,22 @@ export function SpotBubble({ patch, minNext, me, isCreator, authenticated, biddi
           </span>
         )}
       </div>
+
+      {heat?.war && biddingOpen && !patch.bought && (
+        <span className="text-xs font-semibold text-[var(--accent-text)] flex items-center gap-1.5">
+          <Flame size={13} /> Bidding war: {heat.recent} bids in 15 min
+        </span>
+      )}
+      {history.length > 0 && (
+        <ul className="grid gap-0.5 text-[11px] border-t-[1.5px] border-[var(--soft)] pt-2" aria-label="Latest bids on this spot">
+          {history.map((h) => (
+            <li key={h.id} className="flex justify-between gap-2">
+              <span className="truncate">{h.who}</span>
+              <span className="font-mono tabular-nums text-[var(--muted)] flex-none">{usd(h.amount)} · {formatTimeAgo(h.time)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isCreator ? (
         <p className="text-xs text-[var(--muted)]">This is your spot. Share your page so brands bid on it.</p>
