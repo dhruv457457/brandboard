@@ -152,4 +152,5 @@ contracts/broadcast/*/31337/
 .next-verify/
 !.env.example
 .next-claude/
+.next-mainnet/
 .next-verify/

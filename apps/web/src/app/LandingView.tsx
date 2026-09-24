@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { Logo } from "@/components/brand/Logo";
+import { CHAIN_ID } from "@/lib/config";
 import { formatCountdown } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PatchData } from "@/components/surface/Patch";
@@ -265,7 +266,7 @@ function Hero({ featured, ticker, stats }: Pick<LandingData, "featured" | "ticke
               className="inline-flex items-center gap-2 text-xs font-semibold border-[1.5px] border-[var(--line)] rounded-full px-3 py-1 bg-[var(--card)]"
             >
               <span className="w-2 h-2 rotate-45 rounded-[1.5px] bg-[var(--monad)]" />
-              Live on Monad · USDC escrow
+              {CHAIN_ID === 143 ? "Live on Monad" : "On Monad testnet"} · USDC escrow
             </motion.span>
 
             <h1 className="text-[3.2rem] sm:text-7xl lg:text-[5.4rem] font-extrabold tracking-tight mt-6 leading-[0.95]">
@@ -317,6 +318,7 @@ function Hero({ featured, ticker, stats }: Pick<LandingData, "featured" | "ticke
               </Link>
             </motion.div>
 
+            {stats.bids > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -327,6 +329,7 @@ function Hero({ featured, ticker, stats }: Pick<LandingData, "featured" | "ticke
               <Stat value={stats.escrowedUsd} label="in top bids right now" currency />
               <Stat value={stats.bids} label="bids placed" />
             </motion.div>
+            )}
           </div>
 
           <HeroStage featured={featured} ticker={ticker} />

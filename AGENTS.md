@@ -72,5 +72,7 @@ Rules:
 pnpm install                 # workspace deps
 pnpm contracts:setup         # install Foundry libs (lib/ is not committed)
 pnpm contracts:test          # forge test
-pnpm web:dev                 # Next.js dev server
+pnpm web:dev                 # Next.js dev server (testnet, chain from NEXT_PUBLIC_CHAIN_ID)
+pnpm web:dev:mainnet         # same app on Monad mainnet, port 3200
+pnpm indexer -- --chain 143  # sync mainnet events into Supabase
 ```

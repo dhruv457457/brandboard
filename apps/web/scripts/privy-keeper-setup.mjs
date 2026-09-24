@@ -22,7 +22,8 @@ if (process.env.PRIVY_SERVER_WALLET_ID) {
 const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 10143);
 // Read the market address for this chain from packages/shared/src/addresses.ts (plain text match).
 const addresses = readFileSync(join(root, "packages", "shared", "src", "addresses.ts"), "utf8");
-const section = addresses.slice(addresses.indexOf(`${chainId}: {`));
+// Match the key at the start of a line so "143" does not match inside "10143".
+const section = addresses.slice(addresses.indexOf(`\n  ${chainId}: {`));
 const market = (section.match(/market: "(0x[0-9a-fA-F]{40})"/)?.[1] ?? process.env.KEEPER_MARKET_ADDRESS)?.toLowerCase();
 if (!market) throw new Error("market address unknown");
 
