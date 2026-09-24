@@ -15,6 +15,8 @@ import { useAuthedFetch } from "@/lib/authedFetch";
 import { CAR_VIEW_LAYOUTS, DEFAULT_LAYOUTS, MODEL_SHOT_LAYOUTS } from "@/lib/market/layouts";
 import type { SurfaceKind } from "@/lib/market/types";
 import { useCreateListing } from "@/lib/market/useCreateListing";
+import { defaultTiers } from "@/lib/market/tiers";
+import { PATCH_TIERS, type PatchTier } from "@patched/shared";
 
 export interface StudioEvent {
   id: number;
@@ -52,6 +54,8 @@ interface DraftPatch {
   r: number;
   floor: number; // USDC
   buyNow: number; // USDC
+  tier?: PatchTier;
+  perks?: string;
 }
 
 const SURFACE_OPTIONS: { kind: SurfaceKind; label: string; note: string; Icon: typeof Sparkles }[] = [
@@ -110,6 +114,9 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
 
   const [patches, setPatches] = useState<DraftPatch[]>(() => DEFAULT_LAYOUTS.outfit.slice(0, 3).map((s) => draft("front", s)));
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [headline, setHeadline] = useState("");
+  const [story, setStory] = useState("");
+  const [faq, setFaq] = useState<{ q: string; a: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const person = surface !== "car";
@@ -265,6 +272,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
     // Patches grouped by view, in view order (the contract's patch ids follow this order).
     const viewOrder = views.length ? views.map((v) => v.id) : [...new Set(patches.map((p) => p.side))];
     const ordered = viewOrder.flatMap((id) => patches.filter((p) => p.side === id));
+    const autoTiers = defaultTiers(ordered.map((p) => p.w * p.h));
     const id = await create({
       metadata: {
         version: 1,
@@ -276,7 +284,13 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
         ...(views.length ? { views } : {}),
         ...(person && views.length && styleText ? { style: styleText } : {}),
         ...(!person && carDescription ? { style: carDescription } : {}),
-        patches: ordered.map((p, i) => ({ id: i, name: p.name, side: p.side, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.r })),
+        patches: ordered.map((p, i) => ({
+          id: i, name: p.name, side: p.side, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.r,
+          tier: p.tier ?? autoTiers[i], ...(p.perks?.trim() ? { perks: p.perks.trim() } : {}),
+        })),
+        ...(headline.trim() ? { headline: headline.trim() } : {}),
+        ...(story.trim() ? { story: story.trim() } : {}),
+        ...(faq.some((f) => f.q.trim() && f.a.trim()) ? { faq: faq.filter((f) => f.q.trim() && f.a.trim()) } : {}),
         milestones: plan.map((m) => ({ name: m.name, bps: m.bps })),
       },
       surfaceIndex: surface === "outfit" ? 0 : surface === "car" ? 1 : 2,
@@ -376,6 +390,35 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
               <p className="text-xs text-[var(--muted)]">AI makes a full-body front and back view of you in a plain white version, ready for patches.</p>
             </div>
           )}
+
+          <details className="grid gap-2 border-t-2 border-dashed border-[var(--soft)] pt-3 group">
+            <summary className="field-label cursor-pointer list-none flex justify-between items-center">
+              Your sponsor page <span className="text-xs font-normal text-[var(--muted)] group-open:hidden">optional</span>
+            </summary>
+            <div className="grid gap-2.5 mt-2">
+              <label className="grid gap-1"><span className="text-xs font-semibold">Headline</span>
+                <input className={INPUT + " text-sm"} maxLength={80} value={headline} onChange={(e) => setHeadline(e.target.value)}
+                  placeholder={person ? "Walking billboard for your brand" : "Your logo, driving around Bengaluru"} /></label>
+              <label className="grid gap-1"><span className="text-xs font-semibold">Your story</span>
+                <textarea className={INPUT + " text-sm resize-y"} rows={4} maxLength={800} value={story} onChange={(e) => setStory(e.target.value)}
+                  placeholder="Who you are, why you're doing this, and what brands get from you." /></label>
+              <span className="text-xs font-semibold">Questions brands might ask</span>
+              {faq.map((f, i) => (
+                <div key={i} className="grid gap-1 rounded-xl bg-[var(--soft)] p-2">
+                  <input className={INPUT + " text-sm"} maxLength={120} placeholder="Question" value={f.q}
+                    onChange={(e) => setFaq((all) => all.map((x, j) => (j === i ? { ...x, q: e.target.value } : x)))} />
+                  <textarea className={INPUT + " text-sm resize-y"} rows={2} maxLength={400} placeholder="Answer" value={f.a}
+                    onChange={(e) => setFaq((all) => all.map((x, j) => (j === i ? { ...x, a: e.target.value } : x)))} />
+                  <button className="text-xs text-[var(--muted)] justify-self-start hover:text-[var(--ink)]" onClick={() => setFaq((all) => all.filter((_, j) => j !== i))}>Remove</button>
+                </div>
+              ))}
+              {faq.length < 6 && (
+                <Button size="small" variant="ghost" className="justify-self-start" onClick={() => setFaq((all) => [...all, { q: "", a: "" }])}>
+                  <Plus size={13} /> Add a question
+                </Button>
+              )}
+            </div>
+          </details>
         </Card>
 
         {/* ── center: canvas editor ── */}
@@ -434,6 +477,14 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
                   <label className="grid gap-1"><span className="field-label">Buy now ($)</span>
                     <input type="number" min={1} className={INPUT + " font-mono"} value={selected.buyNow} onChange={(e) => update(selected.id, { buyNow: Number(e.target.value) })} /></label>
                 </div>
+                <label className="grid gap-1"><span className="field-label">Tier</span>
+                  <select className={INPUT} value={selected.tier ?? ""} onChange={(e) => update(selected.id, { tier: (e.target.value || undefined) as PatchTier | undefined })}>
+                    <option value="">Auto (by size)</option>
+                    {(Object.keys(PATCH_TIERS) as PatchTier[]).map((t) => <option key={t} value={t}>{PATCH_TIERS[t].label}</option>)}
+                  </select></label>
+                <label className="grid gap-1"><span className="field-label">What the brand gets (optional)</span>
+                  <input className={INPUT} maxLength={120} value={selected.perks ?? ""} placeholder="Front and centre in every photo"
+                    onChange={(e) => update(selected.id, { perks: e.target.value })} /></label>
                 <Button size="small" variant="ghost" className="justify-self-start" onClick={() => { setPatches((ps) => ps.filter((p) => p.id !== selected.id)); setSelectedId(null); }}>
                   <Trash2 size={13} /> Remove patch
                 </Button>

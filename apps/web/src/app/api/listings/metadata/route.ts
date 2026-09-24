@@ -55,8 +55,20 @@ export async function POST(req: Request) {
         side: p.side && viewIds.includes(p.side) ? p.side : viewIds[0],
         x: num(p.x, 0, 100), y: num(p.y, 0, 100), w: num(p.w, 1, 100), h: num(p.h, 1, 100),
         rotation: num(p.rotation ?? 0, -45, 45),
+        ...(p.tier === "mega" || p.tier === "prime" || p.tier === "mini" ? { tier: p.tier } : {}),
+        ...(p.perks && String(p.perks).trim() ? { perks: String(p.perks).trim().slice(0, 120) } : {}),
       })),
       milestones: body.milestones.map((m) => ({ name: String(m.name ?? "").slice(0, 40), bps: Math.round(Number(m.bps)) })),
+      ...(body.headline && String(body.headline).trim() ? { headline: String(body.headline).trim().slice(0, 80) } : {}),
+      ...(body.story && String(body.story).trim() ? { story: String(body.story).trim().slice(0, 800) } : {}),
+      ...(Array.isArray(body.faq) && body.faq.length
+        ? {
+            faq: body.faq
+              .map((f) => ({ q: String(f?.q ?? "").trim().slice(0, 120), a: String(f?.a ?? "").trim().slice(0, 400) }))
+              .filter((f) => f.q && f.a)
+              .slice(0, 6),
+          }
+        : {}),
     };
     if (metadata.milestones.reduce((s, m) => s + m.bps, 0) !== 10_000) throw new Error("bps");
   } catch {

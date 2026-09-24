@@ -1,4 +1,4 @@
-import type { ListingMetadata, ListingViewImage } from "@patched/shared";
+import type { ListingMetadata, ListingViewImage, PatchTier } from "@patched/shared";
 
 export type SurfaceKind = "outfit" | "car" | "hoodie";
 export const SURFACES: SurfaceKind[] = ["outfit", "car", "hoodie"];
@@ -13,6 +13,8 @@ export interface LivePatch {
   bought: boolean;
   /** Id of the view the patch sits on ("front", "back", "left", "right", "roof"). */
   side: string;
+  tier: PatchTier;
+  perks: string | null;
   // position on the canvas, % of the drawing box
   x: number;
   y: number;
@@ -57,6 +59,10 @@ export interface ListingView {
   title: string;
   canvasImage: string | null;
   canvasImageBack: string | null;
+  creatorAvatar: string | null;
+  creatorBio: string | null;
+  eventStartsAt: number | null;
+  eventCity: string | null;
   /** Every view with its image, in display order (see listingViews in @patched/shared). */
   views: ListingViewImage[];
   patches: LivePatch[];

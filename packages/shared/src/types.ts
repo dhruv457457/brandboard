@@ -71,9 +71,26 @@ export interface ListingMetadata {
   /** Short description of the outfit style the creator picked, or of the car. */
   style?: string;
   /** `side` is the id of the view the patch sits on (defaults to the first view). */
-  patches: { id: number; name: string; side?: string; x: number; y: number; w: number; h: number; rotation?: number }[];
+  patches: {
+    id: number; name: string; side?: string; x: number; y: number; w: number; h: number; rotation?: number;
+    /** How prominent the spot is; shown as a label and used to rank spots on the sponsor page. */
+    tier?: PatchTier;
+    /** One short line on what the brand gets, e.g. "Front and centre in every photo". */
+    perks?: string;
+  }[];
   milestones: { name: string; bps: number }[];
+  /** Sponsor page copy, written by the creator in the Studio. */
+  headline?: string;
+  story?: string;
+  faq?: { q: string; a: string }[];
 }
+
+export type PatchTier = "mega" | "prime" | "mini";
+export const PATCH_TIERS: Record<PatchTier, { label: string; blurb: string }> = {
+  mega: { label: "Mega spot", blurb: "The biggest, most photographed spot" },
+  prime: { label: "Prime spot", blurb: "Clearly visible in most photos" },
+  mini: { label: "Mini spot", blurb: "Small budget, still on camera" },
+};
 
 export interface ListingViewImage {
   /** "front" | "back" | "left" | "right" | "roof" */

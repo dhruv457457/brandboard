@@ -12,6 +12,41 @@ This came out of a research and planning session with no code changes. Read it t
   2. Using Privy much more deeply.
   3. A more competitive bidding system.
 
+## Social, Attention & Culture track: official criteria and what they change
+
+**The track's core question:** how do "social participation, cultural engagement, and attention translate into real ownership and economic stake **for the people generating them**"? A project belongs in this track if its core value is social connection, cultural participation or community, "even if financial mechanics are involved."
+
+**The prize** is $30k, split evenly: $10k each for 3 winners.
+
+**The rubric**, which leans toward startup potential:
+- **Technical execution (20%):** does the social mechanism run on-chain and produce results anyone can verify?
+- **Design and craft (20%):** does it feel like a real social product, "inviting, fun", and not a token-gated feature bolted on?
+- **Originality and track insight (15%):** does attention turn into real, verifiable economic stake for the people generating it, or is the on-chain part decorative?
+- **Founder and market readiness (25%):** does the team understand its target community, and why would that community move over from existing platforms?
+- **Traction and path forward (20%):** any real community engagement ("even a small Discord or test group") plus a specific plan for growth and creator acquisition.
+
+**What this changes:**
+1. **The people who generate attention must earn on-chain, not just the creator.** Today only the creator earns; brands get the NFT and fans get nothing. Add on-chain stake for the people who spread the listing:
+   - **Share-to-earn referrals.** A share link carries `?ref=`. The bid transaction records the referrer, and when that patch's money is released the referrer gets a cut of the fee. This turns the share page into an economic mechanism anyone can verify, and it's the highest-priority contract change for this track.
+   - **Early backers** (matches the track's "early-supporter registries" idea): fans back a listing before it sells, and an early backing earns a share of the creator's payout. This is on-chain too.
+2. **Outbid rewards move down the list.** They reward brands, and brands aren't the people generating attention here.
+3. **Template remix with on-chain attribution** matches the track's "style as an ownable asset" idea, so give it credit, and royalties later.
+4. **The social layer is judged, not optional.** That means the creator page and share studio, a live feed, follows, and a product that feels fun.
+5. **Traction can be online.** A small test group on testnet (a Discord or Telegram group) counts. Show the on-chain numbers and a specific plan for acquiring creators.
+
+**Submission checklist:**
+- Logo (JPG/PNG/WEBP, 3MB max).
+- A **public GitHub repo that metropolis@hackathon.monad.xyz can access**.
+- A **technical demo** of up to 3 minutes showing the live product, not slides or code.
+- A **pitch video** of up to 2 minutes: team, problem, why us.
+- A **live link on Monad mainnet or testnet with access instructions and test login credentials for judges.** Privy's test accounts plus a test-USDC faucet button would make this easy.
+- Optional: a 30-second ad.
+
+**Note on the coding session's current work (seen 2026-09-24):**
+- `PatchAutoBidder.sol` and `PatchSweeper.sol` do auto-bid and sweep **in contracts**. The keeper server wallet calls `execute()`, and the sweeper bids through `bidFor`. That's good for on-chain verifiability, but it means Privy's **session signers** and **batched calls** are no longer what powers these features.
+- To keep the Privy feature count up, run the brand's setup through a Privy batch with `sponsor: true`: approve + set the max (auto-bid), and approve + `sweep` (sweep). Then show session signers somewhere they fit naturally, or accept that the server wallet + policy covers automation.
+- If `PatchedMarket` is being redeployed anyway, **add the referral argument to bids in the same redeploy** so we don't need a second one.
+
 ## What the codebase does today (checked on 2026-09-24)
 
 **Pages**

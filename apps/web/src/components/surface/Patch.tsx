@@ -29,6 +29,8 @@ export interface PatchData {
   locked?: boolean;
   bought?: boolean;
   mine?: boolean;
+  /** Spot number shown in the corner ("01"), matching the numbered list on the sponsor page. */
+  number?: number;
 }
 
 export interface PatchHandle {
@@ -153,6 +155,15 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
           } as React.CSSProperties
         }
       >
+        {patch.number != null && (
+          <span
+            aria-hidden="true"
+            className="absolute top-[2px] left-[4px] font-bold leading-none opacity-80"
+            style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "min(20cqh, 9cqw)" }}
+          >
+            {String(patch.number).padStart(2, "0")}
+          </span>
+        )}
         {isFilled ? (
           <>
             {patch.logo ? (

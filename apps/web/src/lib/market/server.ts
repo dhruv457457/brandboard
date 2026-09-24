@@ -5,6 +5,7 @@ import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
 import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
 import { slotFor } from "./layouts";
+import { defaultTiers } from "./tiers";
 import { SURFACES, type BidEvent, type ListingView, type LivePatch } from "./types";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -47,7 +48,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [BigInt(id)] }),
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatches", args: [BigInt(id)] }),
     bidStep(),
-    db.from("listing_cards").select("metadata, metadata_hash, creator_handle, creator_name, creator_verified, event_name")
+    db.from("listing_cards").select("metadata, metadata_hash, creator_handle, creator_name, creator_verified, creator_avatar, creator_bio, event_name, event_starts_at, event_city")
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
     db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
@@ -59,7 +60,11 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
   let row = card.data;
   if (!row || row.metadata_hash !== L.metadataHash) {
     const meta = await db.from("listing_metadata").select("metadata").eq("metadata_hash", L.metadataHash).maybeSingle();
-    row = { ...(row ?? { creator_handle: null, creator_name: null, creator_verified: false, event_name: null }), metadata: meta.data?.metadata ?? null, metadata_hash: L.metadataHash };
+    row = {
+      ...(row ?? { creator_handle: null, creator_name: null, creator_verified: false, creator_avatar: null, creator_bio: null, event_name: null, event_starts_at: null, event_city: null }),
+      metadata: meta.data?.metadata ?? null,
+      metadata_hash: L.metadataHash,
+    };
   }
   const profile = { data: { handle: row.creator_handle, display_name: row.creator_name, x_verified: row.creator_verified } };
   const event = { data: row.event_name ? { name: row.event_name } : null };
@@ -69,6 +74,10 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
   const views = listingViews(metadata);
   const surface = SURFACES[L.surface] ?? "outfit";
 
+  const tiers = defaultTiers(patches.map((_, i) => {
+    const m = metadata?.patches.find((x) => x.id === i);
+    return m ? m.w * m.h : 0;
+  }));
   const livePatches: LivePatch[] = patches.map((p, i) => {
     const label = b32(p.label);
     const pos = metadata?.patches.find((m) => m.id === i);
@@ -84,6 +93,8 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       topBidder: leader,
       bought: p.bought,
       side: pos?.side ?? views[0]?.id ?? "front",
+      tier: pos?.tier ?? tiers[i],
+      perks: pos?.perks ?? null,
       x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
       brandName: brand?.brand_name ?? null,
       logoUrl: brand?.brand_logo_url ?? null,
@@ -108,6 +119,10 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     creatorHandle: profile.data?.handle ?? null,
     creatorName: profile.data?.display_name ?? null,
     creatorVerified: Boolean(profile.data?.x_verified),
+    creatorAvatar: row.creator_avatar ?? null,
+    creatorBio: row.creator_bio ?? null,
+    eventStartsAt: row.event_starts_at ? new Date(row.event_starts_at).getTime() : null,
+    eventCity: row.event_city ?? null,
     surface,
     status: L.status,
     eventId: L.eventId,
@@ -177,11 +192,13 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
       .filter((p) => p.listing_id === r.listing_id)
       .map((p) => {
         const pos = metadata?.patches.find((m) => m.id === p.patch_id);
+        const tiers = defaultTiers((metadata?.patches ?? []).map((m) => m.w * m.h));
         const slot = slotFor(surface, p.patch_id, p.label, pos ? { name: pos.name, x: pos.x, y: pos.y, w: pos.w, h: pos.h, r: pos.rotation } : null);
         return {
           id: p.patch_id, label: pos?.name ?? p.label,
           floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
           topBidder: p.top_bidder, bought: p.bought, side: pos?.side ?? listingViews(metadata)[0]?.id ?? "front",
+          tier: pos?.tier ?? tiers[p.patch_id] ?? "prime", perks: pos?.perks ?? null,
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
           brandName: p.brand_name ?? null,
           logoUrl: p.brand_logo_url ?? null,
