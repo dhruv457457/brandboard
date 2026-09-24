@@ -33,9 +33,8 @@ Privy does much more than sign-in here. Every row is live in the app and links t
 | Linked accounts: verified brands | A brand links a work email (Privy one-time code). If the domain matches its website, its patches show "Verified brand". This stops impersonation. | [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx), [verify-brand route](apps/web/src/app/api/profile/verify-brand/route.ts) |
 | Wallet export | "Your wallet is yours": export the embedded wallet's key to any wallet. | [AccountMenu.tsx](apps/web/src/components/navigation/AccountMenu.tsx) |
 | Server-side auth | Every API route verifies the Privy access token (JWKS) and reads the user's wallet and verified emails from Privy's API, never from the browser. | [auth.ts](apps/web/src/lib/server/auth.ts) |
-| Add funds | Card or crypto funding into the wallet, where Privy supports the network. | [bids/page.tsx](apps/web/src/app/bids/page.tsx) |
 
-Not used, and why: **session signers** aren't enabled on our Privy app, so auto-bid runs on the policy-limited server wallet instead. **Transaction webhooks** need Privy's Enterprise plan, so notifications come from our own indexer and Supabase Realtime.
+Not used, and why: **Funding (card or bank on-ramps)** is left out on purpose: Patched has no banks or fiat, and wallets hold USDC only. **session signers** aren't enabled on our Privy app, so auto-bid runs on the policy-limited server wallet instead. **Transaction webhooks** need Privy's Enterprise plan, so notifications come from our own indexer and Supabase Realtime.
 
 ## Contracts
 
