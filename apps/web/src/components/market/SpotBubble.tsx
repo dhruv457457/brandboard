@@ -18,6 +18,8 @@ interface Props {
   /** How contested the spot is, and its latest bids (newest first). */
   heat?: SpotHeat;
   history?: { id: string; who: string; amount: bigint; time: number }[];
+  /** The creator's bond, shown as part of what protects this bid. */
+  stake?: bigint;
   me?: string;
   isCreator: boolean;
   authenticated: boolean;
@@ -36,7 +38,7 @@ interface Props {
  * the minimum to take the lead. Quick chips change the amount; "More" opens the full sheet (custom amount,
  * auto-bid). Positioned next to the patch inside the stage.
  */
-export function SpotBubble({ patch, minNext, heat, history = [], me, isCreator, authenticated, biddingOpen, busy, error, onLogin, onBid, onMore, onClose }: Props) {
+export function SpotBubble({ patch, minNext, heat, history = [], stake, me, isCreator, authenticated, biddingOpen, busy, error, onLogin, onBid, onMore, onClose }: Props) {
   const [amount, setAmount] = useState(minNext);
   // Reset to the minimum when the spot changes or someone outbids.
   useEffect(() => setAmount(minNext), [patch.id, minNext]);
@@ -159,7 +161,9 @@ export function SpotBubble({ patch, minNext, heat, history = [], me, isCreator, 
           {error ? (
             <span className="text-xs text-[var(--red)] font-semibold" role="alert">{error}</span>
           ) : (
-            <span className="text-[11px] text-[var(--muted)]">Outbid? Your USDC comes straight back.</span>
+            <span className="text-[11px] text-[var(--muted)]">
+              Outbid? Your USDC comes straight back.{stake ? ` Creator staked ${usd(stake)} on showing up.` : ""}
+            </span>
           )}
         </>
       )}

@@ -28,6 +28,7 @@ import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst, SpotBubble } from "@/components/market/SpotBubble";
+import { StakePanel } from "@/components/market/StakePanel";
 import { EditableText } from "@/components/market/EditableText";
 import { PAGE_ACCENTS, PAGE_SECTIONS, type ListingPage, type PageAccent, type PageSection } from "@/lib/market/page";
 import { useAuthedFetch } from "@/lib/authedFetch";
@@ -391,6 +392,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                   patch={bubble}
                   minNext={minNext(bubble)}
                   heat={spotHeat(bids, bubble.id)}
+                  stake={listing.bond}
                   history={bids.filter((b) => b.patchId === bubble.id).slice(0, 3).map((b) => ({ id: b.id, who: bidderName(b.bidder), amount: b.amount, time: b.time }))}
                   me={me}
                   isCreator={isCreator}
@@ -501,6 +503,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         </div>
         {biddingOpen && !isCreator && <SweepPanel listingId={listing.id} patches={patches} minNext={minNext} me={me} />}
       </section>
+
+      {/* ── What protects the brand: creator stake, record, payout plan ── */}
+      {status !== 5 && status !== 6 && (
+        <section className="wrap mt-14">
+          <StakePanel listing={listing} creatorLabel={creatorLabel} status={status} mounted={mounted} />
+        </section>
+      )}
 
       {delivery && (
         <section className="wrap mt-14 grid gap-3">

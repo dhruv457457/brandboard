@@ -57,6 +57,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     db.from("listing_pages").select("page").eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
   ]);
   if (L.creator === ZERO) return null;
+  const [completed, failed, earned] = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "reputation", args: [L.creator] });
 
   // Brand-new listing the indexer hasn't mirrored yet: fall back to a direct metadata lookup.
   let row = card.data;
@@ -132,6 +133,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     biddingEndsAt: L.biddingEndsAt * 1000,
     hardEndsAt: L.hardEndsAt * 1000,
     bond: L.bond,
+    creatorRecord: { completed: Number(completed), failed: Number(failed), earned: BigInt(earned) },
     minIncrement,
     minIncrementBps,
     milestoneBps: L.milestoneBps.slice(0, L.milestoneCount),

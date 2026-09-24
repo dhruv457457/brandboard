@@ -53,6 +53,8 @@ export interface ListingView {
   biddingEndsAt: number; // unix ms
   hardEndsAt: number;
   bond: bigint;
+  /** The creator's delivery record from the contract's reputation mapping. */
+  creatorRecord: { completed: number; failed: number; earned: bigint };
   minIncrement: bigint;
   minIncrementBps: number;
   milestoneBps: number[];
