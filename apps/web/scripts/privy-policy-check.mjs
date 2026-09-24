@@ -1,4 +1,5 @@
-// Negative test: the keeper wallet must NOT be able to send anything except the 3 allowed market calls.
+// Negative test: the keeper wallet must NOT be able to send anything except the 3 allowed market calls
+// and PatchAutoBidder.execute.
 // Tries a USDC transfer out of the keeper wallet; the Privy policy should reject it. Run from apps/web:
 //   node scripts/privy-policy-check.mjs
 import { readFileSync } from "node:fs";
@@ -16,6 +17,7 @@ for (const line of readFileSync(join(root, ".env.local"), "utf8").split(/\r?\n/)
 const privy = new PrivyClient({ appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET });
 const usdc = "0x534b2f3A21130d7a60830c2Df862319e593943A3";
 const market = "0xd3808dE425493934f036f8E77ef5a4de332e9552";
+const autoBidder = "0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA";
 
 // Both calls would succeed on-chain (so Privy's pre-send simulation passes); only the policy can stop them.
 const attempts = [
@@ -31,6 +33,15 @@ const attempts = [
       abi: [{ type: "function", name: "setBrandName", inputs: [{ name: "name", type: "bytes32" }], outputs: [], stateMutability: "nonpayable" }],
       functionName: "setBrandName",
       args: ["0x7465737400000000000000000000000000000000000000000000000000000000"],
+    }),
+  },
+  {
+    name: "auto-bidder setAutoBid (right contract, only execute is allowed)",
+    to: autoBidder,
+    data: encodeFunctionData({
+      abi: [{ type: "function", name: "setAutoBid", inputs: [{ name: "listingId", type: "uint256" }, { name: "patchId", type: "uint8" }, { name: "max", type: "uint96" }], outputs: [], stateMutability: "nonpayable" }],
+      functionName: "setAutoBid",
+      args: [1n, 0, 1n],
     }),
   },
 ];

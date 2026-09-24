@@ -2,15 +2,18 @@ import "server-only";
 import { encodeFunctionData } from "viem";
 import postgres from "postgres";
 import { PrivyClient } from "@privy-io/node";
-import { patchedMarketAbi } from "@patched/shared";
+import { patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
 import { syncChain } from "@patched/indexer";
-import { CHAIN_ID, MARKET, serverClient, serverRpcUrl } from "@/lib/config";
+import { AUTO_BIDDER, CHAIN_ID, MARKET, serverClient, serverRpcUrl } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export interface KeeperAction {
-  kind: "closeBidding" | "release" | "markFailed";
+  kind: "closeBidding" | "release" | "markFailed" | "autoBid";
   listingId: number;
   milestone?: number;
+  /** autoBid only: the brand being kept on top, and the patch. */
+  brand?: string;
+  patchId?: number;
   status: "sent" | "skipped" | "failed";
   hash?: string;
   reason?: string;
@@ -22,7 +25,7 @@ let privy: PrivyClient | null = null;
 /**
  * One keeper pass: catch the indexer up, find everything that is due, and send each call from the
  * Privy server wallet. The wallet's Privy policy only allows closeBidding / release / markFailed on
- * the market, so even a leaked keeper secret can't move funds anywhere else.
+ * the market and execute on the auto-bidder, so even a leaked keeper secret can't move funds anywhere else.
  */
 export async function runKeeper(): Promise<KeeperAction[]> {
   sql ??= postgres(process.env.DATABASE_URL!, { prepare: false, max: 2, onnotice: () => {} });
@@ -55,20 +58,74 @@ export async function runKeeper(): Promise<KeeperAction[]> {
   const results: KeeperAction[] = [];
   for (const job of jobs) results.push(await execute(job));
   if (results.some((r) => r.status === "sent")) await syncChain({ sql, chainId: CHAIN_ID, rpcUrl: serverRpcUrl(), maxBlocks: 5_000n });
+  results.push(...(await respondAutoBids()));
   return results;
 }
 
+let responding: Promise<KeeperAction[]> | null = null;
+
+/**
+ * Auto-bid responder: for every active auto-bid whose brand is no longer leading a live patch, call
+ * PatchAutoBidder.execute from the keeper wallet. The contract bids the minimum step and never goes
+ * above the brand's maximum, so this only decides *when*, never *how much*. Runs a few rounds so two
+ * auto-bidders on one patch settle in one call. Concurrent callers share one run.
+ */
+export function respondAutoBids(): Promise<KeeperAction[]> {
+  if (!AUTO_BIDDER || !process.env.PRIVY_SERVER_WALLET_ID) return Promise.resolve([]);
+  responding ??= (async () => {
+    sql ??= postgres(process.env.DATABASE_URL!, { prepare: false, max: 2, onnotice: () => {} });
+    const all: KeeperAction[] = [];
+    for (let round = 0; round < 6; round++) {
+      const jobs = await dueAutoBids();
+      if (!jobs.length) break;
+      const results: KeeperAction[] = [];
+      for (const job of jobs) results.push(await execute(job));
+      all.push(...results);
+      if (!results.some((r) => r.status === "sent")) break;
+      await syncChain({ sql, chainId: CHAIN_ID, rpcUrl: serverRpcUrl(), maxBlocks: 5_000n });
+    }
+    return all;
+  })().finally(() => {
+    responding = null;
+  });
+  return responding;
+}
+
+async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
+  const db = supabaseAdmin();
+  const { data: rules } = await db.from("auto_bid_rules").select("wallet, listing_id, patch_id, max_amount")
+    .eq("chain_id", CHAIN_ID).eq("active", true).limit(200);
+  if (!rules?.length) return [];
+  const ids = [...new Set(rules.map((r) => r.listing_id))];
+  const [{ data: live }, { data: patches }] = await Promise.all([
+    db.from("listings").select("listing_id").eq("chain_id", CHAIN_ID).eq("status", 1)
+      .gt("bidding_ends_at", new Date().toISOString()).in("listing_id", ids),
+    db.from("patches").select("listing_id, patch_id, top_bidder, bought").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+  ]);
+  const liveIds = new Set((live ?? []).map((l) => l.listing_id));
+  return rules
+    .filter((r) => liveIds.has(r.listing_id))
+    .filter((r) => {
+      const p = patches?.find((x) => x.listing_id === r.listing_id && x.patch_id === r.patch_id);
+      return p && !p.bought && p.top_bidder?.toLowerCase() !== r.wallet;
+    })
+    .map((r) => ({ kind: "autoBid" as const, listingId: r.listing_id, patchId: r.patch_id, brand: r.wallet }));
+}
+
 async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction> {
+  const to = job.kind === "autoBid" ? AUTO_BIDDER! : MARKET;
   const data =
-    job.kind === "release"
-      ? encodeFunctionData({ abi: patchedMarketAbi, functionName: "release", args: [BigInt(job.listingId), job.milestone!] })
-      : encodeFunctionData({ abi: patchedMarketAbi, functionName: job.kind, args: [BigInt(job.listingId)] });
+    job.kind === "autoBid"
+      ? encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "execute", args: [job.brand as `0x${string}`, BigInt(job.listingId), job.patchId!] })
+      : job.kind === "release"
+        ? encodeFunctionData({ abi: patchedMarketAbi, functionName: "release", args: [BigInt(job.listingId), job.milestone!] })
+        : encodeFunctionData({ abi: patchedMarketAbi, functionName: job.kind, args: [BigInt(job.listingId)] });
 
   const keeper = process.env.KEEPER_ADDRESS as `0x${string}`;
   const client = serverClient();
   try {
     // Only send what the contract would accept right now (the indexed view can be a few seconds old).
-    await client.call({ account: keeper, to: MARKET, data });
+    await client.call({ account: keeper, to, data });
   } catch (err) {
     return { ...job, status: "skipped", reason: err instanceof Error ? err.message.split("\n")[0] : "not due" };
   }
@@ -77,7 +134,7 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
     privy ??= new PrivyClient({ appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID!, appSecret: process.env.PRIVY_APP_SECRET! });
     const res = await privy.wallets().ethereum().sendTransaction(process.env.PRIVY_SERVER_WALLET_ID!, {
       caip2: `eip155:${CHAIN_ID}`,
-      params: { transaction: { to: MARKET, data, chain_id: CHAIN_ID } },
+      params: { transaction: { to, data, chain_id: CHAIN_ID } },
       // Sponsored by Privy unless turned off; then the keeper wallet pays its own MON.
       sponsor: process.env.KEEPER_GAS_SPONSORED !== "false",
       // Wallets owned by an authorization key need a signed request; app-controlled wallets don't.

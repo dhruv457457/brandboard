@@ -10,6 +10,8 @@ if (!deployment) throw new Error(`No Patched deployment for chain ${CHAIN_ID}`);
 export const DEPLOYMENT = deployment;
 export const MARKET = deployment.market;
 export const RECEIPT = deployment.receipt;
+/** PatchAutoBidder for this market, if deployed. */
+export const AUTO_BIDDER = deployment.autoBidder ?? null;
 export const USDC = deployment.usdc;
 /** The dollar token is the TestUSD faucet token (mainnet test run), not real USDC. */
 export const TEST_TOKEN = deployment.testToken === true;

@@ -26,7 +26,7 @@ Full product spec: [docs/SPEC.md](docs/SPEC.md). Contract API: [docs/contracts.m
 
 - **Monad hackathon (Metropolis)** — deadline **Oct 14 2026, 09:29 IST**. Track: *Social, Attention & Culture*. Judging: technical execution 20%, design & craft 20%, originality 15%, founder/market readiness 25%, traction 20%.
 - Sponsor bounties we are targeting (each must be visibly used in the demo):
-  - **Privy (main target)** — must be used *beyond login*: embedded wallets, gas sponsorship, batched approve+bid, server wallets + policies, session signers (auto-bid), card onramp.
+  - **Privy (main target)** — must be used *beyond login*: embedded wallets, gas sponsorship, one-signature permit bids, server wallets + policies (the keeper and auto-bid through `PatchAutoBidder`), plus sweep, passkey step-up, verified brands and wallet export (planned). Session signers are not enabled on our Privy app, so auto-bid does not use them.
 - Not used: Aurora Intents, Hunyuan, Kimi, Envio, Chainlink CRE, Dynamic, Mera wallets.
 - Later: a mirrored repo for **Arc (Circle) Microgrants** on Arc mainnet. Keep chain-specific values in config, never hard-coded.
 

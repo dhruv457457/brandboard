@@ -9,7 +9,7 @@ import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
 
-const permitAbi = [
+export const permitAbi = [
   { type: "function", name: "nonces", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { type: "function", name: "version", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },

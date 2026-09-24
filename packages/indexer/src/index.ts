@@ -6,7 +6,7 @@
 // always safe (all writes are idempotent).
 import { createPublicClient, decodeEventLog, hexToString, http, type Log, type PublicClient } from "viem";
 import type { Sql } from "postgres";
-import { DEPLOYMENTS, monadMainnet, monadTestnet, patchedMarketAbi } from "@patched/shared";
+import { DEPLOYMENTS, monadMainnet, monadTestnet, patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
 
 const CHAINS = { 10143: monadTestnet, 143: monadMainnet } as const;
 export type IndexedChainId = keyof typeof CHAINS;
@@ -50,7 +50,9 @@ export async function syncChain({ sql, chainId, rpcUrl, maxBlocks = 20_000n }: S
   let refreshed = 0;
   for (let from = start; from <= end; from += MAX_RANGE) {
     const to = from + MAX_RANGE - 1n < end ? from + MAX_RANGE - 1n : end;
-    const logs = (await client.getLogs({ address: deployment.market, fromBlock: from, toBlock: to })) as MarketLog[];
+    // The market plus, when deployed, the auto-bidder (its AutoBidSet events feed auto_bid_rules).
+    const addresses = deployment.autoBidder ? [deployment.market, deployment.autoBidder] : [deployment.market];
+    const logs = (await client.getLogs({ address: addresses, fromBlock: from, toBlock: to })) as MarketLog[];
     const touched = new Set<bigint>();
     await Promise.all(logs.map((l) => blockTime(l, client))); // warm the cache in parallel
 
@@ -72,12 +74,15 @@ export async function syncChain({ sql, chainId, rpcUrl, maxBlocks = 20_000n }: S
 }
 
 function decode(log: MarketLog): Decoded | null {
-  try {
-    const d = decodeEventLog({ abi: patchedMarketAbi, data: log.data, topics: log.topics });
-    return { eventName: d.eventName, args: (d.args ?? {}) as Record<string, unknown> };
-  } catch {
-    return null; // not one of our events (e.g. AccessControl internals we don't mirror)
+  for (const abi of [patchedMarketAbi, patchAutoBidderAbi]) {
+    try {
+      const d = decodeEventLog({ abi, data: log.data, topics: log.topics });
+      return { eventName: d.eventName, args: (d.args ?? {}) as Record<string, unknown> };
+    } catch {
+      // try the next contract's ABI
+    }
   }
+  return null; // not one of our events (e.g. AccessControl internals we don't mirror)
 }
 
 const lc = (a: unknown) => (typeof a === "string" ? a.toLowerCase() : null);
@@ -125,6 +130,13 @@ async function handle(
   if ("listingId" in a) touched.add(a.listingId as bigint);
 
   switch (eventName) {
+    case "AutoBidSet":
+      await sql`
+        insert into public.auto_bid_rules (chain_id, wallet, listing_id, patch_id, max_amount, active)
+        values (${chainId}, ${lc(a.brand)}, ${num(a.listingId)}, ${Number(a.patchId)}, ${num(a.max)}, ${BigInt(a.max as bigint) > 0n})
+        on conflict (chain_id, wallet, listing_id, patch_id)
+        do update set max_amount = excluded.max_amount, active = excluded.active`;
+      break;
     case "EventCreated":
       await sql`
         insert into public.patched_events (chain_id, event_id, name, starts_at, ends_at, active)

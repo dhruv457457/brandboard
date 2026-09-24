@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { patchedMarketAbi } from "@patched/shared";
 import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
+import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import type { DeliveryView } from "@/lib/market/server";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
@@ -348,6 +349,16 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             <a className="text-xs muted inline-flex items-center gap-1" href={`${EXPLORER}/tx/${hash}`} target="_blank" rel="noopener noreferrer">
               View transaction <ExternalLink size={12} />
             </a>
+          )}
+          {authenticated && !selected.bought && biddingOpen && (
+            <AutoBidPanel
+              listingId={listing.id}
+              patchId={selected.id}
+              label={selected.label}
+              minNext={minNext(selected)}
+              buyNow={selected.buyNow}
+              disabled={busy}
+            />
           )}
         </div>
       </Sheet>

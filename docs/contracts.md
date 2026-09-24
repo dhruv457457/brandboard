@@ -154,9 +154,24 @@ event TreasuryUpdated(address treasury);
 
 `NotActive`, `BiddingOver`, `BiddingNotOver`, `BadPatch`, `AlreadyBought`, `BidTooLow(uint96 minNext)`, `CreatorCannotBid`, `NotCreator`, `NotHolder`, `WrongMilestone`, `DeadlinePassed`, `DeadlineNotPassed`, `ReviewNotOver`, `ReviewOver`, `AlreadyDisputed`, `NotDisputed`, `InvalidParams`, `OverNewCreatorCap`, `EventInactive`, `NotForSale`, `PriceAboveMax`, `NothingToWithdraw`.
 
+## PatchAutoBidder (auto-bid)
+
+"Keep me on top up to $X" for one patch. Source: `contracts/src/PatchAutoBidder.sol`, tests in `test/PatchAutoBidder.t.sol` and a fork test in `test/fork/AutoBidFork.t.sol`.
+
+| Function | Who | What |
+|---|---|---|
+| `setAutoBid(listingId, patchId, max)` | brand | Set or change the maximum; `0` turns it off. Emits `AutoBidSet`. |
+| `setAutoBidWithPermit(listingId, patchId, max, allowance, deadline, v, r, s)` | brand | Same, plus a USDC permit for this contract, in one tx. |
+| `execute(brand, listingId, patchId)` | anyone (the keeper) | If the brand is not leading, bids `minNextBid` (or buy-now) for them via `market.bidFor`. Reverts `AlreadyLeading`, `OverMax(needed, max)`, `NoAutoBid` or `BidNotPlaced`. Emits `AutoBidPlaced`. |
+| `maxBid(brand, listingId, patchId)` | view | The brand's current maximum. |
+
+The contract holds no funds and needs no role on the market. The keeper (Privy server wallet) runs `execute` right after each indexer sync that sees new logs; its Privy policy allows only `execute` on this contract. The web app asks for an allowance of 10x the maximum, because outbid bids are refunded by the market but the allowance they used is not.
+
 ## Deployments
 
 Addresses live in `packages/shared/src/addresses.ts` (`DEPLOYMENTS[chainId]`). All verified on Sourcify (exact match).
+
+PatchAutoBidder: testnet `0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA` (block 65221700), mainnet `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` (block 107531645, for the TestUSD market). Deployed with `script/DeployAutoBidder.s.sol`.
 
 | Network | PatchedMarket | PatchReceipt | Deploy block | Notes |
 |---|---|---|---|---|
