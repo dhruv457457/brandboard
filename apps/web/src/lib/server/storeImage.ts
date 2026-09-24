@@ -13,3 +13,18 @@ export async function storeDataUrl(dataUrl: string, wallet: string): Promise<str
   if (error) throw error;
   return db.storage.from("canvases").getPublicUrl(path).data.publicUrl;
 }
+
+/**
+ * Cut the green screen out of an AI image (see @patched/ai/cutout) and store it as a transparent WebP.
+ * If the model didn't produce a green screen, the original image is stored unchanged.
+ */
+export async function storeCutout(dataUrl: string, wallet: string): Promise<{ url: string; cut: boolean }> {
+  const { cutoutGreen } = await import("@patched/ai/cutout");
+  const res = await cutoutGreen(dataUrl);
+  const ext = res.contentType === "image/webp" ? "webp" : res.contentType === "image/png" ? "png" : "jpg";
+  const path = `${wallet}/${randomUUID()}.${ext}`;
+  const db = supabaseAdmin();
+  const { error } = await db.storage.from("canvases").upload(path, res.data, { contentType: res.contentType });
+  if (error) throw error;
+  return { url: db.storage.from("canvases").getPublicUrl(path).data.publicUrl, cut: res.cut };
+}

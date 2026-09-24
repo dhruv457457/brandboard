@@ -1,6 +1,6 @@
 import "server-only";
 import { hexToString } from "viem";
-import { patchedMarketAbi, type ListingMetadata } from "@patched/shared";
+import { listingViews, patchedMarketAbi, type ListingMetadata } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
 import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
@@ -66,6 +66,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
   const meta = { data: { metadata: row.metadata } };
 
   const metadata = (meta.data?.metadata ?? null) as ListingMetadata | null;
+  const views = listingViews(metadata);
   const surface = SURFACES[L.surface] ?? "outfit";
 
   const livePatches: LivePatch[] = patches.map((p, i) => {
@@ -82,7 +83,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       topBid: p.topBid,
       topBidder: leader,
       bought: p.bought,
-      side: pos?.side === "back" ? "back" : "front",
+      side: pos?.side ?? views[0]?.id ?? "front",
       x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
       brandName: brand?.brand_name ?? null,
       logoUrl: brand?.brand_logo_url ?? null,
@@ -121,6 +122,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     title: metadata?.title ?? `${surface === "car" ? "Car" : surface === "hoodie" ? "Team hoodie" : "Outfit"} #${id}`,
     canvasImage: metadata?.canvasImage ?? null,
     canvasImageBack: metadata?.canvasImageBack ?? null,
+    views,
     patches: livePatches,
     bids: bidEvents,
     metadata,
@@ -140,6 +142,8 @@ export interface ListingCard {
   patchesWithBids: number;
   topBidsTotal: bigint;
   canvasImage: string | null;
+  /** Id of the view canvasImage shows; cards only draw that view's patches. */
+  viewId: string;
   patches: LivePatch[];
 }
 
@@ -177,7 +181,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
         return {
           id: p.patch_id, label: pos?.name ?? p.label,
           floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
-          topBidder: p.top_bidder, bought: p.bought, side: pos?.side === "back" ? "back" : "front",
+          topBidder: p.top_bidder, bought: p.bought, side: pos?.side ?? listingViews(metadata)[0]?.id ?? "front",
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
           brandName: p.brand_name ?? null,
           logoUrl: p.brand_logo_url ?? null,
@@ -197,7 +201,8 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
       patchCount: r.patch_count,
       patchesWithBids: Number(r.patches_with_bids),
       topBidsTotal: BigInt(r.top_bids_total),
-      canvasImage: metadata?.canvasImage ?? null,
+      canvasImage: listingViews(metadata)[0]?.image ?? metadata?.canvasImage ?? null,
+      viewId: listingViews(metadata)[0]?.id ?? "front",
       patches,
     };
   });

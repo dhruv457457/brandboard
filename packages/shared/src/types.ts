@@ -63,10 +63,32 @@ export interface ListingMetadata {
   canvasImage?: string;
   /** Back view (outfit / hoodie model shots). */
   canvasImageBack?: string;
-  /** Short description of the outfit style the creator picked. */
+  /**
+   * Every view of the surface (front/back for people; left, right, front, back, roof for cars). When present it
+   * is the source of truth and canvasImage/canvasImageBack mirror its first two entries for older readers.
+   */
+  views?: ListingViewImage[];
+  /** Short description of the outfit style the creator picked, or of the car. */
   style?: string;
-  patches: { id: number; name: string; side?: "front" | "back"; x: number; y: number; w: number; h: number; rotation?: number }[];
+  /** `side` is the id of the view the patch sits on (defaults to the first view). */
+  patches: { id: number; name: string; side?: string; x: number; y: number; w: number; h: number; rotation?: number }[];
   milestones: { name: string; bps: number }[];
+}
+
+export interface ListingViewImage {
+  /** "front" | "back" | "left" | "right" | "roof" */
+  id: string;
+  label: string;
+  image: string;
+}
+
+/** The views of a listing, including older listings that only have canvasImage / canvasImageBack. */
+export function listingViews(meta: Pick<ListingMetadata, "views" | "canvasImage" | "canvasImageBack"> | null | undefined): ListingViewImage[] {
+  if (meta?.views?.length) return meta.views;
+  const out: ListingViewImage[] = [];
+  if (meta?.canvasImage) out.push({ id: "front", label: "Front", image: meta.canvasImage });
+  if (meta?.canvasImageBack) out.push({ id: "back", label: "Back", image: meta.canvasImageBack });
+  return out;
 }
 
 /** Friendly messages for the contract's custom errors. */

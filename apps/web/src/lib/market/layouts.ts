@@ -61,3 +61,34 @@ export const MODEL_SHOT_LAYOUTS: Record<"front" | "back", Slot[]> = {
     { name: "Lower back", x: 40, y: 39, w: 20, h: 6 },
   ],
 };
+
+/**
+ * Patch spots for the AI car views (whole car centered on a transparent background). Measured on generated
+ * views; used when the vision model can't suggest spots for a view.
+ */
+export const CAR_VIEW_LAYOUTS: Record<"left" | "right" | "front" | "back" | "roof", Slot[]> = {
+  left: [
+    { name: "Front door", x: 34, y: 48, w: 20, h: 16 },
+    { name: "Rear door", x: 57, y: 48, w: 17, h: 16 },
+    { name: "Front fender", x: 12, y: 55, w: 11, h: 8 },
+    { name: "Rear quarter", x: 77, y: 50, w: 13, h: 9 },
+  ],
+  right: [
+    { name: "Front door", x: 46, y: 48, w: 20, h: 16 },
+    { name: "Rear door", x: 26, y: 48, w: 17, h: 16 },
+    { name: "Front fender", x: 77, y: 55, w: 11, h: 8 },
+    { name: "Rear quarter", x: 10, y: 50, w: 13, h: 9 },
+  ],
+  front: [
+    { name: "Hood", x: 30, y: 30, w: 40, h: 14 },
+    { name: "Front bumper", x: 32, y: 66, w: 36, h: 9 },
+  ],
+  back: [
+    { name: "Trunk lid", x: 32, y: 38, w: 36, h: 12 },
+    { name: "Rear bumper", x: 32, y: 64, w: 36, h: 9 },
+  ],
+  roof: [
+    { name: "Roof", x: 47, y: 33, w: 26, h: 28 },
+    { name: "Hood top", x: 13, y: 30, w: 16, h: 38 },
+  ],
+};

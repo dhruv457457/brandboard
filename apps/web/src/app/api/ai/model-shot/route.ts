@@ -1,7 +1,7 @@
 import { makeModelShot } from "@patched/ai";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
-import { storeDataUrl } from "@/lib/server/storeImage";
+import { storeCutout } from "@/lib/server/storeImage";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,7 +25,9 @@ export async function POST(req: Request) {
   }
   try {
     const { image } = await makeModelShot({ photo: photoUrl!, style, side, front: frontUrl });
-    return Response.json({ url: await storeDataUrl(image, user.wallet) });
+    // Generated on a green screen; stored as a transparent cutout.
+    const { url } = await storeCutout(image, user.wallet);
+    return Response.json({ url });
   } catch (err) {
     console.error("model shot failed", err);
     return Response.json({ error: "The AI couldn't create this shot. Try a clearer photo of your face." }, { status: 502 });

@@ -6,6 +6,20 @@ export const alt = "Patched listing";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+/** next/og can't draw WebP (our transparent cutouts), so hand it a PNG data URL. */
+async function asPng(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const sharp = (await import("sharp")).default;
+    const png = await sharp(Buffer.from(await res.arrayBuffer())).resize({ height: 600, withoutEnlargement: true }).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 const usd = (v: bigint) => `$${(Number(v) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 
 /** Link preview for a listing: the creator's canvas (if any), title and live auction numbers. */
@@ -13,6 +27,7 @@ export default async function Image({ params }: { params: Promise<{ listingId: s
   const { listingId } = await params;
   const listing = await fetchListingView(Number(listingId)).catch(() => null);
   const title = listing?.title ?? "Get patched. Get paid.";
+  const image = await asPng(listing?.canvasImage ?? null);
   const withBids = listing?.patches.filter((p) => p.topBidder).length ?? 0;
   const total = listing?.patches.reduce((s, p) => s + p.topBid, 0n) ?? 0n;
   const creator = listing
@@ -23,9 +38,9 @@ export default async function Image({ params }: { params: Promise<{ listingId: s
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#FFE58F", color: "#0B0B0C", fontFamily: "sans-serif" }}>
         <div style={{ width: 400, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#F1EFE8", borderRight: "4px solid #0B0B0C" }}>
-          {listing?.canvasImage ? (
+          {image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.canvasImage} alt="" width={330} height={500} style={{ objectFit: "cover", borderRadius: 24 }} />
+            <img src={image} alt="" width={330} height={500} style={{ objectFit: "contain", borderRadius: 24 }} />
           ) : (
             <div style={{ width: 220, height: 330, borderRadius: 28, border: "6px dashed #FF5A1F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, fontWeight: 800 }}>
               patch

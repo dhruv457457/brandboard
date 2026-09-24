@@ -72,7 +72,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
   const [selectedId, setSelectedId] = useState<number>(() => (patches.find((p) => p.topBidder) ?? patches[0]).id);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [viewSide, setViewSide] = useState<"front" | "back">("front");
+  const [viewSide, setViewSide] = useState<string>(() => listing.views[0]?.id ?? "front");
   const [amountText, setAmountText] = useState("");
   // Time-based text (countdown, "2m ago") differs between server and browser, so render it after mount.
   const [mounted, setMounted] = useState(false);
@@ -123,7 +123,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     }
   }
 
-  const figurePatches: PatchData[] = patches.filter((p) => !listing.canvasImageBack || p.side === viewSide).map((p) => ({
+  const figurePatches: PatchData[] = patches.filter((p) => listing.views.length < 2 || p.side === viewSide).map((p) => ({
     id: p.id,
     name: p.label,
     x: p.x, y: p.y, w: p.w, h: p.h, r: p.r,
@@ -166,15 +166,15 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
       <div className="grid gap-7 lg:grid-cols-[1.1fr_.9fr] items-start">
         <Card className="p-5">
-          {listing.canvasImageBack && (
-            <div className="flex justify-center mb-3">
-              <Seg options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} value={viewSide} onChange={(v) => setViewSide(v as "front" | "back")} />
+          {listing.views.length > 1 && (
+            <div className="flex justify-center mb-3 overflow-x-auto">
+              <Seg options={listing.views.map((v) => ({ value: v.id, label: v.label }))} value={viewSide} onChange={setViewSide} />
             </div>
           )}
           <div className={listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto" : "max-w-[400px] mx-auto"}>
             <SurfaceFigure
               surface={listing.surface}
-              imageUrl={viewSide === "back" && listing.canvasImageBack ? listing.canvasImageBack : listing.canvasImage}
+              imageUrl={listing.views.find((v) => v.id === viewSide)?.image ?? listing.canvasImage}
               patches={figurePatches}
               mode={biddingOpen ? "interactive" : "static"}
               selectedId={selectedId}

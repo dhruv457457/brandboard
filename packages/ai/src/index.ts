@@ -92,9 +92,9 @@ export interface SuggestedPatch {
  * Suggest where patches should go on a canvas image (percent boxes), using a cheap vision model.
  * Returns [] if the model's answer can't be parsed; callers fall back to the default layout.
  */
-export async function suggestLayout(image: string, surface: Surface, count = 5): Promise<SuggestedPatch[]> {
+export async function suggestLayout(image: string, surface: Surface, count = 5, view?: string): Promise<SuggestedPatch[]> {
   const json = await chat({
-    model: env("AI_VISION_MODEL", "qwen/qwen3.7-flash"),
+    model: env("AI_VISION_MODEL", "google/gemini-2.5-flash-lite"),
     temperature: 0.2,
     response_format: { type: "json_object" },
     messages: [
@@ -104,7 +104,7 @@ export async function suggestLayout(image: string, surface: Surface, count = 5):
           {
             type: "text",
             text:
-              `This is a white ${surface === "car" ? "car" : surface === "hoodie" ? "hoodie" : "outfit on a person"}. ` +
+              `This is ${view ? `the ${view} view of ` : ""}a white ${surface === "car" ? "car" : surface === "hoodie" ? "hoodie" : "outfit on a person"} on a transparent background. ` +
               `Propose ${count} rectangular spots where a sponsor logo patch would be clearly visible and look natural ` +
               `(flat areas of the surface, not faces, hands, wheels or windows). ` +
               `Answer as JSON: {"patches":[{"name":"short spot name","x":0-100,"y":0-100,"w":0-100,"h":0-100}]} ` +
@@ -139,10 +139,15 @@ export const STYLE_PRESETS: Record<string, string> = {
   jersey: "a sports jersey with track pants",
 };
 
+/** Flat key colour that cutoutGreen() removes afterwards (see ./cutout.ts). */
+const GREEN_SCREEN =
+  "The background is one flat, solid, pure chroma-key green (#00FF00) from edge to edge: no floor, no horizon, " +
+  "no shadows, gradients or reflections on it, and no green anywhere on the subject.";
+
 const WHITE_RULE =
   "Every garment is plain matte white with no logos, text, prints, patterns, stripes or visible branding, so it can be used as a blank canvas.";
 
-async function imageCall(content: ChatMessage["content"]): Promise<{ image: string; model: string }> {
+async function imageCall(content: ChatMessage["content"], aspect = "2:3"): Promise<{ image: string; model: string }> {
   const models = [env("AI_IMAGE_MODEL", "google/gemini-3.1-flash-lite-image"), env("AI_IMAGE_FALLBACK_MODEL", "google/gemini-2.5-flash-image")];
   let lastError: unknown;
   for (const model of models) {
@@ -150,7 +155,7 @@ async function imageCall(content: ChatMessage["content"]): Promise<{ image: stri
       const json = await chat({
         model,
         modalities: ["image", "text"],
-        image_config: { aspect_ratio: "2:3" },
+        image_config: { aspect_ratio: aspect },
         messages: [{ role: "user", content }] satisfies ChatMessage[],
       });
       const url = json.choices?.[0]?.message?.images?.[0]?.image_url?.url as string | undefined;
@@ -177,7 +182,7 @@ export async function makeModelShot(opts: { photo: string; style: string; side: 
           "Create a photorealistic full-body studio photo of the same person as in this reference photo: same face, hair, " +
           "skin tone and body type. They stand straight facing the camera, arms relaxed slightly away from the body, " +
           "whole body visible from head to shoes, centered, with a little space above the head and below the feet. " +
-          `Plain light grey studio background, soft even lighting. They wear ${outfit}. ${WHITE_RULE} ` +
+          `Soft even studio lighting. ${GREEN_SCREEN} They wear ${outfit}. ${WHITE_RULE} ` +
           "Portrait orientation, 2:3. Return only the image.",
       },
       { type: "image_url", image_url: { url: opts.photo } },
@@ -188,18 +193,82 @@ export async function makeModelShot(opts: { photo: string; style: string; side: 
     {
       type: "text",
       text:
-        "Show the same person, outfit, framing, background and lighting as in this image, but from directly behind " +
-        `(back view), standing straight, whole body visible from head to shoes, centered. ${WHITE_RULE} ` +
+        "Show the same person, outfit, framing and lighting as in this image, but from directly behind " +
+        `(back view), standing straight, whole body visible from head to shoes, centered. ${GREEN_SCREEN} ${WHITE_RULE} ` +
         "Portrait orientation, 2:3. Return only the image.",
     },
     { type: "image_url", image_url: { url: opts.front } },
   ]);
 }
 
+// ─────────────────────────── cars: one photo → every side ───────────────────────────
+
+export const CAR_VIEWS = {
+  left: { label: "Left side", aspect: "16:9", shot: "a perfectly side-on profile of the driver's-side (left) of the car, facing left, whole car visible" },
+  right: { label: "Right side", aspect: "16:9", shot: "a perfectly side-on profile of the passenger-side (right) of the car, facing right, whole car visible" },
+  front: { label: "Front", aspect: "4:3", shot: "the front of the car seen straight on at bumper height, whole car visible" },
+  back: { label: "Back", aspect: "4:3", shot: "the back of the car seen straight on at bumper height, whole car visible" },
+  roof: { label: "Roof", aspect: "16:9", shot: "the car seen from directly above (top-down), front pointing left, whole roof, hood and trunk visible" },
+} as const;
+export type CarView = keyof typeof CAR_VIEWS;
+
+/**
+ * Pin down exactly which car is in the photo, so every generated view shows the same car.
+ * Returns a one-paragraph description (make/model if recognisable, body style, proportions, wheels, lights).
+ */
+export async function describeCar(photo: string): Promise<string> {
+  const json = await chat({
+    model: env("AI_VISION_MODEL", "google/gemini-2.5-flash-lite"),
+    temperature: 0.1,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              "Describe the car in this photo so an artist could draw it from any angle and it would be clearly the same car. " +
+              "One paragraph, under 90 words: make and model if you can tell (else say so), body style (sedan, hatchback, SUV, " +
+              "pickup, van...), number of doors, roof shape, proportions, headlight and taillight shapes, grille, wheel design " +
+              "and size, and anything distinctive. Ignore paint colour, background and people. No lists, plain text only.",
+          },
+          { type: "image_url", image_url: { url: photo } },
+        ],
+      },
+    ] satisfies ChatMessage[],
+  });
+  const text = String(json.choices?.[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("couldn't describe the car");
+  return text.slice(0, 900);
+}
+
+/**
+ * One view of the creator's car wrapped in plain white, on a green screen (cut out afterwards).
+ * Pass the first generated view as `reference` for the others so every view shows the same car.
+ */
+export async function makeCarView(opts: { photo: string; description: string; view: CarView; reference?: string }) {
+  const v = CAR_VIEWS[opts.view];
+  const content: ChatMessage["content"] = [
+    {
+      type: "text",
+      text:
+        `Create a photorealistic product render of this exact car: ${opts.description} ` +
+        "It must match the car in the reference photo(s): same model, body shape, proportions, lights, grille and wheels. " +
+        `Show ${v.shot}, centered with a little margin, orthographic-looking camera, no people. ` +
+        "The whole body is wrapped in plain matte white vinyl with no logos, badges, text, stripes, decals or number plate " +
+        "text, so sponsor logos can be placed on it. Windows, tyres, wheels and lights keep their normal look. " +
+        `Soft even studio lighting. ${GREEN_SCREEN} Return only the image.`,
+    },
+    { type: "image_url", image_url: { url: opts.photo } },
+  ];
+  if (opts.reference) content.push({ type: "image_url", image_url: { url: opts.reference } });
+  return imageCall(content, v.aspect);
+}
+
 /** Three short outfit ideas that would suit the person in the photo (cheap vision model). */
 export async function suggestStyles(photo: string): Promise<string[]> {
   const json = await chat({
-    model: env("AI_VISION_MODEL", "qwen/qwen3.7-flash"),
+    model: env("AI_VISION_MODEL", "google/gemini-2.5-flash-lite"),
     temperature: 0.7,
     response_format: { type: "json_object" },
     messages: [

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Car, Loader2, Plus, Shirt, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Camera, Car, Loader2, Plus, RefreshCw, Shirt, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData } from "@/components/surface/Patch";
 import { Card } from "@/components/ui/Card";
@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/Toast";
 import { formatUsdc } from "@/lib/format";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
-import { DEFAULT_LAYOUTS, MODEL_SHOT_LAYOUTS } from "@/lib/market/layouts";
+import { CAR_VIEW_LAYOUTS, DEFAULT_LAYOUTS, MODEL_SHOT_LAYOUTS } from "@/lib/market/layouts";
 import type { SurfaceKind } from "@/lib/market/types";
 import { useCreateListing } from "@/lib/market/useCreateListing";
 
@@ -23,7 +23,23 @@ export interface StudioEvent {
   endsAt: number;
 }
 
-type Side = "front" | "back";
+/** Id of a view: "front" / "back" for people, "left" / "right" / "front" / "back" / "roof" for cars. */
+type Side = string;
+
+interface ViewImage {
+  id: Side;
+  label: string;
+  image: string;
+}
+
+/** The car views the AI draws from one photo, in the order they're generated and shown. */
+const CAR_VIEWS: { id: keyof typeof CAR_VIEW_LAYOUTS; label: string }[] = [
+  { id: "left", label: "Left side" },
+  { id: "right", label: "Right side" },
+  { id: "front", label: "Front" },
+  { id: "back", label: "Back" },
+  { id: "roof", label: "Roof" },
+];
 
 interface DraftPatch {
   id: number;
@@ -87,8 +103,8 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
   const [styleKey, setStyleKey] = useState<string>("current");
   const [customStyle, setCustomStyle] = useState("");
   const [aiStyles, setAiStyles] = useState<string[]>([]);
-  const [front, setFront] = useState<string | null>(null);
-  const [back, setBack] = useState<string | null>(null);
+  const [views, setViews] = useState<ViewImage[]>([]);
+  const [carDescription, setCarDescription] = useState<string | null>(null);
   const [side, setSide] = useState<Side>("front");
   const [busy, setBusy] = useState<null | string>(null);
 
@@ -106,16 +122,22 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
   const plan = useMemo(() => milestonePlan(surface, Date.now() + days * DAY, person ? event : undefined), [surface, days, event, person]);
   const publishing = step === "saving" || step === "approving" || step === "creating";
   const styleText = styleKey === "custom" ? customStyle.trim() : styleKey.startsWith("ai:") ? aiStyles[Number(styleKey.slice(3))] : styleKey;
-  const canvas = side === "back" ? back : front;
+  const canvas = views.find((v) => v.id === side)?.image ?? null;
+  const viewLabel = (id: Side) => views.find((v) => v.id === id)?.label ?? id;
+  const putView = (v: ViewImage) =>
+    setViews((cur) => {
+      const order = (person ? ["front", "back"] : CAR_VIEWS.map((c) => c.id as string));
+      return [...cur.filter((x) => x.id !== v.id), v].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    });
 
   function pickSurface(kind: SurfaceKind) {
     setSurface(kind);
     setPhotoUrl(null);
-    setFront(null);
-    setBack(null);
-    setSide("front");
+    setViews([]);
+    setCarDescription(null);
+    setSide(kind === "car" ? "left" : "front");
     setAiStyles([]);
-    setPatches(DEFAULT_LAYOUTS[kind].slice(0, 3).map((s) => draft("front", s)));
+    setPatches(DEFAULT_LAYOUTS[kind].slice(0, 3).map((s) => draft(kind === "car" ? "left" : "front", s)));
     setSelectedId(null);
     if (kind === "car") setEventId(0);
   }
@@ -138,8 +160,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
       const upJson = (await up.json()) as { url?: string; error?: string };
       if (!up.ok || !upJson.url) throw new Error(upJson.error ?? "Upload failed.");
       setPhotoUrl(upJson.url);
-      setFront(null);
-      setBack(null);
+      setViews([]);
 
       if (person) {
         setBusy(null);
@@ -147,10 +168,8 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
           .then(({ styles }) => setAiStyles(styles))
           .catch(() => {});
       } else {
-        setBusy("Repainting your car white…");
-        const { canvasUrl } = await postJson<{ canvasUrl: string }>("/api/ai/canvas", { imageUrl: upJson.url, surface });
-        setFront(canvasUrl);
-        await autoLayout(canvasUrl, "front");
+        setBusy(null);
+        await generateCarViews(upJson.url);
       }
     } catch (err) {
       toast(err instanceof Error ? err.message : "Something went wrong.");
@@ -159,17 +178,52 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
     }
   }
 
-  /** Ask the vision model for spots on one side; fall back to the fixed layout for that framing. */
+  /** Ask the vision model for spots on one view; fall back to the fixed layout for that framing. */
   async function autoLayout(url: string, which: Side) {
-    const fallback = person ? MODEL_SHOT_LAYOUTS[which] : DEFAULT_LAYOUTS.car;
+    const fallback = person
+      ? MODEL_SHOT_LAYOUTS[which === "back" ? "back" : "front"]
+      : CAR_VIEW_LAYOUTS[which as keyof typeof CAR_VIEW_LAYOUTS] ?? DEFAULT_LAYOUTS.car;
+    const count = person ? (which === "back" ? 2 : 4) : which === "left" || which === "right" ? 4 : 2;
     let spots: { name: string; x: number; y: number; w: number; h: number; r?: number }[] = fallback;
     try {
-      const { patches: s } = await postJson<{ patches: typeof spots }>("/api/ai/layout", { canvasUrl: url, surface, count: which === "back" ? 2 : 4 });
+      const label = person ? which : CAR_VIEWS.find((c) => c.id === which)?.label;
+      const { patches: s } = await postJson<{ patches: typeof spots }>("/api/ai/layout", { canvasUrl: url, surface, count, view: label });
       if (s?.length) spots = s;
     } catch {
       /* keep fallback */
     }
     setPatches((ps) => [...ps.filter((p) => p.side !== which), ...spots.map((s, i) => draft(which, s, i))]);
+  }
+
+  /**
+   * One car photo → every side. The first view also returns the AI's description of the car, which goes with
+   * the other views (plus the first view as a reference image) so they all show the same car.
+   * Pass `only` to redraw a single view.
+   */
+  async function generateCarViews(photo: string, only?: Side) {
+    const todo = only ? CAR_VIEWS.filter((v) => v.id === only) : CAR_VIEWS;
+    let description = only ? carDescription : null;
+    let reference = only ? views.find((v) => v.id !== only)?.image : undefined;
+    try {
+      for (const [i, v] of todo.entries()) {
+        setBusy(only ? `Redrawing the ${v.label.toLowerCase()}…` : `Drawing the ${v.label.toLowerCase()}… (${i + 1} of ${todo.length})`);
+        const res = await postJson<{ url: string; description: string }>("/api/ai/car-view", {
+          photoUrl: photo, view: v.id, ...(description ? { description } : {}), ...(reference ? { referenceUrl: reference } : {}),
+        });
+        description = res.description;
+        setCarDescription(res.description);
+        reference ??= res.url;
+        putView({ id: v.id, label: v.label, image: res.url });
+        if (i === 0) setSide(v.id);
+        // Spots for this view load in the background while the next view is drawn.
+        void autoLayout(res.url, v.id);
+      }
+      if (!only) toast("Every side of your car is ready. Adjust the patches, then set prices.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function generateLook() {
@@ -178,11 +232,11 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
     try {
       setBusy("Creating your front view… (1 of 2)");
       const f = await postJson<{ url: string }>("/api/ai/model-shot", { photoUrl, style: styleText, side: "front" });
-      setFront(f.url);
+      setViews([{ id: "front", label: "Front", image: f.url }]);
       setSide("front");
       setBusy("Creating your back view… (2 of 2)");
       const b = await postJson<{ url: string }>("/api/ai/model-shot", { photoUrl, style: styleText, side: "back", frontUrl: f.url });
-      setBack(b.url);
+      putView({ id: "back", label: "Back", image: b.url });
       setBusy("Placing patches…");
       setPatches([]);
       await Promise.all([autoLayout(f.url, "front"), autoLayout(b.url, "back")]);
@@ -208,16 +262,20 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
     if (!title.trim()) return toast("Give your listing a title.");
     if (!patches.length) return toast("Add at least one patch.");
     if (patches.some((p) => !(p.floor > 0) || p.buyNow < p.floor)) return toast("Each patch needs a floor above $0 and a buy-now at or above its floor.");
-    const ordered = [...patches.filter((p) => p.side === "front"), ...patches.filter((p) => p.side === "back")];
+    // Patches grouped by view, in view order (the contract's patch ids follow this order).
+    const viewOrder = views.length ? views.map((v) => v.id) : [...new Set(patches.map((p) => p.side))];
+    const ordered = viewOrder.flatMap((id) => patches.filter((p) => p.side === id));
     const id = await create({
       metadata: {
         version: 1,
         title: title.trim(),
         surface,
         ...(photoUrl && !person ? { sourceImage: photoUrl } : {}),
-        ...(front ? { canvasImage: front } : {}),
-        ...(back ? { canvasImageBack: back } : {}),
-        ...(person && front && styleText ? { style: styleText } : {}),
+        ...(views[0] ? { canvasImage: views[0].image } : {}),
+        ...(person && views.find((v) => v.id === "back") ? { canvasImageBack: views.find((v) => v.id === "back")!.image } : {}),
+        ...(views.length ? { views } : {}),
+        ...(person && views.length && styleText ? { style: styleText } : {}),
+        ...(!person && carDescription ? { style: carDescription } : {}),
         patches: ordered.map((p, i) => ({ id: i, name: p.name, side: p.side, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.r })),
         milestones: plan.map((m) => ({ name: m.name, bps: m.bps })),
       },
@@ -282,7 +340,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
                 {photoUrl ? <img src={photoUrl} alt="Your photo" className="w-full h-full object-cover" /> : <Camera size={20} />}
               </span>
               <span className="text-sm"><b>{photoUrl ? "Change photo" : "Upload photo"}</b><br />
-                <span className="text-[var(--muted)] text-xs">{person ? "A clear selfie is enough" : "Side view works best"}</span></span>
+                <span className="text-[var(--muted)] text-xs">{person ? "A clear selfie is enough" : "One photo from the front corner. AI draws every side"}</span></span>
             </button>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ""; }} />
@@ -313,7 +371,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
               <input className={INPUT + " text-sm"} placeholder="Or describe your own…" value={customStyle} maxLength={120}
                 onFocus={() => setStyleKey("custom")} onChange={(e) => { setCustomStyle(e.target.value); setStyleKey("custom"); }} />
               <Button variant="primary" onClick={generateLook} disabled={!!busy}>
-                <Wand2 size={15} /> {front ? "Generate again" : "3. Create my look"}
+                <Wand2 size={15} /> {views.length ? "Generate again" : "3. Create my look"}
               </Button>
               <p className="text-xs text-[var(--muted)]">AI makes a full-body front and back view of you in a plain white version, ready for patches.</p>
             </div>
@@ -323,8 +381,13 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
         {/* ── center: canvas editor ── */}
         <Card className="p-4 relative">
           <div className="flex gap-2 flex-wrap justify-center items-center mb-3">
-            {person && back && (
-              <Seg options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} value={side} onChange={(v) => { setSide(v as Side); setSelectedId(null); }} />
+            {views.length > 1 && (
+              <Seg options={views.map((v) => ({ value: v.id, label: v.label }))} value={side} onChange={(v) => { setSide(v); setSelectedId(null); }} />
+            )}
+            {!person && photoUrl && canvas && (
+              <Button size="small" onClick={() => generateCarViews(photoUrl, side)} disabled={!!busy}>
+                <RefreshCw size={14} /> Redraw this view
+              </Button>
             )}
             <Button size="small" onClick={addPatch}><Plus size={14} /> Add patch</Button>
             {canvas && <Button size="small" onClick={() => autoLayout(canvas, side)} disabled={!!busy}><Wand2 size={14} /> AI suggest spots</Button>}
@@ -344,7 +407,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
             />
           </div>
           <p className="text-xs text-[var(--muted)] text-center mt-2">
-            {canvas ? "Drag a patch to move it. Drag its corner to resize." : person ? "Upload a photo to see yourself here, or use the drawing." : "Upload a photo of your car, or use the drawing."}
+            {canvas ? "Drag a patch to move it. Drag its corner to resize." : person ? "Upload a photo to see yourself here, or use the drawing." : "Upload one photo of your car. AI draws the left, right, front, back and roof."}
           </p>
           {busy && (
             <div className="absolute inset-0 rounded-[16px] bg-[var(--card)]/95 grid place-items-center text-center p-6">
@@ -360,7 +423,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
         {/* ── right: selected patch, totals, payout plan, publish ── */}
         <Card className="p-4 flex flex-col gap-4">
           <div>
-            <h3 className="font-bold text-lg mb-2">Patch{selected && person && back ? ` · ${selected.side}` : ""}</h3>
+            <h3 className="font-bold text-lg mb-2">Patch{selected && views.length > 1 ? ` · ${viewLabel(selected.side)}` : ""}</h3>
             {selected ? (
               <div className="grid gap-2.5">
                 <label className="grid gap-1"><span className="field-label">Name</span>

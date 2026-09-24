@@ -46,7 +46,7 @@ export default async function LandingPage() {
       canvasImage: hero.canvasImage,
       biddingEndsAt: hero.biddingEndsAt,
       patches: hero.patches
-        .filter((p) => p.side === "front")
+        .filter((p) => p.side === hero.viewId)
         .map((p) => ({
           id: p.id, name: p.label, x: p.x, y: p.y, w: p.w, h: p.h, r: p.r,
           topBid: Number(p.topBid) / 1e6,
