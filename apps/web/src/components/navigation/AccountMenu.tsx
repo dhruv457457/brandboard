@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { erc20Abi, formatUnits } from "viem";
 import { Check, ChevronDown, Copy, ExternalLink, Fingerprint, KeyRound, LogOut, Wallet } from "lucide-react";
 import { useExportWallet } from "@privy-io/react-auth";
+import Link from "next/link";
+import { useProfile } from "@/lib/profile";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { CHAIN, EXPLORER, USDC, publicClient, GAS_SPONSORED } from "@/lib/config";
 import { formatShortAddress } from "@/lib/format";
@@ -14,6 +16,7 @@ export function AccountMenu() {
   const { walletAddress, xHandle, logout, isEmbeddedWallet } = usePatchedAuth();
   const stepUp = useStepUp();
   const { exportWallet } = useExportWallet();
+  const { profile } = useProfile();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usdc, setUsdc] = useState<string | null>(null);
@@ -73,6 +76,18 @@ export function AccountMenu() {
 
       {open && (
         <div className="absolute right-0 mt-2 w-[300px] max-w-[calc(100vw-32px)] z-50 bg-[var(--card)] border-2 border-[var(--line)] rounded-2xl shadow-[4px_4px_0_var(--shadow)] p-4 flex flex-col gap-3">
+          <nav className="grid grid-cols-2 gap-1.5" aria-label="Your account">
+            {[
+              { href: `/${profile?.handle ?? walletAddress?.toLowerCase() ?? ""}`, label: "My page" },
+              { href: "/dashboard", label: "Dashboard" },
+              { href: "/bids", label: "My bids" },
+              { href: "/studio", label: "New listing" },
+            ].map((l) => (
+              <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-2.5 py-2 text-sm font-semibold bg-[var(--soft)] hover:bg-[var(--accent-soft)]">
+                {l.label}
+              </Link>
+            ))}
+          </nav>
           <div>
             <span className="eyebrow">Your wallet</span>
             <p className="font-mono text-[13px] break-all mt-1 select-all">{walletAddress}</p>

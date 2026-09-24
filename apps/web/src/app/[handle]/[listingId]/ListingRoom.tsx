@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, Check, Clock, ExternalLink, Fuel, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, Clock, ExternalLink, Fuel, Link2, RotateCcw, ShieldCheck } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData, PatchHandle } from "@/components/surface/Patch";
 import { Card } from "@/components/ui/Card";
@@ -147,7 +147,22 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         <span className="muted">/</span>
         <b>{listing.eventName ?? listing.title}</b>
         <Chip variant="monad" className="ml-auto">USDC · Monad</Chip>
+        <button
+          className="btn-base btn-small"
+          onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {})}
+        >
+          <Link2 size={13} /> Copy link
+        </button>
       </div>
+      {isCreator && (
+        <div className="card-surface bg-[var(--accent-soft)] p-3 mb-5 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm font-semibold">This is your listing. Share it to get brands bidding, and post proof after bidding closes.</span>
+          <span className="flex gap-2">
+            <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage</Link>
+            <Link href={`/share/${listing.id}`} className="btn-base btn-small btn-primary">Share kit</Link>
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-7 lg:grid-cols-[1.1fr_.9fr] items-start">
         <Card className="p-5">
@@ -263,7 +278,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         <section className="mt-10 grid gap-3">
           <div className="flex justify-between items-end gap-3 flex-wrap">
             <h2 className="font-extrabold text-2xl">Delivery</h2>
-            {me && me === listing.creator && <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage your listing</Link>}
+            {isCreator && <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage your listing</Link>}
           </div>
           <p className="text-sm text-[var(--muted)] max-w-[70ch]">
             The winning bids sit in escrow. The creator gets paid in steps after posting proof, and each patch holder

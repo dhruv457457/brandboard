@@ -19,7 +19,7 @@ export function Navbar() {
   const links = authenticated
     ? [
         { label: "Explore", href: "/explore" },
-        { label: "Studio", href: "/studio" },
+        { label: "Dashboard", href: "/dashboard" },
         { label: "My bids", href: "/bids" },
       ]
     : [
