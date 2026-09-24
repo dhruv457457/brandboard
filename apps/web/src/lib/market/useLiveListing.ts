@@ -57,15 +57,15 @@ export function useLiveListing(initial: ListingView, onBid?: (bid: LiveBid, prev
             setPatches((ps) =>
               ps.map((p) =>
                 p.id === patchId
-                  ? { ...p, topBid: bid.amount, topBidder: bid.bidder, brandName: null, logoUrl: null }
+                  ? { ...p, topBid: bid.amount, topBidder: bid.bidder, brandName: null, logoUrl: null, brandVerified: null }
                   : p,
               ),
             );
             setBids((bs) => [bid, ...bs].slice(0, 50));
             onBidRef.current?.(bid, current?.topBidder ?? null);
             // Show the new leader's brand as soon as we know it.
-            supabase().from("profiles").select("brand_name, brand_logo_url").eq("wallet", bid.bidder).maybeSingle()
-              .then(({ data }) => data && setBranding(patchId, data.brand_name, data.brand_logo_url));
+            supabase().from("profiles").select("brand_name, brand_logo_url, brand_verified_domain").eq("wallet", bid.bidder).maybeSingle()
+              .then(({ data }) => data && setBranding(patchId, data.brand_name, data.brand_logo_url, data.brand_verified_domain));
           } else if (log.eventName === "PatchBought") {
             const patchId = Number(args.patchId);
             setPatches((ps) => ps.map((p) => (p.id === patchId ? { ...p, bought: true } : p)));
@@ -82,8 +82,8 @@ export function useLiveListing(initial: ListingView, onBid?: (bid: LiveBid, prev
   }, [initial.id]);
 
   /** Apply brand name / logo for a patch after the leader saves it. */
-  const setBranding = (patchId: number, brandName: string | null, logoUrl: string | null) =>
-    setPatches((ps) => ps.map((p) => (p.id === patchId ? { ...p, brandName, logoUrl } : p)));
+  const setBranding = (patchId: number, brandName: string | null, logoUrl: string | null, brandVerified: string | null) =>
+    setPatches((ps) => ps.map((p) => (p.id === patchId ? { ...p, brandName, logoUrl, brandVerified } : p)));
 
   return { patches, bids, endsAt, status, setBranding };
 }

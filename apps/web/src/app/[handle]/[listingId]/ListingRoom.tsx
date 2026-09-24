@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Clock, ExternalLink, Fuel, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, Clock, ExternalLink, Fuel, RotateCcw, ShieldCheck } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData, PatchHandle } from "@/components/surface/Patch";
 import { Card } from "@/components/ui/Card";
@@ -202,9 +202,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               </div>
               {selected.bought ? <Pill variant="won">Bought</Pill>
                 : selected.topBidder === me && me ? <Pill variant="top">You lead</Pill>
-                : selected.topBidder ? <Pill variant="top">Leading: {formatShortAddress(selected.topBidder)}</Pill>
+                : selected.topBidder ? <Pill variant="top">Leading: {selected.brandName ?? formatShortAddress(selected.topBidder)}</Pill>
                 : <Pill variant="wait">No bids yet</Pill>}
             </div>
+            {selected.topBidder && selected.brandVerified && (
+              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--green)] mt-1.5" title="This brand confirmed a work email on its website's domain">
+                <BadgeCheck size={14} /> Verified brand · {selected.brandVerified}
+              </p>
+            )}
             <div className="font-mono text-[40px] font-semibold tracking-tight mt-2.5 tabular-nums">
               {usd(selected.topBid > 0n ? selected.topBid : selected.floor)}
             </div>

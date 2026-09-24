@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-const FIELDS = "id, wallet, handle, display_name, x_handle, x_verified, avatar_url, banner_color, bio, brand_name, brand_logo_url, brand_website, is_admin";
+const FIELDS = "id, wallet, handle, display_name, x_handle, x_verified, avatar_url, banner_color, bio, brand_name, brand_logo_url, brand_website, brand_verified_domain, is_admin";
 
 /** The signed-in user's profile, created on first call from their Privy account (wallet + X handle). */
 export async function GET(req: Request) {
@@ -58,6 +58,9 @@ export async function PATCH(req: Request) {
     const w = text(body.brandWebsite, 120);
     if (w && !/^https:\/\/[^\s]+$/.test(w)) return bad("The website has to start with https://");
     patch.brand_website = w;
+    // A new website needs a new check: the badge only covers the domain that was verified.
+    const { data: current } = await supabaseAdmin().from("profiles").select("brand_website").eq("privy_did", user.did).maybeSingle();
+    if ((current?.brand_website ?? null) !== w) patch.brand_verified_domain = null;
   }
   if ("brandLogoUrl" in body) {
     const u = body.brandLogoUrl;

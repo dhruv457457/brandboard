@@ -51,7 +51,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
     db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
-    db.from("patch_brands").select("top_bidder, brand_name, brand_logo_url").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("patch_brands").select("top_bidder, brand_name, brand_logo_url, brand_verified_domain").eq("chain_id", CHAIN_ID).eq("listing_id", id),
   ]);
   if (L.creator === ZERO) return null;
 
@@ -86,6 +86,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
       x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
       brandName: brand?.brand_name ?? null,
       logoUrl: brand?.brand_logo_url ?? null,
+      brandVerified: brand?.brand_verified_domain ?? null,
     };
   });
 
@@ -160,7 +161,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
   // Patches with their leader's brand in one query (patch_brands view).
   const { data: patchRows } = await db
     .from("patch_brands")
-    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought, brand_name, brand_logo_url")
+    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought, brand_name, brand_logo_url, brand_verified_domain")
     .eq("chain_id", CHAIN_ID)
     .in("listing_id", rows.map((r) => r.listing_id))
     .order("patch_id");
@@ -180,6 +181,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
           brandName: p.brand_name ?? null,
           logoUrl: p.brand_logo_url ?? null,
+          brandVerified: p.brand_verified_domain ?? null,
         };
       });
     const handle = r.creator_handle as string | null;

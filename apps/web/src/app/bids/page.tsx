@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
+import { BrandVerify } from "@/components/market/BrandVerify";
 
 const usd = (v: number | string | bigint) => formatUsdc(Number(v) / 1e6);
 const INPUT = "border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]";
@@ -370,6 +371,7 @@ export default function MyBidsPage() {
           <label className="grid gap-1"><span className="field-label">Website</span>
             <input className={INPUT} value={brand.website} placeholder="https://" onChange={(e) => setBrand({ ...brand, website: e.target.value })} /></label>
           <Button variant="primary" onClick={saveBrand} disabled={!!busy || !profile}>{busy === "brand" ? "Saving…" : "Save brand"}</Button>
+          <BrandVerify />
           {walletAddress && (
             <a className="text-xs muted inline-flex items-center gap-1" href={`${EXPLORER}/address/${walletAddress}`} target="_blank" rel="noopener noreferrer">
               Wallet {formatShortAddress(walletAddress)} <ExternalLink size={11} />

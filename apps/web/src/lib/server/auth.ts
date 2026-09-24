@@ -8,6 +8,8 @@ export interface SessionUser {
   did: string;
   wallet: `0x${string}` | null;
   xHandle: string | null;
+  /** Emails Privy has verified for this user (email login/link or Google). */
+  emails: string[];
 }
 
 interface PrivyLinkedAccount {
@@ -16,6 +18,7 @@ interface PrivyLinkedAccount {
   wallet_client_type?: string;
   chain_type?: string;
   username?: string;
+  email?: string;
 }
 
 /**
@@ -40,13 +43,17 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
     },
     cache: "no-store",
   });
-  if (!res.ok) return { did, wallet: null, xHandle: null };
+  if (!res.ok) return { did, wallet: null, xHandle: null, emails: [] };
   const user = (await res.json()) as { linked_accounts?: PrivyLinkedAccount[] };
   const accounts = user.linked_accounts ?? [];
   const evm = accounts.filter((a) => a.type === "wallet" && (a.chain_type ?? "ethereum") === "ethereum" && a.address);
   const wallet = (evm.find((a) => a.wallet_client_type === "privy") ?? evm[0])?.address?.toLowerCase() ?? null;
   const x = accounts.find((a) => a.type === "twitter_oauth");
-  return { did, wallet: wallet as `0x${string}` | null, xHandle: x?.username ?? null };
+  const emails = accounts
+    .map((a) => (a.type === "email" ? a.address : a.type === "google_oauth" ? a.email : undefined))
+    .filter((e): e is string => !!e)
+    .map((e) => e.toLowerCase());
+  return { did, wallet: wallet as `0x${string}` | null, xHandle: x?.username ?? null, emails };
 }
 
 export function unauthorized() {

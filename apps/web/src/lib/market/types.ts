@@ -21,6 +21,8 @@ export interface LivePatch {
   // presentation (from brand_logos, if the leader uploaded one)
   brandName: string | null;
   logoUrl: string | null;
+  /** Domain the leading brand verified with a work email (Privy), if any. */
+  brandVerified: string | null;
 }
 
 export interface BidEvent {

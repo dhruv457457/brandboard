@@ -43,7 +43,8 @@ Written by the **app** (server routes, RLS by wallet/user):
 
 | Table | Key columns |
 |---|---|
-| `profiles` | `user_id` (Privy DID), `wallet`, `handle` (slug), `display_name`, `x_handle`, `x_verified`, `avatar_url`, `banner_color`, `role_flags` |
+| `patch_brands` (view) | every `patches` column plus the leader's `brand_name`, `brand_logo_url`, `brand_verified_domain` |
+| `profiles` | `privy_did`, `wallet`, `handle` (slug), `display_name`, `x_handle`, `x_verified`, `avatar_url`, `banner_color`, `bio`, `brand_name`, `brand_logo_url`, `brand_website`, `brand_verified_domain` (set by `/api/profile/verify-brand` when a Privy-verified email matches the website's domain; cleared when the website changes) |
 | `patched_events` | on-chain event info + `slug`, `city`, `banner_url`, `description` (named to avoid a clash with another app in the same project) |
 | `listing_meta` | `listing_id`, `metadata` (jsonb, the JSON above), `moderation` (jsonb from AI moderation) |
 | `proof_files` | `listing_id`, `milestone`, `files` (jsonb of storage URLs), `ai_check` (jsonb) |

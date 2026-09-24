@@ -17,6 +17,7 @@ export interface Profile {
   brand_name: string | null;
   brand_logo_url: string | null;
   brand_website: string | null;
+  brand_verified_domain: string | null;
   is_admin: boolean;
 }
 
