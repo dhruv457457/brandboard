@@ -1,70 +1,32 @@
 import { ImageResponse } from "next/og";
+import { headers } from "next/headers";
 import { fetchListingView } from "@/lib/market/server";
+import { ACCENTS, Poster, posterAssets } from "@/lib/server/poster";
 
 export const runtime = "nodejs";
-export const alt = "Patched listing";
+export const alt = "Patched sponsor page";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-/** next/og can't draw WebP (our transparent cutouts), so hand it a PNG data URL. */
-async function asPng(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const sharp = (await import("sharp")).default;
-    const png = await sharp(Buffer.from(await res.arrayBuffer())).resize({ height: 600, withoutEnlargement: true }).png().toBuffer();
-    return `data:image/png;base64,${png.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
-
-const usd = (v: bigint) => `$${(Number(v) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-
-/** Link preview for a listing: the creator's canvas (if any), title and live auction numbers. */
+/** Link preview: the same X-card poster as the share kit's "Launch" moment, with live numbers. */
 export default async function Image({ params }: { params: Promise<{ listingId: string }> }) {
   const { listingId } = await params;
   const listing = await fetchListingView(Number(listingId)).catch(() => null);
-  const title = listing?.title ?? "Get patched. Get paid.";
-  const image = await asPng(listing?.canvasImage ?? null);
-  const withBids = listing?.patches.filter((p) => p.topBidder).length ?? 0;
-  const total = listing?.patches.reduce((s, p) => s + p.topBid, 0n) ?? 0n;
-  const creator = listing
-    ? listing.creatorName ?? (listing.creatorHandle ? `@${listing.creatorHandle}` : `${listing.creator.slice(0, 6)}…${listing.creator.slice(-4)}`)
-    : "";
-
+  if (!listing) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAF7", fontSize: 64, fontWeight: 800 }}>
+          Get patched. Get paid.
+        </div>
+      ),
+      size,
+    );
+  }
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? "patched.app"}`;
+  const { url, qr, image, fonts } = await posterAssets(listing, origin);
   return new ImageResponse(
-    (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: "#FFE58F", color: "#0B0B0C", fontFamily: "sans-serif" }}>
-        <div style={{ width: 400, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#F1EFE8", borderRight: "4px solid #0B0B0C" }}>
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" width={330} height={500} style={{ objectFit: "contain", borderRadius: 24 }} />
-          ) : (
-            <div style={{ width: 220, height: 330, borderRadius: 28, border: "6px dashed #FF5A1F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, fontWeight: 800 }}>
-              patch
-            </div>
-          )}
-        </div>
-        <div style={{ flex: 1, padding: 56, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 40, fontWeight: 800 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 12, background: "#FF5A1F", border: "4px solid #0B0B0C", transform: "rotate(-8deg)" }} />
-            patched
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2 }}>{title}</div>
-            {creator && <div style={{ display: "flex", fontSize: 30, opacity: 0.75 }}>{`by ${creator}${listing?.eventName ? ` · ${listing.eventName}` : ""}`}</div>}
-          </div>
-          {listing && (
-            <div style={{ display: "flex", gap: 48, fontSize: 26 }}>
-              <div style={{ display: "flex", flexDirection: "column" }}><b style={{ fontSize: 48 }}>{`${withBids}/${listing.patches.length}`}</b>patches with bids</div>
-              <div style={{ display: "flex", flexDirection: "column" }}><b style={{ fontSize: 48 }}>{usd(total)}</b>in top bids</div>
-            </div>
-          )}
-        </div>
-      </div>
-    ),
-    size,
+    <Poster format="x" template="launch" accent={ACCENTS.orange} custom={null} listing={listing} qr={qr} url={url} image={image} />,
+    { ...size, fonts },
   );
 }
