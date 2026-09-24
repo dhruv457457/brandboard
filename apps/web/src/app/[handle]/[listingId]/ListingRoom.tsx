@@ -26,6 +26,10 @@ import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst, SpotBubble } from "@/components/market/SpotBubble";
+import { EditableText } from "@/components/market/EditableText";
+import { PAGE_ACCENTS, PAGE_SECTIONS, type ListingPage, type PageAccent, type PageSection } from "@/lib/market/page";
+import { useAuthedFetch } from "@/lib/authedFetch";
+import { Eye, EyeOff, Pencil, RotateCcw as ResetIcon, Save } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import type { DeliveryView } from "@/lib/market/server";
 import { useTx } from "@/lib/market/useTx";
@@ -77,6 +81,12 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const [sheetOpen, setSheetOpen] = useState(false);
   // The bid bubble on the stage, and the confetti burst when you take the lead.
   const [bubbleId, setBubbleId] = useState<number | null>(null);
+  // Creator page editing: `saved` is what visitors see, `draft` is what the creator is changing.
+  const authedFetch = useAuthedFetch();
+  const [saved, setSaved] = useState<ListingPage>(() => listing.page);
+  const [draft, setDraft] = useState<ListingPage>(() => listing.page);
+  const [editing, setEditing] = useState(false);
+  const [savingPage, setSavingPage] = useState(false);
   const [burst, setBurst] = useState<{ x: number; y: number; n: number } | null>(null);
   const [viewSide, setViewSide] = useState<string>(() => listing.views[0]?.id ?? "front");
   const [amountText, setAmountText] = useState("");
@@ -171,7 +181,15 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const bubble = bubbleId === null ? null : patches.find((p) => p.id === bubbleId) ?? null;
   const meta = listing.metadata;
   const surfaceWord = listing.surface === "car" ? "car" : listing.surface === "hoodie" ? "hoodie" : "outfit";
-  const headline =
+  const pg = editing ? draft : saved;
+  const setPg = (change: Partial<ListingPage>) => setDraft((d) => ({ ...d, ...change }));
+  const setTitle = (k: keyof NonNullable<ListingPage["titles"]>, v: string) => setDraft((d) => ({ ...d, titles: { ...d.titles, [k]: v } }));
+  const shown = (sec: PageSection) => editing || !pg.hide?.includes(sec);
+  const hidden = (sec: PageSection) => pg.hide?.includes(sec) ?? false;
+  const toggleSection = (sec: PageSection) =>
+    setDraft((d) => ({ ...d, hide: d.hide?.includes(sec) ? d.hide.filter((x) => x !== sec) : [...(d.hide ?? []), sec] }));
+  const accent = PAGE_ACCENTS[pg.accent ?? "orange"];
+  const defaultHeadline =
     meta?.headline ?? (listing.surface === "car" ? "Your logo on my car" : listing.surface === "hoodie" ? "Your logo on our team" : "Walking billboard for your brand");
   const goal = patches.reduce((sum, p) => sum + p.buyNow, 0n);
   const progress = goal > 0n ? Math.min(100, Number((escrow * 1000n) / goal) / 10) : 0;
@@ -179,8 +197,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const eventDate = listing.eventStartsAt
     ? new Date(listing.eventStartsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
+  const creatorFaq = pg.faq ?? meta?.faq ?? [];
   const faq = [
-    ...(meta?.faq ?? []),
+    ...creatorFaq,
     { q: "What happens if I'm outbid?", a: "Your USDC goes straight back to your wallet in the same transaction. Bid again, or turn on auto-bid and Patched keeps you on top up to your limit." },
     { q: "When does the creator get paid?", a: "Winning bids sit in escrow on Monad. They're released in steps after the creator posts proof, and you get 72 hours to dispute each proof for your spot." },
     { q: "What if the creator doesn't show up?", a: "If a proof deadline is missed, the money that hasn't been released goes back to the spot holders, plus a share of the creator's bond." },
@@ -193,8 +212,32 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     document.getElementById("stage")?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  async function savePage() {
+    setSavingPage(true);
+    try {
+      const res = await authedFetch(`/api/listings/${listing.id}/page`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const body = (await res.json()) as { page?: ListingPage; error?: string };
+      if (!res.ok || !body.page) throw new Error(body.error ?? "Couldn't save your page.");
+      setSaved(body.page);
+      setDraft(body.page);
+      setEditing(false);
+      toast("Page saved. Everyone sees the new version now.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't save your page.");
+    } finally {
+      setSavingPage(false);
+    }
+  }
+
   return (
-    <main className="pb-24">
+    <main
+      className="pb-24"
+      style={{ "--accent": accent.accent, "--accent-soft": accent.soft, "--on-accent": accent.on, "--accent-text": accent.text } as React.CSSProperties}
+    >
       <div className="wrap pt-5 flex items-center gap-3 flex-wrap">
         <Link href="/explore" className="btn-base btn-ghost btn-small"><ArrowLeft size={14} /> Explore</Link>
         <Chip variant="monad" className="ml-auto">USDC · Monad</Chip>
@@ -208,8 +251,15 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       {isCreator && (
         <div className="wrap mt-4">
           <div className="card-surface bg-[var(--accent-soft)] p-3 flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-sm font-semibold">This is your sponsor page. Share it to get brands bidding, and post proof after bidding closes.</span>
+            <span className="text-sm font-semibold">
+              {editing ? "Editing your page. Click any dashed text to change it; leave it empty to use the default." : "This is your sponsor page. Make it yours, then share it."}
+            </span>
             <span className="flex gap-2">
+              {!editing && (
+                <button className="btn-base btn-small" onClick={() => { setDraft(saved); setEditing(true); setBubbleId(null); }}>
+                  <Pencil size={13} /> Edit page
+                </button>
+              )}
               <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage</Link>
               <Link href={`/share/${listing.id}`} className="btn-base btn-small btn-primary">Share kit</Link>
             </span>
@@ -235,11 +285,24 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               </Chip>
             )}
           </div>
-          <h1 className="text-[2.6rem] sm:text-6xl font-extrabold tracking-tight leading-[0.98]">{headline}</h1>
-          <p className="text-lg text-[var(--muted)] max-w-xl">
-            {listing.title}. {patches.length} logo spots on my {surfaceWord}, each its own live auction. Brands bid in USDC, and the
-            money sits in escrow until I show up.
-          </p>
+          <EditableText
+            as="h1"
+            editing={editing}
+            value={pg.headline}
+            fallback={defaultHeadline}
+            maxLength={80}
+            onChange={(v) => setPg({ headline: v })}
+            className="text-[2.6rem] sm:text-6xl font-extrabold tracking-tight leading-[0.98]"
+          />
+          <EditableText
+            editing={editing}
+            value={pg.intro}
+            fallback={`${listing.title}. ${patches.length} logo spots on my ${surfaceWord}, each its own live auction. Brands bid in USDC, and the money sits in escrow until I show up.`}
+            maxLength={300}
+            multiline
+            onChange={(v) => setPg({ intro: v })}
+            className="text-lg text-[var(--muted)] max-w-xl"
+          />
 
           <Card className="p-4 grid gap-3">
             <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -319,7 +382,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <span className="eyebrow">{patches.length} spots</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Pick your spot</h2>
+            <EditableText as="h2" editing={editing} value={pg.titles?.spots} fallback="Pick your spot" maxLength={60} onChange={(v) => setTitle("spots", v)} className="text-3xl sm:text-4xl font-extrabold mt-1" />
           </div>
           <p className="text-sm text-[var(--muted)] flex items-center gap-1.5"><Clock size={14} /> A bid in the last 5 minutes adds 5 minutes to the clock</p>
         </div>
@@ -355,7 +418,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                     {tier.label}
                   </span>
                 </div>
-                <p className="text-sm text-[var(--muted)]">{p.perks ?? tier.blurb}</p>
+                <EditableText
+                  editing={editing}
+                  value={pg.perks?.[String(p.id)]}
+                  fallback={p.perks ?? tier.blurb}
+                  maxLength={120}
+                  onChange={(v) => setDraft((d) => ({ ...d, perks: { ...d.perks, [String(p.id)]: v } }))}
+                  className="text-sm text-[var(--muted)]"
+                />
                 <div className="flex items-end justify-between gap-2">
                   <div>
                     <b className="font-mono text-2xl tabular-nums">{usd(p.topBid > 0n ? p.topBid : p.floor)}</b>
@@ -428,10 +498,11 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       )}
 
       {/* ── Wall of logos ── */}
-      <section className="wrap mt-16 grid gap-4">
+      {shown("sponsors") && (
+      <section className={cn("wrap mt-16 grid gap-4", hidden("sponsors") && "opacity-40")}>
         <div>
           <span className="eyebrow">Sponsors</span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Already on the {surfaceWord}</h2>
+          <EditableText as="h2" editing={editing} value={pg.titles?.sponsors} fallback={`Already on the ${surfaceWord}`} maxLength={60} onChange={(v) => setTitle("sponsors", v)} className="text-3xl sm:text-4xl font-extrabold mt-1" />
         </div>
         {leaders.length ? (
           <div className="flex flex-wrap gap-3">
@@ -459,12 +530,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           <Card className="p-5"><p className="text-[var(--muted)]">No logos yet. The first brand to bid gets the pick of the spots.</p></Card>
         )}
       </section>
+      )}
 
       {/* ── How it works ── */}
-      <section className="wrap mt-16 grid gap-4">
+      {shown("how") && (
+      <section className={cn("wrap mt-16 grid gap-4", hidden("how") && "opacity-40")}>
         <div>
           <span className="eyebrow">How it works</span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Four steps, all on-chain</h2>
+          <EditableText as="h2" editing={editing} value={pg.titles?.how} fallback="Four steps, all on-chain" maxLength={60} onChange={(v) => setTitle("how", v)} className="text-3xl sm:text-4xl font-extrabold mt-1" />
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -486,22 +559,35 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           ))}
         </div>
       </section>
+      )}
 
       {/* ── Creator story + activity ── */}
-      <section className="wrap mt-16 grid gap-6 lg:grid-cols-[1.2fr_.8fr] items-start">
-        <Card className="p-6 grid gap-3">
+      {(shown("story") || shown("activity")) && (
+      <section className={cn("wrap mt-16 grid gap-6 items-start", shown("story") && shown("activity") && "lg:grid-cols-[1.2fr_.8fr]")}>
+        {shown("story") && (
+        <Card className={cn("p-6 grid gap-3", hidden("story") && "opacity-40")}>
           <span className="eyebrow">About {creatorLabel}</span>
-          <h2 className="text-3xl font-extrabold">Why I&apos;m doing this</h2>
-          <p className="whitespace-pre-line leading-relaxed">
-            {meta?.story ??
+          <EditableText as="h2" editing={editing} value={pg.titles?.story} fallback="Why I'm doing this" maxLength={60} onChange={(v) => setTitle("story", v)} className="text-3xl font-extrabold" />
+          <EditableText
+            editing={editing}
+            multiline
+            value={pg.story}
+            fallback={
+              meta?.story ??
               listing.creatorBio ??
-              `I'm putting ${patches.length} logo spots on my ${surfaceWord}${listing.eventName ? ` for ${listing.eventName}` : ""}. Every spot you take helps cover the costs, and your brand gets seen in person and in every photo.`}
-          </p>
+              `I'm putting ${patches.length} logo spots on my ${surfaceWord}${listing.eventName ? ` for ${listing.eventName}` : ""}. Every spot you take helps cover the costs, and your brand gets seen in person and in every photo.`
+            }
+            maxLength={1200}
+            onChange={(v) => setPg({ story: v })}
+            className="leading-relaxed"
+          />
           {listing.creatorHandle && (
             <Link href={`/${listing.creatorHandle}`} className="btn-base btn-small justify-self-start">See {creatorLabel}&apos;s page</Link>
           )}
         </Card>
-        <Card>
+        )}
+        {shown("activity") && (
+        <Card className={cn(hidden("activity") && "opacity-40")}>
           <div className="flex justify-between items-center px-4 pt-3.5 pb-1">
             <h3 className="text-lg font-bold">Live activity</h3>
             <span className="dot live" />
@@ -519,14 +605,37 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             {bids.length === 0 && <li><span className="muted">No bids yet. The first bid shows up here instantly.</span></li>}
           </ul>
         </Card>
+        )}
       </section>
+      )}
 
       {/* ── FAQ ── */}
-      <section className="wrap mt-16">
+      {shown("faq") && (
+      <section className={cn("wrap mt-16", hidden("faq") && "opacity-40")}>
         <div className="grid gap-3 max-w-3xl">
         <span className="eyebrow">Questions</span>
-        <h2 className="text-3xl font-extrabold">Before you bid</h2>
-        {faq.map((f) => (
+        <EditableText as="h2" editing={editing} value={pg.titles?.faq} fallback="Before you bid" maxLength={60} onChange={(v) => setTitle("faq", v)} className="text-3xl font-extrabold" />
+        {editing && (
+          <div className="grid gap-2">
+            {(draft.faq ?? meta?.faq ?? []).map((f, i) => (
+              <div key={i} className="card-surface p-3 grid gap-2">
+                <input className="font-bold bg-transparent outline-2 outline-dashed outline-[var(--accent)]/70 rounded-lg" value={f.q} placeholder="Question" maxLength={120}
+                  onChange={(e) => setDraft((d) => ({ ...d, faq: (d.faq ?? meta?.faq ?? []).map((x, j) => (j === i ? { ...x, q: e.target.value } : x)) }))} />
+                <textarea className="text-sm bg-transparent outline-2 outline-dashed outline-[var(--accent)]/70 rounded-lg resize-y" rows={2} value={f.a} placeholder="Answer" maxLength={500}
+                  onChange={(e) => setDraft((d) => ({ ...d, faq: (d.faq ?? meta?.faq ?? []).map((x, j) => (j === i ? { ...x, a: e.target.value } : x)) }))} />
+                <button className="text-xs text-[var(--muted)] justify-self-start hover:text-[var(--ink)]"
+                  onClick={() => setDraft((d) => ({ ...d, faq: (d.faq ?? meta?.faq ?? []).filter((_, j) => j !== i) }))}>Remove</button>
+              </div>
+            ))}
+            {(draft.faq ?? meta?.faq ?? []).length < 8 && (
+              <button className="btn-base btn-small justify-self-start" onClick={() => setDraft((d) => ({ ...d, faq: [...(d.faq ?? meta?.faq ?? []), { q: "", a: "" }] }))}>
+                Add your own question
+              </button>
+            )}
+            <p className="text-xs text-[var(--muted)]">Your questions show first. The standard ones below are always included.</p>
+          </div>
+        )}
+        {(editing ? faq.slice(creatorFaq.length) : faq).map((f) => (
           <details key={f.q} className="card-surface p-4 group">
             <summary className="font-bold cursor-pointer list-none flex justify-between gap-3">
               {f.q}
@@ -537,6 +646,40 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         ))}
         </div>
       </section>
+      )}
+
+      {/* ── Edit toolbar ── */}
+      {editing && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(760px,calc(100vw-24px))] card-surface p-3 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold mr-1">Colour</span>
+            {(Object.keys(PAGE_ACCENTS) as PageAccent[]).map((k) => (
+              <button
+                key={k}
+                aria-label={PAGE_ACCENTS[k].label}
+                aria-pressed={(draft.accent ?? "orange") === k}
+                onClick={() => setPg({ accent: k })}
+                className={cn("w-7 h-7 rounded-lg border-2 border-[var(--line)]", (draft.accent ?? "orange") === k && "ring-4 ring-[var(--accent)]/40")}
+                style={{ background: PAGE_ACCENTS[k].accent }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {PAGE_SECTIONS.map((sec) => (
+              <button key={sec} onClick={() => toggleSection(sec)}
+                className={cn("text-xs font-semibold rounded-full px-2.5 py-1 border-[1.5px] inline-flex items-center gap-1", hidden(sec) ? "border-[var(--soft)] text-[var(--muted)]" : "border-[var(--line)]")}>
+                {hidden(sec) ? <EyeOff size={12} /> : <Eye size={12} />}
+                {{ sponsors: "Sponsors", how: "How it works", story: "Story", activity: "Activity", faq: "FAQ" }[sec]}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button className="btn-base btn-small btn-ghost" onClick={() => setDraft({})} title="Back to the default text and colour"><ResetIcon size={13} /> Defaults</button>
+            <button className="btn-base btn-small" onClick={() => { setDraft(saved); setEditing(false); }} disabled={savingPage}>Cancel</button>
+            <button className="btn-base btn-small btn-primary" onClick={savePage} disabled={savingPage}><Save size={13} /> {savingPage ? "Saving…" : "Save"}</button>
+          </div>
+        </div>
+      )}
 
       {disputeTarget && (
         <DisputeSheet

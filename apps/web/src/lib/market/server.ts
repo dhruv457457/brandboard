@@ -6,6 +6,7 @@ import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
 import { slotFor } from "./layouts";
 import { defaultTiers } from "./tiers";
+import { sanitizePage } from "./page";
 import { SURFACES, type BidEvent, type ListingView, type LivePatch } from "./types";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -44,7 +45,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
   const client = serverClient();
   const db = supabase();
   // One parallel round: authoritative numbers from the chain, everything else from the indexed database.
-  const [L, patches, [minIncrement, minIncrementBps], card, bids, logos] = await Promise.all([
+  const [L, patches, [minIncrement, minIncrementBps], card, bids, logos, pageRow] = await Promise.all([
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [BigInt(id)] }),
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatches", args: [BigInt(id)] }),
     bidStep(),
@@ -53,6 +54,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
       .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
     db.from("patch_brands").select("top_bidder, brand_name, brand_logo_url, brand_verified_domain").eq("chain_id", CHAIN_ID).eq("listing_id", id),
+    db.from("listing_pages").select("page").eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
   ]);
   if (L.creator === ZERO) return null;
 
@@ -138,6 +140,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     canvasImage: metadata?.canvasImage ?? null,
     canvasImageBack: metadata?.canvasImageBack ?? null,
     views,
+    page: sanitizePage(pageRow.data?.page, patches.length),
     patches: livePatches,
     bids: bidEvents,
     metadata,

@@ -1,4 +1,5 @@
 import type { ListingMetadata, ListingViewImage, PatchTier } from "@patched/shared";
+import type { ListingPage } from "./page";
 
 export type SurfaceKind = "outfit" | "car" | "hoodie";
 export const SURFACES: SurfaceKind[] = ["outfit", "car", "hoodie"];
@@ -59,6 +60,8 @@ export interface ListingView {
   title: string;
   canvasImage: string | null;
   canvasImageBack: string | null;
+  /** The creator's editable page layer (copy, colour, sections); empty when never edited. */
+  page: ListingPage;
   creatorAvatar: string | null;
   creatorBio: string | null;
   eventStartsAt: number | null;
