@@ -25,6 +25,8 @@ import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { SweepPanel } from "@/components/market/SweepPanel";
+import { Burst, SpotBubble } from "@/components/market/SpotBubble";
+import { AnimatePresence } from "motion/react";
 import type { DeliveryView } from "@/lib/market/server";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
@@ -73,6 +75,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
   const [selectedId, setSelectedId] = useState<number>(() => (patches.find((p) => p.topBidder) ?? patches[0]).id);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // The bid bubble on the stage, and the confetti burst when you take the lead.
+  const [bubbleId, setBubbleId] = useState<number | null>(null);
+  const [burst, setBurst] = useState<{ x: number; y: number; n: number } | null>(null);
   const [viewSide, setViewSide] = useState<string>(() => listing.views[0]?.id ?? "front");
   const [amountText, setAmountText] = useState("");
   // Time-based text (countdown, "2m ago") differs between server and browser, so render it after mount.
@@ -109,6 +114,28 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     setSheetOpen(true);
   }
 
+  /** One-tap bid from the bubble. */
+  async function quickBid(p: LivePatch, amount: bigint) {
+    setSelectedId(p.id);
+    const ok = await bid(listing.id, p.id, amount);
+    if (!ok) return;
+    const bought = amount >= p.buyNow;
+    patchRefs.current[p.id]?.bump();
+    if (bought) patchRefs.current[p.id]?.stamp();
+    setBurst({ x: p.x + p.w / 2, y: p.y + p.h / 2, n: Date.now() });
+    setTimeout(() => setBurst(null), 1000);
+    toast(bought ? `${p.label} is yours. Receipt NFT comes when bidding closes.` : `You lead ${p.label} · ${usd(amount)} locked in escrow`);
+  }
+
+  /** Open the bubble for a spot (from a card or the stage), switching to its view. */
+  function openBubble(p: LivePatch) {
+    setSelectedId(p.id);
+    setViewSide(p.side);
+    reset();
+    setBubbleId(p.id);
+    document.getElementById("stage")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   async function placeBid() {
     const amount = parseUsdc(amountText);
     if (amount < minNext(selected)) {
@@ -141,6 +168,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
   const creatorLabel = listing.creatorName ?? (listing.creatorHandle ? `@${listing.creatorHandle}` : formatShortAddress(listing.creator));
   const busy = txStatus === "signing" || txStatus === "confirming";
+  const bubble = bubbleId === null ? null : patches.find((p) => p.id === bubbleId) ?? null;
   const meta = listing.metadata;
   const surfaceWord = listing.surface === "car" ? "car" : listing.surface === "hoodie" ? "hoodie" : "outfit";
   const headline =
@@ -240,7 +268,10 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               <Seg options={listing.views.map((v) => ({ value: v.id, label: v.label }))} value={viewSide} onChange={setViewSide} />
             </div>
           )}
-          <div className={listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[440px] mx-auto" : "max-w-[380px] mx-auto"}>
+          <div
+            className={cn("relative", listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[440px] mx-auto" : "max-w-[380px] mx-auto")}
+            onClick={(e) => { if (!(e.target as HTMLElement).closest(".patch")) setBubbleId(null); }}
+          >
             <SurfaceFigure
               surface={listing.surface}
               imageUrl={listing.views.find((v) => v.id === viewSide)?.image ?? listing.canvasImage}
@@ -249,16 +280,36 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               selectedId={selectedId}
               onSelect={(id) => {
                 setSelectedId(Number(id));
-                document.getElementById(`spot-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                reset();
+                setBubbleId(Number(id));
               }}
               patchRefs={patchRefs}
               animateDrop={intro}
             />
+            <AnimatePresence>
+              {bubble && (listing.views.length < 2 || bubble.side === viewSide) && (
+                <SpotBubble
+                  patch={bubble}
+                  minNext={minNext(bubble)}
+                  me={me}
+                  isCreator={isCreator}
+                  authenticated={authenticated}
+                  biddingOpen={biddingOpen}
+                  busy={busy}
+                  error={txStatus === "error" ? error : null}
+                  onLogin={login}
+                  onBid={(amount) => quickBid(bubble, amount)}
+                  onMore={(amount) => { openSheet(bubble.id); setAmountText(String(Number(amount) / 1e6)); setBubbleId(null); }}
+                  onClose={() => setBubbleId(null)}
+                />
+              )}
+            </AnimatePresence>
+            <Burst key={burst?.n} x={burst?.x ?? 50} y={burst?.y ?? 50} show={!!burst} />
           </div>
           <div className="flex gap-4 justify-center flex-wrap text-[13px] muted mt-3">
             <span className="inline-flex items-center gap-1.5"><i className="sw-legend filled" />Taken</span>
             <span className="inline-flex items-center gap-1.5"><i className="sw-legend open" />Open</span>
-            <span>Tap a spot to see it below</span>
+            <span>Tap a spot to bid</span>
           </div>
         </Card>
       </section>
@@ -324,7 +375,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                 )}
                 {biddingOpen && !p.bought && !isCreator && (
                   <div className="flex gap-2">
-                    <Button variant="primary" size="small" onClick={() => openSheet(p.id)}>Bid {usd(minNext(p))}+</Button>
+                    <Button variant="primary" size="small" onClick={() => openBubble(p)}>Bid {usd(minNext(p))}</Button>
                     <Button size="small" onClick={() => { openSheet(p.id); setAmountText(String(Number(p.buyNow) / 1e6)); }}>Buy {usd(p.buyNow)}</Button>
                   </div>
                 )}
