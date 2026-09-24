@@ -9,6 +9,8 @@ export interface PatchedDeployment {
   /** PatchAutoBidder for this market ("keep me on top up to $X"), and the block it was deployed in. */
   autoBidder?: Address;
   autoBidderBlock?: number;
+  /** PatchSweeper for this market (several patches in one transaction). */
+  sweeper?: Address;
   /** True when `usdc` is the TestUSD faucet token rather than real USDC. */
   testToken?: boolean;
 }
@@ -22,6 +24,7 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     deployBlock: 65054031,
     autoBidder: "0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA",
     autoBidderBlock: 65221700,
+    sweeper: "0x65f0e25e5D503FCc5549624D6f9B138b17A3054f",
   },
   // Monad mainnet, test run with TestUSD (tUSD, faucet token), deployed 2026-09-24, verified on Sourcify.
   // Real-USDC deployment for later: market 0xCB44d40E69Dc267e9C7CF65d89f22857e3d82aed,
@@ -33,6 +36,7 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     deployBlock: 107528109,
     autoBidder: "0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1",
     autoBidderBlock: 107531645,
+    sweeper: "0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba",
     testToken: true,
   },
 };

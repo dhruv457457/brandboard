@@ -24,6 +24,7 @@ import { patchedMarketAbi } from "@patched/shared";
 import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
+import { SweepPanel } from "@/components/market/SweepPanel";
 import type { DeliveryView } from "@/lib/market/server";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
@@ -232,6 +233,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             <p className="text-xs muted flex items-center gap-1.5 mt-3"><Clock size={13} /> A bid in the last 5 minutes adds 5 minutes to the clock</p>
           </Card>
 
+          {biddingOpen && !isCreator && <SweepPanel listingId={listing.id} patches={patches} minNext={minNext} me={me} />}
           <Card>
             <div className="flex justify-between items-center px-4 pt-3.5 pb-1">
               <h3 className="text-lg font-bold">Live activity</h3><span className="dot live" />

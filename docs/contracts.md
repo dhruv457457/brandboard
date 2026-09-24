@@ -167,6 +167,17 @@ event TreasuryUpdated(address treasury);
 
 The contract holds no funds and needs no role on the market. The keeper (Privy server wallet) runs `execute` right after each indexer sync that sees new logs; its Privy policy allows only `execute` on this contract. The web app asks for an allowance of 10x the maximum, because outbid bids are refunded by the market but the allowance they used is not.
 
+## PatchSweeper (sweep)
+
+Bid on several patches of one listing in one transaction, all or nothing. Source: `contracts/src/PatchSweeper.sol`, tests in `test/PatchSweeper.t.sol`.
+
+| Function | What |
+|---|---|
+| `sweep(listingId, patchIds[], amounts[])` | Pulls the total, bids each amount through `market.bidFor` for the caller, reverts `BidNotPlaced(patchId)` if any bid doesn't land. Emits `Swept`. |
+| `sweepWithPermit(..., deadline, v, r, s)` | Same with a USDC permit for the total: one signature + one tx. |
+
+Holds no funds; bids, receipts and refunds belong to the caller. Deployed with `script/DeploySweeper.s.sol`: testnet `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f`, mainnet `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba`.
+
 ## Deployments
 
 Addresses live in `packages/shared/src/addresses.ts` (`DEPLOYMENTS[chainId]`). All verified on Sourcify (exact match).

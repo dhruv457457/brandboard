@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { createWalletClient, custom, encodeFunctionData, erc20Abi, parseSignature } from "viem";
-import { useSignTypedData } from "@privy-io/react-auth";
+import { encodeFunctionData, erc20Abi } from "viem";
 import { patchAutoBidderAbi } from "@patched/shared";
-import { AUTO_BIDDER, CHAIN, CHAIN_ID, USDC, publicClient } from "@/lib/config";
+import { AUTO_BIDDER, USDC, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { friendlyError, permitAbi } from "@/lib/market/useBid";
+import { friendlyError } from "@/lib/market/useBid";
+import { usePermitSigner } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
 
 /** How many "max bids" of allowance one auto-bid adds. Outbid bids are refunded by the market but the
@@ -20,8 +20,8 @@ const ALLOWANCE_HEADROOM = 10n;
  * policy only allows PatchAutoBidder.execute, answers every outbid within seconds.
  */
 export function useAutoBid() {
-  const { walletAddress, wallet, isEmbeddedWallet } = usePatchedAuth();
-  const { signTypedData } = useSignTypedData();
+  const { walletAddress } = usePatchedAuth();
+  const signPermit = usePermitSigner();
   const send = useTx();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,39 +68,11 @@ export function useAutoBid() {
         return;
       }
 
-      const [nonce, name, version] = await Promise.all([
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "nonces", args: [walletAddress] }),
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "name" }),
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "version" }),
-      ]);
       const value = allowance + max * ALLOWANCE_HEADROOM;
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
-      const typedData = {
-        domain: { name, version, chainId: CHAIN_ID, verifyingContract: USDC },
-        types: {
-          Permit: [
-            { name: "owner", type: "address" },
-            { name: "spender", type: "address" },
-            { name: "value", type: "uint256" },
-            { name: "nonce", type: "uint256" },
-            { name: "deadline", type: "uint256" },
-          ],
-        },
-        primaryType: "Permit" as const,
-        message: { owner: walletAddress, spender: AUTO_BIDDER, value, nonce, deadline },
-      };
-      let signature: `0x${string}`;
-      if (!isEmbeddedWallet && wallet) {
-        await wallet.switchChain(CHAIN_ID);
-        const client = createWalletClient({ account: walletAddress, chain: CHAIN, transport: custom(await wallet.getEthereumProvider()) });
-        signature = await client.signTypedData({ ...typedData, account: walletAddress });
-      } else {
-        signature = (await signTypedData(typedData)).signature as `0x${string}`;
-      }
-      const { v, r, s } = parseSignature(signature);
+      const { deadline, v, r, s } = await signPermit(AUTO_BIDDER, value);
       await send(AUTO_BIDDER, encodeFunctionData({
         abi: patchAutoBidderAbi, functionName: "setAutoBidWithPermit",
-        args: [BigInt(listingId), patchId, max, value, deadline, Number(v), r, s],
+        args: [BigInt(listingId), patchId, max, value, deadline, v, r, s],
       }));
     });
   }

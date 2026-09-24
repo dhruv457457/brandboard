@@ -77,6 +77,14 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   BadPatch: "That patch does not exist.",
   AlreadyBought: "Someone already bought this patch.",
   BidTooLow: "Someone bid higher a moment ago. Raise your bid and try again.",
+  // PatchSweeper
+  BidNotPlaced: "One of the patches changed a moment ago, so none of the bids went through. Check the prices and try again.",
+  LengthMismatch: "Something went wrong building the sweep. Reload and try again.",
+  Empty: "Pick at least one patch.",
+  // PatchAutoBidder
+  AlreadyLeading: "You already lead this patch.",
+  OverMax: "The next bid is above your auto-bid maximum.",
+  NoAutoBid: "Auto-bid is off for this patch.",
   CreatorCannotBid: "You can't bid on your own listing.",
   NotCreator: "Only the creator can do this.",
   NotHolder: "Only the holder of this patch can do this.",
