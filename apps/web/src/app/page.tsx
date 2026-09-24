@@ -10,27 +10,31 @@ const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 
 export default async function LandingPage() {
   const db = supabase();
-  const [live, { data: bids }, { count: bidCount }] = await Promise.all([
+  // The ticker needs a second lookup after the bids, so run that chain alongside the listings.
+  const tickerP = (async (): Promise<TickerItem[]> => {
+    const { data: bids } = await db.from("bids").select("listing_id, patch_id, bidder, amount")
+      .eq("chain_id", CHAIN_ID).order("block_number", { ascending: false }).limit(16);
+    if (!bids?.length) return [];
+    const ids = [...new Set(bids.map((b) => b.listing_id))];
+    const wallets = [...new Set(bids.map((b) => b.bidder))];
+    const [{ data: patches }, { data: brands }] = await Promise.all([
+      db.from("patches").select("listing_id, patch_id, label").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+      db.from("profiles").select("wallet, brand_name").in("wallet", wallets),
+    ]);
+    return bids.map((b) => ({
+      who: brands?.find((x) => x.wallet === b.bidder)?.brand_name ?? formatShortAddress(b.bidder),
+      label: patches?.find((p) => p.listing_id === b.listing_id && p.patch_id === b.patch_id)?.label ?? `Patch ${b.patch_id + 1}`,
+      amount: formatUsdc(b.amount / 1e6),
+    }));
+  })();
+  const [live, ticker, { count: bidCount }] = await Promise.all([
     fetchListingCards({ statuses: [1], limit: 12 }),
-    db.from("bids").select("listing_id, patch_id, bidder, amount").eq("chain_id", CHAIN_ID).order("block_number", { ascending: false }).limit(16),
+    tickerP,
     db.from("bids").select("*", { count: "exact", head: true }).eq("chain_id", CHAIN_ID),
   ]);
 
   // Hero: prefer a live listing with a real photo canvas, else the newest live one.
   const hero = live.find((c) => c.canvasImage) ?? live[0] ?? null;
-
-  // Labels and brand names for the ticker.
-  const ids = [...new Set((bids ?? []).map((b) => b.listing_id))];
-  const wallets = [...new Set((bids ?? []).map((b) => b.bidder))];
-  const [{ data: patches }, { data: brands }] = await Promise.all([
-    ids.length ? db.from("patches").select("listing_id, patch_id, label").eq("chain_id", CHAIN_ID).in("listing_id", ids) : Promise.resolve({ data: [] as { listing_id: number; patch_id: number; label: string }[] }),
-    wallets.length ? db.from("profiles").select("wallet, brand_name").in("wallet", wallets) : Promise.resolve({ data: [] as { wallet: string; brand_name: string | null }[] }),
-  ]);
-  const ticker: TickerItem[] = (bids ?? []).map((b) => ({
-    who: brands?.find((x) => x.wallet === b.bidder)?.brand_name ?? formatShortAddress(b.bidder),
-    label: patches?.find((p) => p.listing_id === b.listing_id && p.patch_id === b.patch_id)?.label ?? `Patch ${b.patch_id + 1}`,
-    amount: formatUsdc(b.amount / 1e6),
-  }));
 
   const escrowed = live.reduce((sum, c) => sum + c.topBidsTotal, 0n);
 

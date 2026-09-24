@@ -17,7 +17,7 @@ const ALLOWANCE_HEADROOM = 10n;
 /**
  * Auto-bid ("keep me on top up to $X") through PatchAutoBidder. Turning it on is one permit signature
  * plus one transaction (setAutoBidWithPermit). After that the Patched keeper, a Privy server wallet whose
- * policy only allows PatchAutoBidder.execute, answers every outbid within a second or two.
+ * policy only allows PatchAutoBidder.execute, answers every outbid within seconds.
  */
 export function useAutoBid() {
   const { walletAddress, wallet, isEmbeddedWallet } = usePatchedAuth();
@@ -42,8 +42,8 @@ export function useAutoBid() {
     setError(null);
     try {
       await fn();
-      // Let the keeper see the new rule and place the first bid right away.
-      await fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
+      // Let the keeper see the new rule and place the first bid; don't make the user wait for it.
+      fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
       return true;
     } catch (err) {
       setError(friendlyError(err).replace("The bid didn't", "Auto-bid didn't"));

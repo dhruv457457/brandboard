@@ -20,28 +20,50 @@ const b32 = (v: `0x${string}`) => {
  * Current state of one listing. Auction state comes straight from the contract (never stale);
  * presentation and history come from Supabase.
  */
+/** Market-wide bid step settings; they change rarely, so cache them for a minute. */
+let stepCache: { at: number; value: Promise<readonly [bigint, number]> } | null = null;
+function bidStep() {
+  if (!stepCache || Date.now() - stepCache.at > 60_000) {
+    const client = serverClient();
+    stepCache = {
+      at: Date.now(),
+      value: Promise.all([
+        client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minIncrement" }),
+        client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minIncrementBps" }),
+      ]).catch((err) => {
+        stepCache = null;
+        throw err;
+      }),
+    };
+  }
+  return stepCache.value;
+}
+
 export async function fetchListingView(id: number): Promise<ListingView | null> {
   const client = serverClient();
-  const [L, patches, minIncrement, minIncrementBps] = await Promise.all([
+  const db = supabase();
+  // One parallel round: authoritative numbers from the chain, everything else from the indexed database.
+  const [L, patches, [minIncrement, minIncrementBps], card, bids, logos] = await Promise.all([
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [BigInt(id)] }),
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatches", args: [BigInt(id)] }),
-    client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minIncrement" }),
-    client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minIncrementBps" }),
+    bidStep(),
+    db.from("listing_cards").select("metadata, metadata_hash, creator_handle, creator_name, creator_verified, event_name")
+      .eq("chain_id", CHAIN_ID).eq("listing_id", id).maybeSingle(),
+    db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
+      .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
+    db.from("patch_brands").select("top_bidder, brand_name, brand_logo_url").eq("chain_id", CHAIN_ID).eq("listing_id", id),
   ]);
   if (L.creator === ZERO) return null;
 
-  const db = supabase();
-  const [meta, profile, event, bids, logos] = await Promise.all([
-    db.from("listing_metadata").select("metadata").eq("metadata_hash", L.metadataHash).maybeSingle(),
-    db.from("profiles").select("handle, display_name, x_verified").eq("wallet", L.creator.toLowerCase()).maybeSingle(),
-    L.eventId
-      ? db.from("patched_events").select("name").eq("chain_id", CHAIN_ID).eq("event_id", L.eventId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    db.from("bids").select("tx_hash, log_index, patch_id, bidder, amount, prev_bidder, is_buy_now, block_time")
-      .eq("chain_id", CHAIN_ID).eq("listing_id", id).order("block_number", { ascending: false }).limit(30),
-    db.from("profiles").select("wallet, brand_name, brand_logo_url")
-      .in("wallet", patches.map((p) => p.topBidder.toLowerCase()).filter((w) => w !== ZERO)),
-  ]);
+  // Brand-new listing the indexer hasn't mirrored yet: fall back to a direct metadata lookup.
+  let row = card.data;
+  if (!row || row.metadata_hash !== L.metadataHash) {
+    const meta = await db.from("listing_metadata").select("metadata").eq("metadata_hash", L.metadataHash).maybeSingle();
+    row = { ...(row ?? { creator_handle: null, creator_name: null, creator_verified: false, event_name: null }), metadata: meta.data?.metadata ?? null, metadata_hash: L.metadataHash };
+  }
+  const profile = { data: { handle: row.creator_handle, display_name: row.creator_name, x_verified: row.creator_verified } };
+  const event = { data: row.event_name ? { name: row.event_name } : null };
+  const meta = { data: { metadata: row.metadata } };
 
   const metadata = (meta.data?.metadata ?? null) as ListingMetadata | null;
   const surface = SURFACES[L.surface] ?? "outfit";
@@ -51,7 +73,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
     const pos = metadata?.patches.find((m) => m.id === i);
     const slot = slotFor(surface, i, label, pos ? { name: pos.name, x: pos.x, y: pos.y, w: pos.w, h: pos.h, r: pos.rotation } : null);
     const leader = p.topBidder === ZERO ? null : (p.topBidder.toLowerCase() as `0x${string}`);
-    const brand = leader ? logos.data?.find((l) => l.wallet === leader) : undefined;
+    const brand = leader ? logos.data?.find((l) => l.top_bidder === leader) : undefined;
     return {
       id: i,
       label: pos?.name ?? label,
@@ -135,16 +157,13 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
   const { data: rows, error } = await q;
   if (error || !rows?.length) return [];
 
+  // Patches with their leader's brand in one query (patch_brands view).
   const { data: patchRows } = await db
-    .from("patches")
-    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought")
+    .from("patch_brands")
+    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought, brand_name, brand_logo_url")
     .eq("chain_id", CHAIN_ID)
     .in("listing_id", rows.map((r) => r.listing_id))
     .order("patch_id");
-  const leaders = [...new Set((patchRows ?? []).map((p) => p.top_bidder).filter(Boolean))] as string[];
-  const { data: brands } = leaders.length
-    ? await db.from("profiles").select("wallet, brand_name, brand_logo_url").in("wallet", leaders)
-    : { data: [] as { wallet: string; brand_name: string | null; brand_logo_url: string | null }[] };
 
   return rows.map((r) => {
     const surface = SURFACES[r.surface] ?? "outfit";
@@ -159,8 +178,8 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
           floor: BigInt(p.floor), buyNow: BigInt(p.buy_now), topBid: BigInt(p.top_bid),
           topBidder: p.top_bidder, bought: p.bought, side: pos?.side === "back" ? "back" : "front",
           x: slot.x, y: slot.y, w: slot.w, h: slot.h, r: slot.r ?? 0,
-          brandName: brands?.find((b) => b.wallet === p.top_bidder)?.brand_name ?? null,
-          logoUrl: brands?.find((b) => b.wallet === p.top_bidder)?.brand_logo_url ?? null,
+          brandName: p.brand_name ?? null,
+          logoUrl: p.brand_logo_url ?? null,
         };
       });
     const handle = r.creator_handle as string | null;

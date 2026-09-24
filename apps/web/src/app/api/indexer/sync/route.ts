@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import postgres from "postgres";
 import { syncChain } from "@patched/indexer";
 import { CHAIN_ID, serverRpcUrl } from "@/lib/config";
@@ -23,8 +23,9 @@ export async function POST() {
   try {
     const r = (await running) as Awaited<ReturnType<typeof syncChain>>;
     // A new bid may have outbid someone with auto-bid on: answer right away rather than on the next tick.
+    // Runs after the response is sent, so callers never wait on Privy relaying and mining the answer.
     // Safe to trigger from here: the auto-bidder contract only ever bids what the brand allowed.
-    if (r.logs > 0) await respondAutoBids().catch((err) => console.error("auto-bid failed", err));
+    if (r.logs > 0) after(() => respondAutoBids().then(() => undefined).catch((err) => console.error("auto-bid failed", err)));
     return NextResponse.json({
       ok: true, fromBlock: r.fromBlock.toString(), toBlock: r.toBlock.toString(), logs: r.logs, caughtUp: r.caughtUp,
     });
