@@ -171,10 +171,17 @@ async function handle(
       break;
     case "BiddingClosed": {
       await notify(note, await creatorOf(sql, chainId, a.listingId), "bidding_closed", { listingId, totalEscrow: num(a.totalEscrow) });
-      const winners = await sql<{ patch_id: number; top_bidder: string }[]>`
-        select patch_id, top_bidder from public.patches
-        where chain_id = ${chainId} and listing_id = ${listingId} and top_bidder is not null`;
-      for (const w of winners) await notify(note, w.top_bidder, "won", { listingId, patchId: w.patch_id });
+      // Winners = the last bid on each sold patch at or before this event. The bids table is written in log
+      // order within the batch, while the patches table is only refreshed after it, so it may be stale here.
+      const sold = Number(a.soldMask);
+      const winners = await sql<{ patch_id: number; bidder: string }[]>`
+        select distinct on (patch_id) patch_id, bidder from public.bids
+        where chain_id = ${chainId} and listing_id = ${listingId}
+          and (block_number < ${block} or (block_number = ${block} and log_index < ${idx}))
+        order by patch_id, block_number desc, log_index desc`;
+      for (const w of winners) {
+        if (sold & (1 << w.patch_id)) await notify(note, w.bidder, "won", { listingId, patchId: w.patch_id });
+      }
       break;
     }
     case "ProofSubmitted":
