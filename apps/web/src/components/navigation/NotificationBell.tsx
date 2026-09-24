@@ -27,6 +27,7 @@ function message(n: Row, patch: string, title: string): string {
     case "outbid": return `You were outbid on ${patch} (${title}). ${usd(p.refunded)} is back in your wallet.`;
     case "new_bid": return `New bid of ${usd(p.amount)} on ${patch} (${title}).`;
     case "auto_bid": return `Auto-bid kept you on top of ${patch} at ${usd(p.amount)}.`;
+    case "auto_bid_paused": return `Auto-bid on ${patch} is paused: ${(p as { reason?: string }).reason === "allowance" ? "top up its spending permission" : "add funds to your wallet"} to keep bidding.`;
     case "won": return `You won ${patch} on ${title}. Your receipt NFT is in your wallet.`;
     case "listing_live": return `${title} is live. Share it so brands start bidding.`;
     case "listing_rejected": return `${title} wasn't approved. Your bond was returned.`;

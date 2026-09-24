@@ -1,10 +1,10 @@
 import "server-only";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, erc20Abi } from "viem";
 import postgres from "postgres";
 import { PrivyClient } from "@privy-io/node";
 import { patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
 import { syncChain } from "@patched/indexer";
-import { AUTO_BIDDER, CHAIN_ID, MARKET, serverClient, serverRpcUrl } from "@/lib/config";
+import { AUTO_BIDDER, CHAIN_ID, MARKET, USDC, serverClient, serverRpcUrl } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export interface KeeperAction {
@@ -82,6 +82,7 @@ export function respondAutoBids(): Promise<KeeperAction[]> {
       if (!jobs.length) break;
       const results: KeeperAction[] = [];
       for (const job of jobs) results.push(await execute(job));
+      await notifyPaused(results);
       all.push(...results);
       if (!results.some((r) => r.status === "sent")) break;
       await syncChain({ sql, chainId: CHAIN_ID, rpcUrl: serverRpcUrl(), maxBlocks: 5_000n });
@@ -93,6 +94,42 @@ export function respondAutoBids(): Promise<KeeperAction[]> {
   return responding;
 }
 
+/**
+ * An auto-bid that fails because the brand's wallet ran out of USDC or of allowance is paused: tell the
+ * brand once an hour per patch (the notification key includes the hour, so repeats are dropped).
+ */
+async function notifyPaused(results: KeeperAction[]) {
+  const hour = Math.floor(Date.now() / 3_600_000);
+  const client = serverClient();
+  const skipped = results.filter((r) => r.kind === "autoBid" && r.status === "skipped");
+  // Check the cause on-chain rather than parsing revert text (token error formats differ).
+  const causes = await Promise.all(
+    skipped.map(async (r) => {
+      const brand = r.brand as `0x${string}`;
+      const [need, balance, allowance] = await Promise.all([
+        client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minNextBid", args: [BigInt(r.listingId), r.patchId!] }),
+        client.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [brand] }),
+        client.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [brand, AUTO_BIDDER!] }),
+      ]).catch(() => [0n, 1n, 1n] as const);
+      return balance < need ? "balance" : allowance < need ? "allowance" : null;
+    }),
+  );
+  const rows = skipped
+    .map((r, i) => ({ r, cause: causes[i] }))
+    .filter((x) => x.cause)
+    .map(({ r, cause }) => ({
+      chain_id: CHAIN_ID,
+      tx_hash: `autobid-paused:${r.listingId}:${r.patchId}:${hour}`,
+      log_index: 0,
+      wallet: r.brand!,
+      kind: "auto_bid_paused",
+      payload: { listingId: String(r.listingId), patchId: r.patchId, reason: cause },
+    }));
+  if (rows.length) {
+    await supabaseAdmin().from("notifications").upsert(rows, { onConflict: "chain_id,tx_hash,log_index,wallet,kind", ignoreDuplicates: true });
+  }
+}
+
 async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
   const db = supabaseAdmin();
   const { data: rules } = await db.from("auto_bid_rules").select("wallet, listing_id, patch_id, max_amount")
@@ -102,7 +139,7 @@ async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
   const [{ data: live }, { data: patches }] = await Promise.all([
     db.from("listings").select("listing_id, creator").eq("chain_id", CHAIN_ID).eq("status", 1)
       .gt("bidding_ends_at", new Date().toISOString()).in("listing_id", ids),
-    db.from("patches").select("listing_id, patch_id, top_bidder, bought").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+    db.from("patches").select("listing_id, patch_id, top_bidder, top_bid, floor, bought").eq("chain_id", CHAIN_ID).in("listing_id", ids),
   ]);
   const creators = new Map((live ?? []).map((l) => [l.listing_id, String(l.creator).toLowerCase()]));
   return rules
@@ -110,7 +147,10 @@ async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
     .filter((r) => creators.has(r.listing_id) && creators.get(r.listing_id) !== r.wallet)
     .filter((r) => {
       const p = patches?.find((x) => x.listing_id === r.listing_id && x.patch_id === r.patch_id);
-      return p && !p.bought && p.top_bidder?.toLowerCase() !== r.wallet;
+      if (!p || p.bought || p.top_bidder?.toLowerCase() === r.wallet) return false;
+      // Skip rules that can't beat the current top bid (or reach the floor): they'd only revert OverMax.
+      const max = BigInt(r.max_amount);
+      return BigInt(p.top_bid) > 0n ? max > BigInt(p.top_bid) : max >= BigInt(p.floor);
     })
     .map((r) => ({ kind: "autoBid" as const, listingId: r.listing_id, patchId: r.patch_id, brand: r.wallet }));
 }

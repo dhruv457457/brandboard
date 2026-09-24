@@ -66,13 +66,14 @@ export function useAutoBid() {
       // A high maximum lets the keeper spend that much for you, so it gets the same passkey check as a big bid.
       await stepUp.ensure(max);
 
-      // Enough allowance already: just set the rule.
-      if (allowance >= max * 2n) {
+      // Enough allowance for a long bidding war already: just set the rule. Otherwise top it up with a permit,
+      // because every auto-bid uses allowance and outbid refunds don't give it back.
+      if (allowance >= max * ALLOWANCE_HEADROOM) {
         await send(AUTO_BIDDER, encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, max] }));
         return;
       }
 
-      const value = allowance + max * ALLOWANCE_HEADROOM;
+      const value = max * ALLOWANCE_HEADROOM;
       const { deadline, v, r, s } = await signPermit(AUTO_BIDDER, value);
       await send(AUTO_BIDDER, encodeFunctionData({
         abi: patchAutoBidderAbi, functionName: "setAutoBidWithPermit",
@@ -88,5 +89,21 @@ export function useAutoBid() {
     });
   }
 
-  return { available: !!AUTO_BIDDER, current, enable, disable, busy, error };
+  /**
+   * Can the keeper actually place the next auto-bid? It needs USDC in the wallet and allowance for the
+   * auto-bidder; both run down during a long bidding war.
+   */
+  const health = useCallback(
+    async (need: bigint): Promise<"ok" | "balance" | "allowance"> => {
+      if (!AUTO_BIDDER || !walletAddress) return "ok";
+      const [balance, allowance] = await Promise.all([
+        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),
+        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER] }),
+      ]);
+      return balance < need ? "balance" : allowance < need ? "allowance" : "ok";
+    },
+    [walletAddress],
+  );
+
+  return { available: !!AUTO_BIDDER, current, health, enable, disable, busy, error };
 }

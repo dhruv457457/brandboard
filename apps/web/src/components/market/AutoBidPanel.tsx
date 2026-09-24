@@ -25,6 +25,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
   const auto = useAutoBid();
   const [active, setActive] = useState<bigint | null>(null);
   const [text, setText] = useState("");
+  const [paused, setPaused] = useState<null | "balance" | "allowance">(null);
 
   useEffect(() => {
     let alive = true;
@@ -38,6 +39,17 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listingId, patchId, auto.current]);
+
+  // An active auto-bid that can't afford the next step is paused, even though the rule is still on.
+  useEffect(() => {
+    if (!active) return setPaused(null);
+    let alive = true;
+    auto.health(minNext).then((h) => alive && setPaused(h === "ok" ? null : h)).catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, minNext, auto.health]);
 
   if (!auto.available) return null;
 
@@ -72,7 +84,8 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
         <span className="flex items-center gap-2 font-bold">
           <Bot size={18} className="text-[var(--accent-text)]" /> Auto-bid
         </span>
-        {on && <span className="text-xs font-semibold rounded-full bg-[var(--green-soft)] text-[var(--green)] px-2 py-0.5">On, up to {usd(active!)}</span>}
+        {on && !paused && <span className="text-xs font-semibold rounded-full bg-[var(--green-soft)] text-[var(--green)] px-2 py-0.5">On, up to {usd(active!)}</span>}
+        {on && paused && <span className="text-xs font-semibold rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] px-2 py-0.5">Paused</span>}
       </div>
       <p className="text-sm text-[var(--muted)]">
         Keep me on top up to a maximum. When someone outbids you, Patched bids the next step for you, within seconds.
@@ -86,9 +99,16 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
         </div>
       </label>
       {tooLow && text && <p className="text-xs text-[var(--muted)]">Set at least {usd(minNext)}, the next bid on this patch.</p>}
+      {on && paused && (
+        <p className="text-xs rounded-lg bg-[var(--accent-soft)] p-2" role="status">
+          {paused === "balance"
+            ? `Auto-bid is paused: your wallet has less than ${usd(minNext)}, the next bid. Add funds and it picks up again.`
+            : "Auto-bid is paused: its spending permission ran out during the bidding. Press Update maximum to top it up."}
+        </p>
+      )}
       {auto.error && <p className="text-sm text-[var(--red)]" role="alert">{auto.error}</p>}
       <div className="flex gap-2 flex-wrap">
-        <Button variant={on ? "default" : "primary"} disabled={disabled || auto.busy || tooLow || max === active} onClick={save}>
+        <Button variant={on ? "default" : "primary"} disabled={disabled || auto.busy || tooLow || (max === active && paused !== "allowance")} onClick={save}>
           {auto.busy ? "Saving…" : on ? "Update maximum" : "Turn on auto-bid"}
         </Button>
         {on && (
