@@ -17,6 +17,8 @@ export interface KeeperAction {
   status: "sent" | "skipped" | "failed";
   hash?: string;
   reason?: string;
+  /** Milliseconds: until Privy accepted the request, until the tx hash was known, until it was mined. */
+  timings?: { accepted: number; hash?: number; mined?: number };
 }
 
 let sql: ReturnType<typeof postgres> | null = null;
@@ -98,13 +100,14 @@ async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
   if (!rules?.length) return [];
   const ids = [...new Set(rules.map((r) => r.listing_id))];
   const [{ data: live }, { data: patches }] = await Promise.all([
-    db.from("listings").select("listing_id").eq("chain_id", CHAIN_ID).eq("status", 1)
+    db.from("listings").select("listing_id, creator").eq("chain_id", CHAIN_ID).eq("status", 1)
       .gt("bidding_ends_at", new Date().toISOString()).in("listing_id", ids),
     db.from("patches").select("listing_id, patch_id, top_bidder, bought").eq("chain_id", CHAIN_ID).in("listing_id", ids),
   ]);
-  const liveIds = new Set((live ?? []).map((l) => l.listing_id));
+  const creators = new Map((live ?? []).map((l) => [l.listing_id, String(l.creator).toLowerCase()]));
   return rules
-    .filter((r) => liveIds.has(r.listing_id))
+    // Live listings only, and never the creator's own listing (the market rejects those bids).
+    .filter((r) => creators.has(r.listing_id) && creators.get(r.listing_id) !== r.wallet)
     .filter((r) => {
       const p = patches?.find((x) => x.listing_id === r.listing_id && x.patch_id === r.patch_id);
       return p && !p.bought && p.top_bidder?.toLowerCase() !== r.wallet;
@@ -130,6 +133,7 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
     return { ...job, status: "skipped", reason: err instanceof Error ? err.message.split("\n")[0] : "not due" };
   }
 
+  const t0 = Date.now();
   try {
     privy ??= new PrivyClient({ appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID!, appSecret: process.env.PRIVY_APP_SECRET! });
     const res = await privy.wallets().ethereum().sendTransaction(process.env.PRIVY_SERVER_WALLET_ID!, {
@@ -142,6 +146,7 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
         ? {}
         : { authorization_context: { authorization_private_keys: [process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY!] } }),
     });
+    const timings: NonNullable<KeeperAction["timings"]> = { accepted: Date.now() - t0 };
     // Sponsored sends are relayed asynchronously: the hash can be empty at first, so look it up by id.
     let hash = res.hash as `0x${string}` | "";
     for (let i = 0; !hash && res.transaction_id && i < 20; i++) {
@@ -150,9 +155,11 @@ async function execute(job: Omit<KeeperAction, "status">): Promise<KeeperAction>
       if (t.status === "failed" || t.status === "execution_reverted" || t.status === "provider_error") throw new Error(`transaction ${t.status}`);
       hash = (t.transaction_hash ?? "") as `0x${string}` | "";
     }
-    if (!hash) return { ...job, status: "sent", reason: `submitted as ${res.transaction_id}` };
+    if (!hash) return { ...job, status: "sent", reason: `submitted as ${res.transaction_id}`, timings };
+    timings.hash = Date.now() - t0;
     await client.waitForTransactionReceipt({ hash, timeout: 30_000 });
-    return { ...job, status: "sent", hash };
+    timings.mined = Date.now() - t0;
+    return { ...job, status: "sent", hash, timings };
   } catch (err) {
     return { ...job, status: "failed", reason: err instanceof Error ? err.message.split("\n")[0] : String(err) };
   }

@@ -52,6 +52,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const [disputeTarget, setDisputeTarget] = useState<{ milestone: number; milestoneName: string; reviewEndsAt: number | null; patchId: number; label: string } | null>(null);
   const { walletAddress, authenticated, login } = usePatchedAuth();
   const me = walletAddress?.toLowerCase();
+  // The market rejects bids from a listing's own creator, so they get no bid controls.
+  const isCreator = !!me && me === listing.creator.toLowerCase();
   const minNext = (p: LivePatch) => minNextFor(p, listing.minIncrement, listing.minIncrementBps);
   const patchRefs = useRef<Record<string | number, PatchHandle | null>>({});
 
@@ -318,27 +320,36 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         selected.topBid > 0n ? `Top bid ${usd(selected.topBid)} · next bid at least ${usd(minNext(selected))}` : `No bids yet · floor ${usd(selected.floor)}`
       }>
         <div className="flex flex-col gap-4">
-          <label className="field-label" htmlFor="bid-amount">Your bid</label>
-          <div className="amt">
-            <span>$</span>
-            <input id="bid-amount" inputMode="decimal" value={amountText} onChange={(e) => setAmountText(e.target.value)} disabled={busy} />
-            <span>USDC</span>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {[1, 5, 10].map((n) => (
-              <Button key={n} size="small" disabled={busy} onClick={() => setAmountText((v) => String((parseFloat(v) || 0) + n))}>+{n}</Button>
-            ))}
-            <Button size="small" variant="ghost" disabled={busy} onClick={() => setAmountText(String(Number(selected.buyNow) / 1e6))}>
-              Buy now {usd(selected.buyNow)}
-            </Button>
-          </div>
-          <div className="perks">
-            <div><span className="pi"><Fuel size={12} /></span>{GAS_SPONSORED ? "No gas needed. Patched pays the network fee." : "You pay a tiny network fee in MON."}</div>
-            <div><span className="pi"><ShieldCheck size={12} /></span>Your USDC goes into escrow, not to the creator.</div>
-            <div><span className="pi"><RotateCcw size={12} /></span>Outbid? Your USDC comes back instantly.</div>
-          </div>
+          {!isCreator && (
+            <>
+              <label className="field-label" htmlFor="bid-amount">Your bid</label>
+              <div className="amt">
+                <span>$</span>
+                <input id="bid-amount" inputMode="decimal" value={amountText} onChange={(e) => setAmountText(e.target.value)} disabled={busy} />
+                <span>USDC</span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {[1, 5, 10].map((n) => (
+                  <Button key={n} size="small" disabled={busy} onClick={() => setAmountText((v) => String((parseFloat(v) || 0) + n))}>+{n}</Button>
+                ))}
+                <Button size="small" variant="ghost" disabled={busy} onClick={() => setAmountText(String(Number(selected.buyNow) / 1e6))}>
+                  Buy now {usd(selected.buyNow)}
+                </Button>
+              </div>
+              <div className="perks">
+                <div><span className="pi"><Fuel size={12} /></span>{GAS_SPONSORED ? "No gas needed. Patched pays the network fee." : "You pay a tiny network fee in MON."}</div>
+                <div><span className="pi"><ShieldCheck size={12} /></span>Your USDC goes into escrow, not to the creator.</div>
+                <div><span className="pi"><RotateCcw size={12} /></span>Outbid? Your USDC comes back instantly.</div>
+              </div>
+            </>
+          )}
           {error && <p className="text-sm text-[var(--red)]" role="alert">{error}</p>}
-          {!authenticated ? (
+          {isCreator ? (
+            <p className="rounded-xl bg-[var(--soft)] p-3 text-sm">
+              This is your listing, so you can&apos;t bid on it. Share it so brands see it:{" "}
+              <Link href={`/share/${listing.id}`} className="font-semibold underline">open the share kit</Link>.
+            </p>
+          ) : !authenticated ? (
             <Button variant="primary" onClick={login}>Sign in to bid</Button>
           ) : (
             <Button variant="primary" onClick={placeBid} disabled={busy}>
@@ -350,7 +361,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               View transaction <ExternalLink size={12} />
             </a>
           )}
-          {authenticated && !selected.bought && biddingOpen && (
+          {authenticated && !isCreator && !selected.bought && biddingOpen && (
             <AutoBidPanel
               listingId={listing.id}
               patchId={selected.id}
