@@ -15,3 +15,19 @@ export function allow(key: string, perDay: number): boolean {
   b.count += 1;
   return true;
 }
+
+const windows = new Map<string, number[]>();
+
+/** Sliding-window limit: at most `max` calls per `windowMs` for `key` (e.g. per IP). In-memory, per instance. */
+export function allowRate(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  const recent = (windows.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (recent.length >= max) {
+    windows.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  windows.set(key, recent);
+  if (windows.size > 5000) windows.clear();
+  return true;
+}

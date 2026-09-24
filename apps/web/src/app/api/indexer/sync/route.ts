@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { syncChain } from "@patched/indexer";
 import { CHAIN_ID, serverRpcUrl } from "@/lib/config";
 import { respondAutoBids } from "@/lib/server/keeper";
+import { allowRate } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,7 +16,10 @@ let running: Promise<unknown> | null = null;
  * after a user's transaction, so the database catches up within a second or two. Safe to call often:
  * concurrent calls share one run, and every write is idempotent.
  */
-export async function POST() {
+export async function POST(req: Request) {
+  // Public endpoint: a browser calls it after each transaction, so a person needs only a few a minute.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  if (!allowRate(`sync:${ip}`, 30, 60_000)) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   sql ??= postgres(process.env.DATABASE_URL!, { prepare: false, max: 2, onnotice: () => {} });
   running ??= syncChain({ sql, chainId: CHAIN_ID, rpcUrl: serverRpcUrl(), maxBlocks: 5_000n }).finally(() => {
     running = null;
