@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi, parseSignature } from "viem";
 import { useSendTransaction, useSignTypedData } from "@privy-io/react-auth";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
-import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED } from "@/lib/config";
+import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
@@ -27,11 +27,15 @@ export function friendlyError(err: unknown): string {
   }
   const msg = err instanceof Error ? err.message : String(err);
   if (/rejected|denied|cancel/i.test(msg)) return "You cancelled the signature.";
+  if (/FaucetCooldown/i.test(msg)) return "You already used the faucet today. Try again tomorrow.";
   if (/no gas/i.test(msg))
     return GAS_SPONSORED
       ? "Your wallet needs a little MON to pay gas. Use the Patched wallet (email or X login) for gas-free bids."
       : "Your wallet needs a little MON to pay gas. Send some MON to your wallet address (in the account menu).";
-  if (/insufficient/i.test(msg)) return "Not enough USDC in your wallet for this bid.";
+  if (/insufficient/i.test(msg))
+    return TEST_TOKEN
+      ? "Not enough test USD in your wallet. Get 1,000 free from the faucet on My bids."
+      : "Not enough USDC in your wallet for this bid.";
   return "The bid didn't go through. Try again in a moment.";
 }
 

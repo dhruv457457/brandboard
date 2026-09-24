@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { encodeFunctionData, erc20Abi, stringToHex } from "viem";
-import { CreditCard, ExternalLink, Upload } from "lucide-react";
+import { CreditCard, Droplet, ExternalLink, Upload } from "lucide-react";
 import { useAddFunds } from "@privy-io/react-auth";
-import { patchedMarketAbi, patchReceiptAbi } from "@patched/shared";
+import { patchedMarketAbi, patchReceiptAbi, testUsdAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/Toast";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
 import { useAuthedFetch } from "@/lib/authedFetch";
-import { CHAIN_ID, EXPLORER, MARKET, RECEIPT, USDC, publicClient } from "@/lib/config";
+import { CHAIN_ID, EXPLORER, MARKET, RECEIPT, TEST_TOKEN, USDC, publicClient } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
@@ -186,6 +186,22 @@ export default function MyBidsPage() {
     }
   }
 
+  /** Test run only: mint 1,000 tUSD from the TestUSD faucet (once a day per wallet). */
+  async function claimFaucet() {
+    if (!walletAddress) return;
+    setBusy("faucet");
+    try {
+      // Surfaces FaucetCooldown by name instead of a bare revert.
+      await publicClient.simulateContract({ address: USDC, abi: testUsdAbi, functionName: "faucet", account: walletAddress });
+      await send(USDC, encodeFunctionData({ abi: testUsdAbi, functionName: "faucet" }));
+      toast("1,000 test USD added to your wallet.");
+    } catch (err) {
+      toast(friendlyError(err).replace("The bid didn't", "That didn't"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function topUp() {
     if (!walletAddress) return;
     try {
@@ -219,7 +235,13 @@ export default function MyBidsPage() {
           <span className="eyebrow">My bids</span>
           <h1 className="font-extrabold text-4xl tracking-tight mt-1">{profile?.brand_name || "Your brand"}</h1>
         </div>
-        <Button onClick={topUp}><CreditCard size={15} /> Add funds</Button>
+        {TEST_TOKEN ? (
+          <Button onClick={claimFaucet} disabled={busy === "faucet"}>
+            <Droplet size={15} /> {busy === "faucet" ? "Minting…" : "Get 1,000 test USD"}
+          </Button>
+        ) : (
+          <Button onClick={topUp}><CreditCard size={15} /> Add funds</Button>
+        )}
       </div>
 
       <Card className="grid grid-cols-2 sm:grid-cols-4">

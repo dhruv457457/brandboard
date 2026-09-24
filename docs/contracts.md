@@ -161,6 +161,7 @@ Addresses live in `packages/shared/src/addresses.ts` (`DEPLOYMENTS[chainId]`). A
 | Network | PatchedMarket | PatchReceipt | Deploy block | Notes |
 |---|---|---|---|---|
 | Monad testnet (10143) | `0xd3808dE425493934f036f8E77ef5a4de332e9552` | `0x598Ea7C3Cf739Dbea1B809d5Cd0174818b680a8f` | 65054031 | v2 with `bidFor`. Params: bond $5, min step $1. Demo event #1 + listing #1 seeded. |
-| Monad mainnet (143) | `0xCB44d40E69Dc267e9C7CF65d89f22857e3d82aed` | `0xa6e439a22aad8fc7f596a92B5900D7b8724A01F5` | 107361531 | Real USDC. Params: bond $5, min step $1, new creators capped at $200. |
+| Monad mainnet (143), **active** | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` | 107528109 | Test run on **TestUSD** (`0xB0fabbBc9a26dC78b200a36b2344cAc2518D0e3f`, tUSD, 6 decimals, `faucet()` gives 1,000 per wallet per day). Params: bond $1, min step $1, cap $1000. Deployed with `script/DeployTestUSD.s.sol`. |
+| Monad mainnet (143), real USDC, parked | `0xCB44d40E69Dc267e9C7CF65d89f22857e3d82aed` | `0xa6e439a22aad8fc7f596a92B5900D7b8724A01F5` | 107361531 | Real USDC. Params: bond $5, min step $1, new creators capped at $200. Switch back by restoring it in `addresses.ts` (or redeploy with `Deploy.s.sol` if the contract changed). |
 
 The old testnet v1 (`0xCB44…2aed` on 10143) is retired. It has the same address as mainnet because both were the deployer's first transaction on a fresh chain — always pick the address by chain id.

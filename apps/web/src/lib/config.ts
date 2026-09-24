@@ -11,6 +11,8 @@ export const DEPLOYMENT = deployment;
 export const MARKET = deployment.market;
 export const RECEIPT = deployment.receipt;
 export const USDC = deployment.usdc;
+/** The dollar token is the TestUSD faucet token (mainnet test run), not real USDC. */
+export const TEST_TOKEN = deployment.testToken === true;
 export { USDC_DECIMALS };
 
 /** Whether Privy pays gas for embedded wallets. Off: every wallet pays its own gas in MON. */
