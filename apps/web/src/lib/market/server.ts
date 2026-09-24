@@ -6,7 +6,7 @@ import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
 import { slotFor } from "./layouts";
 import { defaultTiers } from "./tiers";
-import { sanitizePage } from "./page";
+import { sanitizePage, type PageAccent } from "./page";
 import { SURFACES, type BidEvent, type ListingView, type LivePatch } from "./types";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -163,6 +163,14 @@ export interface ListingCard {
   /** Id of the view canvasImage shows; cards only draw that view's patches. */
   viewId: string;
   patches: LivePatch[];
+  creatorHandle: string | null;
+  creatorAvatar: string | null;
+  creatorVerified: boolean;
+  /** The creator's headline: page layer first, then the listing metadata. */
+  headline: string | null;
+  /** Page colour the creator picked (orange when never set). */
+  accent: PageAccent;
+  createdBlock: number;
 }
 
 /** Listings for Explore / profiles, from the indexed tables. Newest first. */
@@ -170,7 +178,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
   const db = supabase();
   let q = db
     .from("listing_cards")
-    .select("listing_id, creator, creator_handle, creator_name, surface, status, bidding_ends_at, patch_count, patches_with_bids, top_bids_total, metadata, event_name")
+    .select("listing_id, creator, creator_handle, creator_name, creator_avatar, creator_verified, surface, status, bidding_ends_at, patch_count, patches_with_bids, top_bids_total, metadata, event_name, created_block")
     .eq("chain_id", CHAIN_ID)
     .in("status", opts.statuses ?? [1, 2, 3])
     .order("created_block", { ascending: false })
@@ -180,13 +188,17 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
   const { data: rows, error } = await q;
   if (error || !rows?.length) return [];
 
-  // Patches with their leader's brand in one query (patch_brands view).
-  const { data: patchRows } = await db
-    .from("patch_brands")
-    .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought, brand_name, brand_logo_url, brand_verified_domain")
-    .eq("chain_id", CHAIN_ID)
-    .in("listing_id", rows.map((r) => r.listing_id))
-    .order("patch_id");
+  // Patches with their leader's brand (patch_brands view), and each creator's page layer, in parallel.
+  const ids = rows.map((r) => r.listing_id);
+  const [{ data: patchRows }, { data: pages }] = await Promise.all([
+    db
+      .from("patch_brands")
+      .select("listing_id, patch_id, label, floor, buy_now, top_bid, top_bidder, bought, brand_name, brand_logo_url, brand_verified_domain")
+      .eq("chain_id", CHAIN_ID)
+      .in("listing_id", ids)
+      .order("patch_id"),
+    db.from("listing_pages").select("listing_id, page").eq("chain_id", CHAIN_ID).in("listing_id", ids),
+  ]);
 
   return rows.map((r) => {
     const surface = SURFACES[r.surface] ?? "outfit";
@@ -209,6 +221,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
         };
       });
     const handle = r.creator_handle as string | null;
+    const page = sanitizePage(pages?.find((x) => x.listing_id === r.listing_id)?.page, r.patch_count);
     return {
       id: r.listing_id,
       href: `/${handle ?? r.creator}/${r.listing_id}`,
@@ -224,6 +237,12 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
       canvasImage: listingViews(metadata)[0]?.image ?? metadata?.canvasImage ?? null,
       viewId: listingViews(metadata)[0]?.id ?? "front",
       patches,
+      creatorHandle: handle,
+      creatorAvatar: (r.creator_avatar as string | null) ?? null,
+      creatorVerified: Boolean(r.creator_verified),
+      headline: page.headline ?? metadata?.headline ?? null,
+      accent: page.accent ?? "orange",
+      createdBlock: Number(r.created_block),
     };
   });
 }
