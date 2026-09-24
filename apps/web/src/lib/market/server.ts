@@ -2,6 +2,7 @@ import "server-only";
 import { hexToString } from "viem";
 import { patchedMarketAbi, type ListingMetadata } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
+import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
 import { slotFor } from "./layouts";
 import { SURFACES, type BidEvent, type ListingView, type LivePatch } from "./types";
@@ -251,7 +252,7 @@ export interface AdminReviewItem {
   milestoneName: string;
   reviewEndsAt: number | null;
   proof: { files: string[]; note: string | null } | null;
-  disputes: { patchId: number; label: string; holder: string; reason: string }[];
+  disputes: { patchId: number; label: string; holder: string; reason: DisputeReason }[];
 }
 
 /** Proofs under review and unresolved disputes, for the admin console. */
@@ -294,7 +295,7 @@ export async function fetchAdminReview(): Promise<AdminReviewItem[]> {
             patches?.find((p) => p.listing_id === k.listingId && p.patch_id === d.patch_id)?.label ??
             `Patch ${d.patch_id}`,
           holder: d.holder,
-          reason: (d.reason_uri ?? "").replace(/^text:/, ""),
+          reason: parseDisputeReason(d.reason_uri),
         })),
     };
   });

@@ -22,6 +22,7 @@ import { encodeFunctionData } from "viem";
 import { useRouter } from "next/navigation";
 import { patchedMarketAbi } from "@patched/shared";
 import { MilestoneList } from "@/components/market/MilestoneList";
+import { DisputeSheet } from "@/components/market/DisputeSheet";
 import type { DeliveryView } from "@/lib/market/server";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
@@ -47,7 +48,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const delivery = useMemo(() => (dw ? fromWire<DeliveryView>(dw) : null), [dw]);
   const router = useRouter();
   const send = useTx();
-  const [disputing, setDisputing] = useState<string | null>(null);
+  const [disputeTarget, setDisputeTarget] = useState<{ milestone: number; milestoneName: string; reviewEndsAt: number | null; patchId: number; label: string } | null>(null);
   const { walletAddress, authenticated, login } = usePatchedAuth();
   const me = walletAddress?.toLowerCase();
   const minNext = (p: LivePatch) => minNextFor(p, listing.minIncrement, listing.minIncrementBps);
@@ -276,25 +277,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                     return disputed ? (
                       <Pill key={key} variant="out">You disputed {label}</Pill>
                     ) : (
-                      <Button key={key} size="small" variant="ghost" disabled={!!disputing}
-                        onClick={async () => {
-                          const reason = window.prompt?.(`What's wrong with the proof for ${label}?`) ?? "";
-                          setDisputing(key);
-                          try {
-                            await send(MARKET, encodeFunctionData({
-                              abi: patchedMarketAbi, functionName: "dispute",
-                              args: [BigInt(listing.id), m.idx, r.patchId, `text:${reason.slice(0, 280)}`],
-                            }));
-                            await fetch("/api/indexer/sync", { method: "POST" });
-                            toast(`Dispute opened for ${label}. That payment is on hold until an admin decides.`);
-                            router.refresh();
-                          } catch (err) {
-                            toast(friendlyError(err).replace("The bid didn't", "That didn't"));
-                          } finally {
-                            setDisputing(null);
-                          }
-                        }}>
-                        {disputing === key ? "Opening dispute…" : `Dispute ${label}`}
+                      <Button key={key} size="small" variant="ghost"
+                        onClick={() => setDisputeTarget({ milestone: m.idx, milestoneName: m.name, reviewEndsAt: m.reviewEndsAt, patchId: r.patchId, label })}>
+                        Dispute {label}
                       </Button>
                     );
                   })}
@@ -303,6 +288,29 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             }}
           />
         </section>
+      )}
+
+      {disputeTarget && (
+        <DisputeSheet
+          open
+          onClose={() => setDisputeTarget(null)}
+          label={disputeTarget.label}
+          milestoneName={disputeTarget.milestoneName}
+          reviewEndsAt={disputeTarget.reviewEndsAt}
+          onSubmit={async (reasonURI) => {
+            try {
+              await send(MARKET, encodeFunctionData({
+                abi: patchedMarketAbi, functionName: "dispute",
+                args: [BigInt(listing.id), disputeTarget.milestone, disputeTarget.patchId, reasonURI],
+              }));
+            } catch (err) {
+              throw new Error(friendlyError(err).replace("The bid didn't", "That didn't"));
+            }
+            await fetch("/api/indexer/sync", { method: "POST" });
+            toast(`Dispute opened for ${disputeTarget.label}. That payment is on hold until an admin decides.`);
+            router.refresh();
+          }}
+        />
       )}
 
       <Sheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={selected.label} description={

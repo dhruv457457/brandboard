@@ -17,6 +17,7 @@ import { formatCountdown, formatShortAddress } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
 import { useIndexerSync } from "@/lib/market/useIndexerSync";
+import { DISPUTE_CATEGORIES } from "@/lib/market/dispute";
 
 export interface AdminEvent {
   id: number;
@@ -146,7 +147,21 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
                   ) : <p className="text-sm muted">No proof files stored.</p>}
                   {r.disputes.map((d) => (
                     <div key={d.patchId} className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-3 grid gap-2">
-                      <p className="text-sm"><b>{d.label}</b> disputed by {formatShortAddress(d.holder)}{d.reason ? `: “${d.reason}”` : ""}</p>
+                      <p className="text-sm">
+                        <b>{d.label}</b> disputed by {formatShortAddress(d.holder)}
+                        {d.reason.category && <> · <b>{DISPUTE_CATEGORIES[d.reason.category]}</b></>}
+                      </p>
+                      {d.reason.text && <p className="text-sm">&ldquo;{d.reason.text}&rdquo;</p>}
+                      {d.reason.files.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {d.reason.files.map((f) => (
+                            <a key={f} href={f} target="_blank" rel="noopener noreferrer" className="block w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--line)]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={f} alt="Dispute evidence" className="w-full h-full object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex gap-2 flex-wrap">
                         {[
                           { share: 10_000, label: "Pay creator" },
