@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
-/* Expose the next/font families as Tailwind utilities (font-display, font-hand, font-mono). */
+/* Expose the next/font families as Tailwind utilities (font-display, font-mono). */
 @theme inline {
   --font-sans: var(--font-geist), system-ui, sans-serif;
   --font-display: var(--font-bricolage), "Arial Black", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-hand: var(--font-caveat), cursive;
 }
 
 @property --sw {
@@ -82,10 +81,6 @@ h1, h2, h3, h4, h5, h6 {
 .mono {
   font-family: var(--font-geist-mono), monospace;
   font-variant-numeric: tabular-nums;
-}
-
-.hand {
-  font-family: var(--font-caveat), cursive;
 }
 
 :focus-visible {

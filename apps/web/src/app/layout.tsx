@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono, Caveat } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { SurfaceDefs } from "@/components/surface/SurfaceDefs";
@@ -23,12 +23,6 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-const caveat = Caveat({
-  subsets: ["latin"],
-  variable: "--font-caveat",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Patched — Get patched. Get paid.",
   description:
@@ -48,7 +42,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${bricolage.variable} ${geist.variable} ${geistMono.variable} ${caveat.variable}`}
+      className={`${bricolage.variable} ${geist.variable} ${geistMono.variable}`}
     >
       <head>
         <script
