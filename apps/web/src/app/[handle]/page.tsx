@@ -37,6 +37,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
     displayName: profile?.display_name ?? null,
     xHandle: profile?.x_handle ?? null,
     xVerified: Boolean(profile?.x_verified),
+    avatarUrl: profile?.avatar_url ?? null,
     bio: profile?.bio ?? null,
     bannerColor: profile?.banner_color ?? "#FF5A1F",
     completed,

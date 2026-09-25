@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { encodeFunctionData, erc20Abi, stringToHex } from "viem";
-import { Copy, Droplet, ExternalLink, Upload } from "lucide-react";
+import { encodeFunctionData, erc20Abi } from "viem";
+import { BadgeCheck, Copy, Droplet, ExternalLink, Settings, Tag } from "lucide-react";
 import { patchedMarketAbi, patchReceiptAbi, testUsdAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -11,13 +11,11 @@ import { Pill } from "@/components/ui/Pill";
 import { toast } from "@/components/ui/Toast";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
-import { useAuthedFetch } from "@/lib/authedFetch";
 import { CHAIN_ID, EXPLORER, MARKET, RECEIPT, TEST_TOKEN, USDC, publicClient } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
-import { BrandVerify } from "@/components/market/BrandVerify";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 const usd = (v: number | string | bigint) => formatUsdc(Number(v) / 1e6);
@@ -61,8 +59,7 @@ interface ReceiptRow {
 
 export default function MyBidsPage() {
   const { ready, authenticated, login, walletAddress } = usePatchedAuth();
-  const { profile, save } = useProfile();
-  const authedFetch = useAuthedFetch();
+  const { profile } = useProfile();
   const send = useTx();
   const me = walletAddress?.toLowerCase();
 
@@ -75,11 +72,6 @@ export default function MyBidsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<string, string>>({});
 
-  const [brand, setBrand] = useState({ name: "", website: "", logo: "" });
-  const logoRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (profile) setBrand({ name: profile.brand_name ?? "", website: profile.brand_website ?? "", logo: profile.brand_logo_url ?? "" });
-  }, [profile]);
 
   const load = useCallback(async () => {
     if (!me) return;
@@ -166,43 +158,6 @@ export default function MyBidsPage() {
       await load();
     } catch (err) {
       toast(friendlyError(err).replace("The bid didn't", "That didn't"));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function saveBrand() {
-    setBusy("brand");
-    const error = await save({ brandName: brand.name, brandWebsite: brand.website, brandLogoUrl: brand.logo || null });
-    if (error) {
-      setBusy(null);
-      return toast(error);
-    }
-    // Also record the name on-chain so receipt NFTs show it.
-    if (brand.name && brand.name !== profile?.brand_name) {
-      try {
-        await send(MARKET, encodeFunctionData({ abi: patchedMarketAbi, functionName: "setBrandName", args: [stringToHex(brand.name.slice(0, 31), { size: 32 })] }));
-      } catch (err) {
-        toast(`Saved, but the on-chain name wasn't updated: ${friendlyError(err)}`);
-        return setBusy(null);
-      }
-    }
-    toast("Brand saved. It shows on every patch you lead.");
-    setBusy(null);
-  }
-
-  async function uploadLogo(file: File) {
-    setBusy("logo");
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("bucket", "logos");
-      const res = await authedFetch("/api/uploads", { method: "POST", body: form });
-      const json = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !json.url) throw new Error(json.error ?? "Upload failed.");
-      setBrand((b) => ({ ...b, logo: json.url! }));
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setBusy(null);
     }
@@ -371,23 +326,20 @@ export default function MyBidsPage() {
 
         <Card className="p-5 grid gap-3 lg:sticky lg:top-24">
           <h3 className="font-bold text-lg">Your brand</h3>
-          <p className="text-sm muted">Shown on every patch you lead and on your receipt NFTs.</p>
           <div className="flex gap-3 items-center">
-            <button onClick={() => logoRef.current?.click()} disabled={!!busy}
-              className="w-16 h-16 rounded-xl border-2 border-dashed border-[var(--line)] grid place-items-center overflow-hidden bg-[var(--paper)] flex-none">
+            <span className="w-14 h-14 rounded-xl border-2 border-[var(--line)] grid place-items-center overflow-hidden bg-[var(--paper)] flex-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {brand.logo ? <img src={brand.logo} alt="Brand logo" className="w-full h-full object-contain" /> : <Upload size={18} />}
-            </button>
-            <span className="text-xs muted">Logo: PNG, SVG or WebP up to 2 MB. Transparent backgrounds look best.</span>
-            <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = ""; }} />
+              {profile?.brand_logo_url ? <img src={profile.brand_logo_url} alt="Brand logo" className="w-full h-full object-contain" /> : <Tag size={18} />}
+            </span>
+            <span className="grid min-w-0">
+              <b className="truncate">{profile?.brand_name || "No brand name yet"}</b>
+              {profile?.brand_verified_domain
+                ? <span className="text-xs font-semibold text-[var(--green)] flex items-center gap-1"><BadgeCheck size={13} /> Verified · {profile.brand_verified_domain}</span>
+                : <span className="text-xs muted">Not verified yet</span>}
+            </span>
           </div>
-          <label className="grid gap-1"><span className="field-label">Brand name</span>
-            <input className={INPUT} maxLength={31} value={brand.name} placeholder="Your brand name" onChange={(e) => setBrand({ ...brand, name: e.target.value })} /></label>
-          <label className="grid gap-1"><span className="field-label">Website</span>
-            <input className={INPUT} value={brand.website} placeholder="https://" onChange={(e) => setBrand({ ...brand, website: e.target.value })} /></label>
-          <Button variant="primary" onClick={saveBrand} disabled={!!busy || !profile}>{busy === "brand" ? "Saving…" : "Save brand"}</Button>
-          <BrandVerify />
+          <p className="text-sm muted">Your name and logo show on every patch you lead and on your receipt NFTs.</p>
+          <Link href="/settings?tab=brand" className="btn-base btn-small justify-self-start"><Settings size={13} /> {profile?.brand_name ? "Edit brand" : "Set up your brand"}</Link>
           {walletAddress && (
             <a className="text-xs muted inline-flex items-center gap-1" href={`${EXPLORER}/address/${walletAddress}`} target="_blank" rel="noopener noreferrer">
               Wallet {formatShortAddress(walletAddress)} <ExternalLink size={11} />
