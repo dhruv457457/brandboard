@@ -18,9 +18,23 @@ import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
 import { BrandVerify } from "@/components/market/BrandVerify";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const usd = (v: number | string | bigint) => formatUsdc(Number(v) / 1e6);
 const INPUT = "border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]";
+
+/** Receipt art is drawn on-chain (one RPC call each), so keep what we fetched for this session. */
+const receiptArt = new Map<string, string | null>();
+async function receiptImage(tokenId: string): Promise<string | null> {
+  if (receiptArt.has(tokenId)) return receiptArt.get(tokenId)!;
+  let image: string | null = null;
+  try {
+    const uri = await publicClient.readContract({ address: RECEIPT, abi: patchReceiptAbi, functionName: "tokenURI", args: [BigInt(tokenId)] });
+    image = JSON.parse(atob(uri.replace("data:application/json;base64,", ""))).image ?? null;
+  } catch { /* token art unavailable */ }
+  receiptArt.set(tokenId, image);
+  return image;
+}
 
 interface Row {
   listing_id: number;
@@ -115,23 +129,32 @@ export default function MyBidsPage() {
       return { id: `${b.tx_hash}:${b.log_index}`, label: i.label, title: i.title, amount: b.amount, time: b.block_time };
     }));
 
-    const withImage = async (r: { token_id: string; listing_id: number; patch_id: number; owner: string; resale_price: number | null }): Promise<ReceiptRow> => {
+    // Show the rows now; each receipt's on-chain art fills in as it arrives.
+    const toRow = (r: { token_id: string; listing_id: number; patch_id: number; owner: string; resale_price: number | null }): ReceiptRow => {
       const i = info(r.listing_id, r.patch_id);
-      let image: string | null = null;
-      try {
-        const uri = await publicClient.readContract({ address: RECEIPT, abi: patchReceiptAbi, functionName: "tokenURI", args: [BigInt(r.token_id)] });
-        const json = JSON.parse(atob(uri.replace("data:application/json;base64,", "")));
-        image = json.image ?? null;
-      } catch { /* token art unavailable */ }
-      return { ...r, token_id: String(r.token_id), label: i.label, title: i.title, href: i.href, image };
+      const token_id = String(r.token_id);
+      return { ...r, token_id, label: i.label, title: i.title, href: i.href, image: receiptArt.get(token_id) ?? null };
     };
-    setMine(await Promise.all((myReceipts ?? []).map(withImage)));
-    setMarket(await Promise.all((forSale ?? []).map(withImage)));
+    const own = (myReceipts ?? []).map(toRow);
+    const sale = (forSale ?? []).map(toRow);
+    setMine(own);
+    setMarket(sale);
     setLoading(false);
+    const withArt = (set: typeof setMine) => (row: ReceiptRow) =>
+      receiptImage(row.token_id).then((image) => image && set((rs) => rs.map((x) => (x.token_id === row.token_id ? { ...x, image } : x))));
+    own.filter((r) => !r.image).forEach(withArt(setMine));
+    sale.filter((r) => !r.image).forEach(withArt(setMarket));
   }, [me]);
 
+  // Load straight away; catch the indexer up alongside and reload only if it found new events.
   useEffect(() => {
-    fetch("/api/indexer/sync", { method: "POST" }).catch(() => {}).finally(() => load());
+    void load();
+    fetch("/api/indexer/sync", { method: "POST" })
+      .then((r) => r.json())
+      .then((r: { logs?: number }) => {
+        if ((r.logs ?? 0) > 0) void load();
+      })
+      .catch(() => {});
   }, [load]);
 
   async function run(key: string, label: string, calls: { to: `0x${string}`; data: `0x${string}` }[]) {
@@ -211,7 +234,7 @@ export default function MyBidsPage() {
 
   const leadTotal = useMemo(() => leading.reduce((s, r) => s + Number(r.top_bid), 0), [leading]);
 
-  if (!ready) return null;
+  if (!ready) return <BidsSkeleton />;
   if (!authenticated) {
     return (
       <main className="wrap pt-10 pb-24"><Card className="p-8 text-center grid gap-3 justify-items-center">
@@ -239,17 +262,17 @@ export default function MyBidsPage() {
       </div>
 
       <Card className="grid grid-cols-2 sm:grid-cols-4">
-        <div className="kpi"><b>{usd(leadTotal)}</b><span>in escrow, leading</span></div>
-        <div className="kpi"><b>{leading.length}</b><span>patches you lead</span></div>
-        <div className="kpi"><b>{outbid.length}</b><span>outbid, still open</span></div>
-        <div className="kpi"><b>{mine.length}</b><span>patches won</span></div>
+        <div className="kpi"><b>{loading ? "–" : usd(leadTotal)}</b><span>in escrow, leading</span></div>
+        <div className="kpi"><b>{loading ? "–" : leading.length}</b><span>patches you lead</span></div>
+        <div className="kpi"><b>{loading ? "–" : outbid.length}</b><span>outbid, still open</span></div>
+        <div className="kpi"><b>{loading ? "–" : mine.length}</b><span>patches won</span></div>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px] items-start">
         <div className="grid gap-6">
           <section className="grid gap-3">
             <h2 className="font-extrabold text-2xl">Live auctions</h2>
-            {loading ? <p className="muted">Loading…</p> : leading.length + outbid.length === 0 ? (
+            {loading ? <div className="grid gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12" />)}</div> : leading.length + outbid.length === 0 ? (
               <Card className="p-6"><p className="muted">You have no bids on live auctions. <Link href="/explore" className="underline">Find a patch</Link>.</p></Card>
             ) : (
               <Card className="overflow-x-auto">
@@ -280,7 +303,7 @@ export default function MyBidsPage() {
               {mine.map((r) => (
                 <Card key={r.token_id} className="p-4 grid gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {r.image && <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" />}
+                  {r.image ? <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" /> : <Skeleton className="aspect-square" />}
                   <div>
                     <b>{r.label}</b>
                     <p className="text-sm muted">{r.title} · receipt #{r.listing_id}-{r.patch_id}</p>
@@ -319,7 +342,7 @@ export default function MyBidsPage() {
                 {market.map((r) => (
                   <Card key={r.token_id} className="p-4 grid gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {r.image && <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" />}
+                    {r.image ? <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" /> : <Skeleton className="aspect-square" />}
                     <div><b>{r.label}</b><p className="text-sm muted">{r.title} · held by {formatShortAddress(r.owner)}</p></div>
                     <Button variant="primary" disabled={!!busy}
                       onClick={() => run(`b${r.token_id}`, `You bought ${r.label}.`, [
@@ -371,6 +394,20 @@ export default function MyBidsPage() {
             </a>
           )}
         </Card>
+      </div>
+    </main>
+  );
+}
+
+/** Page shape while the wallet loads, instead of a blank screen. */
+function BidsSkeleton() {
+  return (
+    <main className="wrap pt-8 pb-24 grid gap-8" aria-busy="true" aria-label="Loading your bids">
+      <Skeleton className="h-12 w-64" />
+      <Skeleton className="h-20" />
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px] items-start">
+        <div className="grid gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>
+        <Skeleton className="h-80" />
       </div>
     </main>
   );

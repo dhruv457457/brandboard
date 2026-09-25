@@ -1,5 +1,6 @@
 "use client";
 
+import PageLoading from "@/app/loading";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { erc20Abi } from "viem";
@@ -91,7 +92,7 @@ export default function DashboardPage() {
     };
   }, [wallet]);
 
-  if (!ready) return null;
+  if (!ready) return <PageLoading />;
   if (!authenticated || !wallet) {
     return (
       <main className="wrap py-16 grid place-items-center text-center gap-4">

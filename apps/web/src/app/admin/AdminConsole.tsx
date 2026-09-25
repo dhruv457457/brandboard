@@ -1,5 +1,6 @@
 "use client";
 
+import PageLoading from "@/app/loading";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData, keccak256, stringToHex, toBytes } from "viem";
@@ -61,7 +62,7 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
     }
   }
 
-  if (!ready) return null;
+  if (!ready) return <PageLoading />;
   if (!authenticated) {
     return (
       <main className="wrap pt-10 pb-24"><Card className="p-8 text-center grid gap-3 justify-items-center">
