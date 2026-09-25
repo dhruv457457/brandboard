@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const runtime = "nodejs";
 
 /** Top-level routes: a handle with one of these names would be unreachable. */
-const RESERVED = new Set(["admin", "api", "bids", "dashboard", "e", "events", "explore", "listing", "share", "studio", "settings", "about"]);
+const RESERVED = new Set(["admin", "api", "bids", "dashboard", "e", "events", "explore", "listing", "share", "studio", "settings", "about", "notifications"]);
 
 const FIELDS = "id, wallet, handle, display_name, x_handle, x_verified, avatar_url, banner_color, bio, brand_name, brand_logo_url, brand_website, brand_verified_domain, is_admin";
 
