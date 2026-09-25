@@ -169,6 +169,12 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     if (minNext(p) === amount) void quickBid(p, amount);
   }
 
+  /** Scroll to a part of the page, without the glide for people who asked for less motion. */
+  function jumpTo(id: string) {
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }
+
   /** Open the bubble for a spot (from a card or the stage), switching to its view. */
   function openBubble(p: LivePatch) {
     setSelectedId(p.id);
@@ -299,6 +305,25 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         </div>
       )}
 
+      {/* ── Phones: jump between the parts of a long page ── */}
+      <nav aria-label="On this page" className="lg:hidden sticky top-[58px] z-30 mt-3 bg-[var(--paper)]/95 backdrop-blur-md border-b-2 border-[var(--soft)]">
+        <div className="wrap flex gap-1.5 overflow-x-auto py-2">
+          {[
+            { id: "stage", label: "Photo" },
+            { id: "spots", label: "Spots" },
+            { id: "protection", label: "Protection" },
+            { id: "activity", label: "Activity" },
+            { id: "faq", label: "FAQ" },
+          ].filter((t) => t.id !== "protection" || (status !== 5 && status !== 6))
+            .filter((t) => (t.id !== "activity" || shown("activity")) && (t.id !== "faq" || shown("faq")))
+            .map((t) => (
+              <button key={t.id} onClick={() => jumpTo(t.id)} className="flex-none rounded-full px-3 py-1.5 text-xs font-semibold border-[1.5px] border-[var(--line)] bg-[var(--card)]">
+                {t.label}
+              </button>
+            ))}
+        </div>
+      </nav>
+
       {/* ── Hero ── */}
       <section className="wrap mt-6 grid gap-8 lg:grid-cols-2 items-center">
         <div className="grid gap-5 content-center">
@@ -362,7 +387,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           </Card>
         </div>
 
-        <Card className="p-4 sm:p-5" id="stage">
+        <Card className="p-4 sm:p-5 scroll-mt-32" id="stage">
           {listing.views.length > 1 && (
             <div className="flex justify-center mb-3 overflow-x-auto">
               <Seg options={listing.views.map((v) => ({ value: v.id, label: v.label }))} value={viewSide} onChange={setViewSide} />
@@ -418,7 +443,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       </section>
 
       {/* ── Spots ── */}
-      <section id="spots" className="wrap mt-14 grid gap-4 scroll-mt-20">
+      <section id="spots" className="wrap mt-14 grid gap-4 scroll-mt-32 lg:scroll-mt-20">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <span className="eyebrow">{patches.length} spots</span>
@@ -506,7 +531,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
       {/* ── What protects the brand: creator stake, record, payout plan ── */}
       {status !== 5 && status !== 6 && (
-        <section className="wrap mt-14">
+        <section id="protection" className="wrap mt-14 scroll-mt-32">
           <StakePanel listing={listing} creatorLabel={creatorLabel} status={status} mounted={mounted} />
         </section>
       )}
@@ -618,7 +643,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
       {/* ── Creator story + activity ── */}
       {(shown("story") || shown("activity")) && (
-      <section className={cn("wrap mt-16 grid gap-6 items-start", shown("story") && shown("activity") && "lg:grid-cols-[1.2fr_.8fr]")}>
+      <section id="activity" className={cn("wrap mt-16 grid gap-6 items-start scroll-mt-32", shown("story") && shown("activity") && "lg:grid-cols-[1.2fr_.8fr]")}>
         {shown("story") && (
         <Card className={cn("p-6 grid gap-3", hidden("story") && "opacity-40")}>
           <span className="eyebrow">About {creatorLabel}</span>
@@ -666,7 +691,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
       {/* ── FAQ ── */}
       {shown("faq") && (
-      <section className={cn("wrap mt-16", hidden("faq") && "opacity-40")}>
+      <section id="faq" className={cn("wrap mt-16 scroll-mt-32", hidden("faq") && "opacity-40")}>
         <div className="grid gap-3 max-w-3xl">
         <span className="eyebrow">Questions</span>
         <EditableText as="h2" editing={editing} value={pg.titles?.faq} fallback="Before you bid" maxLength={60} onChange={(v) => setTitle("faq", v)} className="text-3xl font-extrabold" />
@@ -816,6 +841,25 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           )}
         </div>
       </Sheet>
+
+      {/* ── Phones: the bid button is always one tap away ── */}
+      {biddingOpen && !isCreator && (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t-2 border-[var(--line)] bg-[var(--card)] px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-center gap-3">
+          <button className="min-w-0 flex-1 text-left" onClick={() => jumpTo("spots")} aria-label="Pick another spot">
+            <span className="block font-mono text-[11px] text-[var(--muted)]">
+              Spot {String(selected.id + 1).padStart(2, "0")}{mounted ? ` · ends in ${countdown.text}` : ""}
+            </span>
+            <b className="block truncate">{selected.label}</b>
+          </button>
+          {selected.bought ? (
+            <Pill variant="won">Bought</Pill>
+          ) : me && selected.topBidder === me ? (
+            <Pill variant="top">You lead</Pill>
+          ) : (
+            <Button variant="primary" onClick={() => openSheet(selected.id)}>Bid {usd(minNext(selected))}</Button>
+          )}
+        </div>
+      )}
     </main>
   );
 }
