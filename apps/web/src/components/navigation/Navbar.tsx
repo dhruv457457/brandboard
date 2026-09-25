@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Plus, Sun } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth/useAuth";
 import { Logo } from "@/components/brand/Logo";
@@ -10,22 +10,28 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
 import { AccountMenu } from "./AccountMenu";
+import { NetworkSwitch } from "./NetworkSwitch";
 
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const { ready, authenticated, login } = useAuth();
   const pathname = usePathname();
 
+  // Visitors see where to look; signed-in people also get their creator and brand pages.
   const links = authenticated
     ? [
         { label: "Explore", href: "/explore" },
+        { label: "Events", href: "/events" },
         { label: "Dashboard", href: "/dashboard" },
         { label: "My bids", href: "/bids" },
       ]
     : [
         { label: "Explore", href: "/explore" },
+        { label: "Events", href: "/events" },
         { label: "How it works", href: "/#how-it-works" },
       ];
+  const isActive = (href: string) =>
+    href.startsWith("/#") ? false : href === "/events" ? pathname.startsWith("/events") || pathname.startsWith("/e/") : pathname.startsWith(href);
 
   return (
     <header className="sticky top-0 z-40 bg-[var(--paper)]/90 backdrop-blur-md border-b-2 border-[var(--line)] px-4 sm:px-8 py-2.5">
@@ -36,7 +42,7 @@ export function Navbar() {
           </Link>
           <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
             {links.map((link) => {
-              const active = link.href.startsWith("/#") ? false : pathname.startsWith(link.href);
+              const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
@@ -62,6 +68,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <NetworkSwitch className="hidden lg:block" />
           <button
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -74,6 +81,7 @@ export function Navbar() {
             <span className="w-24 h-9 rounded-xl bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
           ) : authenticated ? (
             <>
+              <Link href="/studio" className="btn-base btn-small btn-primary hidden lg:inline-flex"><Plus size={14} /> Create</Link>
               <NotificationBell />
               <AccountMenu />
             </>

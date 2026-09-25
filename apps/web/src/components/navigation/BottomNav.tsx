@@ -1,25 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Gavel, LayoutDashboard, LogIn, Plus, UserRound } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { useProfile } from "@/lib/profile";
+import { Sheet } from "@/components/ui/Sheet";
 import { cn } from "@/lib/utils";
+import { YouMenu } from "./YouMenu";
 
 /** A listing page (/<creator>/<id>) has its own sticky bid bar at the bottom instead. */
 export function isListingPage(path: string) {
   return /^\/[^/]+\/\d+\/?$/.test(path) && !/^\/(studio|share)\//.test(path);
 }
 
-/** Phone navigation: the main places one thumb-tap away. Hidden from md up, where the top bar has room. */
+/** Phone navigation: the main places one thumb-tap away, and "You" for everything else. Hidden from md up. */
 export function BottomNav() {
   const pathname = usePathname();
-  const { authenticated, login, walletAddress } = usePatchedAuth();
-  const { profile } = useProfile();
+  const { authenticated, login } = usePatchedAuth();
+  const [youOpen, setYouOpen] = useState(false);
+  // Close the "You" sheet whenever the page changes.
+  useEffect(() => setYouOpen(false), [pathname]);
   if (isListingPage(pathname)) return null;
 
-  const me = profile?.handle ?? walletAddress?.toLowerCase();
   const items = [
     { href: "/explore", label: "Explore", icon: Compass },
     { href: "/bids", label: "My bids", icon: Gavel },
@@ -27,7 +30,7 @@ export function BottomNav() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ];
 
-  const item = "flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[11px] font-semibold no-underline";
+  const item = "flex flex-col items-center justify-center gap-0.5 min-h-[56px] w-full text-[11px] font-semibold no-underline";
   return (
     <>
       <div className="h-20 md:hidden" aria-hidden="true" />
@@ -54,19 +57,23 @@ export function BottomNav() {
             );
           })}
           <li>
-            {authenticated && me ? (
-              <Link href={`/${me}`} aria-current={pathname === `/${me}` ? "page" : undefined}
-                className={cn(item, pathname === `/${me}` ? "text-[var(--ink)]" : "text-[var(--muted)]")}>
-                <UserRound size={20} /> My page
-              </Link>
+            {authenticated ? (
+              <button onClick={() => setYouOpen(true)} aria-expanded={youOpen} className={cn(item, youOpen ? "text-[var(--ink)]" : "text-[var(--muted)]")}>
+                <UserRound size={20} /> You
+              </button>
             ) : (
-              <button onClick={login} className={cn(item, "w-full text-[var(--muted)]")}>
+              <button onClick={login} className={cn(item, "text-[var(--muted)]")}>
                 <LogIn size={20} /> Sign in
               </button>
             )}
           </li>
         </ul>
       </nav>
+      {authenticated && (
+        <Sheet open={youOpen} onClose={() => setYouOpen(false)} title="You">
+          <YouMenu onNavigate={() => setYouOpen(false)} />
+        </Sheet>
+      )}
     </>
   );
 }

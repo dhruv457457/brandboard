@@ -34,6 +34,7 @@ import { Navbar } from "@/components/navigation/Navbar";
 import { PrivyAuthProvider } from "@/components/providers/PrivyAuthProvider";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { RoleWelcome } from "@/components/navigation/RoleWelcome";
+import { TestnetBanner } from "@/components/navigation/NetworkSwitch";
 
 export default function RootLayout({
   children,
@@ -67,6 +68,7 @@ export default function RootLayout({
           <PrivyAuthProvider>
             <ProfileProvider>
               <SurfaceDefs />
+              <TestnetBanner />
               <Navbar />
               <div className="flex-1">{children}</div>
               <BottomNav />
