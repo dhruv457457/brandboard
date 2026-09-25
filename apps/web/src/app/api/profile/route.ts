@@ -1,4 +1,5 @@
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -82,6 +83,9 @@ export async function PATCH(req: Request) {
     if (error.code === "23505") return bad("That handle is taken.");
     return Response.json({ error: "Couldn't save your profile." }, { status: 500 });
   }
+  // Profile pages are cached; show the change right away.
+  if (data.handle) revalidatePath(`/${data.handle}`);
+  if (data.wallet) revalidatePath(`/${data.wallet}`);
   return Response.json(data);
 }
 

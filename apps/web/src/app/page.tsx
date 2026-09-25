@@ -4,7 +4,8 @@ import { fetchListingCards } from "@/lib/market/server";
 import { supabase } from "@/lib/supabase";
 import { LandingView, type LandingData, type TickerItem } from "./LandingView";
 
-export const dynamic = "force-dynamic";
+// Landing are cached for 15s and rebuilt in the background; live bids still stream in over Realtime.
+export const revalidate = 15;
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 

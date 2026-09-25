@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { formatShortAddress } from "@/lib/format";
 import { ExploreFeed, type FeedActivity, type FeedStats } from "./ExploreFeed";
 
-export const dynamic = "force-dynamic";
+// Explore are cached for 15s and rebuilt in the background; live bids still stream in over Realtime.
+export const revalidate = 15;
 
 export default async function ExplorePage() {
   const cards = await fetchListingCards({ statuses: [1, 2, 3], limit: 60 });

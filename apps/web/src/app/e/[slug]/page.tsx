@@ -5,7 +5,12 @@ import { toWire } from "@/lib/market/types";
 import { supabase } from "@/lib/supabase";
 import { EventView } from "./EventView";
 
-export const dynamic = "force-dynamic";
+// Event pages are cached for 30s and rebuilt in the background; live bids still stream in over Realtime.
+export const revalidate = 30;
+/** No pages at build time: each one is rendered on its first visit, then cached. */
+export async function generateStaticParams() {
+  return [];
+}
 
 /** Event page. The URL is the event's slug, or its on-chain id (/e/1). */
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
