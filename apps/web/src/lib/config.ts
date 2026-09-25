@@ -24,6 +24,15 @@ export const GAS_SPONSORED = process.env.NEXT_PUBLIC_GAS_SPONSORED !== "false";
 
 export const EXPLORER = CHAIN_ID === 143 ? "https://monadvision.com" : "https://testnet.monadvision.com";
 
+/**
+ * Testnet and mainnet run as two sites from this same code. The navbar's network switch sends people to the
+ * other one; set both URLs in production (the defaults are the two local dev servers).
+ */
+export const NETWORK_SITES: Record<10143 | 143, { label: string; url: string }> = {
+  10143: { label: "Testnet", url: process.env.NEXT_PUBLIC_TESTNET_URL ?? "http://localhost:3100" },
+  143: { label: "Mainnet", url: process.env.NEXT_PUBLIC_MAINNET_URL ?? "http://localhost:3200" },
+};
+
 /** Browser-safe client on the public RPC. Server code uses serverClient() with the private QuickNode URL. */
 export const publicClient = createPublicClient({ chain: CHAIN, transport: http() }) as PublicClient;
 
