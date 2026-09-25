@@ -37,6 +37,7 @@ export function ListingCardView({ card, mounted }: { card: ListingCard; mounted:
         <SurfaceFigure
           surface={card.surface}
           imageUrl={card.canvasImage}
+          lazy
           patches={figurePatches}
           mode="static"
           showPrices={false}

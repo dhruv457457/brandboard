@@ -19,6 +19,8 @@ interface SurfaceFigureProps {
   animateDrop?: boolean;
   /** A creator's AI canvas photo. When set, it replaces the generic drawing and sets the aspect ratio. */
   imageUrl?: string | null;
+  /** Card grids: let the browser load the photo only when it's about to scroll into view. */
+  lazy?: boolean;
   className?: string;
 }
 
@@ -168,6 +170,7 @@ export function SurfaceFigure({
   showPrices = true,
   animateDrop = false,
   imageUrl,
+  lazy = false,
   className,
 }: SurfaceFigureProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -241,6 +244,8 @@ export function SurfaceFigure({
           src={imageUrl}
           alt=""
           draggable={false}
+          loading={lazy ? "lazy" : undefined}
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none"
           onLoad={(e) => setImageRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
         />

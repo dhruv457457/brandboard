@@ -308,10 +308,10 @@ function Stage({ card, className, pad = "p-3" }: { card: ListingCard; className?
       <div className={cn("absolute inset-0 flex items-center justify-center transition-transform duration-500 group-hover:scale-[1.04]", pad)}>
         {wide ? (
           <div className="w-full">
-            <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} />
+            <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy />
           </div>
         ) : (
-          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} className="!w-auto h-full" />
+          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy className="!w-auto h-full" />
         )}
       </div>
     </div>
