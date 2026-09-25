@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, Copy, Download, ExternalLink, Loader2, Printer, Share2 } from "lucide-react";
+import { Copy, Download, ExternalLink, Loader2, Printer, Share2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Seg } from "@/components/ui/Seg";
 import { toast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { formatCountdown, formatUsdc } from "@/lib/format";
+import { ListingTools } from "@/components/market/ListingTools";
 
 interface ShareListing {
   id: number;
   path: string;
+  status: number;
   title: string;
   eventName: string | null;
   patchCount: number;
@@ -68,7 +70,10 @@ export function ShareKit({ listing }: { listing: ShareListing }) {
     const q = new URLSearchParams({ format, template, accent, ...(debounced ? { headline: debounced } : {}) });
     return `/share/${listing.id}/poster?${q}`;
   }, [format, template, accent, debounced, listing.id]);
-  useEffect(() => setLoading(true), [poster]);
+  // Show the spinner for a new poster, unless the image already finished (it can load before hydration,
+  // in which case onLoad never fires).
+  const img = useRef<HTMLImageElement>(null);
+  useEffect(() => setLoading(!img.current?.complete), [poster]);
 
   const posts = useMemo<Record<Template, string>>(() => {
     const where = listing.eventName ? ` at ${listing.eventName}` : "";
@@ -126,7 +131,7 @@ export function ShareKit({ listing }: { listing: ShareListing }) {
     <main className="wrap pt-6 pb-24 grid gap-6">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <Link href={listing.path} className="btn-base btn-ghost btn-small mb-2"><ArrowLeft size={14} /> Back to your page</Link>
+          <div className="mb-3"><ListingTools listingId={listing.id} pageHref={listing.path} status={listing.status} active="share" /></div>
           <span className="eyebrow block">Share kit</span>
           <h1 className="font-extrabold text-4xl tracking-tight mt-1">{listing.title}</h1>
         </div>
@@ -197,7 +202,7 @@ export function ShareKit({ listing }: { listing: ShareListing }) {
 
           <div className="relative w-full mx-auto max-w-[300px] rounded-2xl overflow-hidden border-2 border-[var(--line)] bg-[var(--soft)]" style={{ aspectRatio: ratio }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img key={poster} src={poster} alt="Poster preview" className="absolute inset-0 w-full h-full object-contain" onLoad={() => setLoading(false)} onError={() => setLoading(false)} />
+            <img ref={img} key={poster} src={poster} alt="Poster preview" className="absolute inset-0 w-full h-full object-contain" onLoad={() => setLoading(false)} onError={() => setLoading(false)} />
             {loading && (
               <div className="absolute inset-0 grid place-items-center bg-[var(--soft)]/80">
                 <Loader2 className="animate-spin" />

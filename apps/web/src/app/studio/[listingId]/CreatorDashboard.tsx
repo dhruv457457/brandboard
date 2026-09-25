@@ -1,10 +1,11 @@
 "use client";
 
+import { ListingTools } from "@/components/market/ListingTools";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData } from "viem";
-import { Camera, ExternalLink, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { patchedMarketAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -157,7 +158,7 @@ export function CreatorDashboard({ listing: lw, delivery: dw }: { listing: Wire<
           <span className="eyebrow">Your listing · {STATUS[listing.status]}</span>
           <h1 className="font-extrabold text-4xl tracking-tight mt-1">{listing.title}</h1>
         </div>
-        <Link href={publicHref} className="btn-base btn-small">Public page <ExternalLink size={13} /></Link>
+        <ListingTools listingId={listing.id} pageHref={publicHref} status={listing.status} active="manage" />
       </div>
 
       <Card className="grid grid-cols-2 sm:grid-cols-4">

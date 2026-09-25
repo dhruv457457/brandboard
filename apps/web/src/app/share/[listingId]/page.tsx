@@ -14,6 +14,7 @@ export default async function SharePage({ params }: { params: Promise<{ listingI
       listing={{
         id: listing.id,
         path: `/${listing.creatorHandle ?? listing.creator}/${listing.id}`,
+        status: listing.status,
         title: listing.title,
         eventName: listing.eventName,
         patchCount: listing.patches.length,

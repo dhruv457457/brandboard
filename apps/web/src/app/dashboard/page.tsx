@@ -1,5 +1,6 @@
 "use client";
 
+import { SHAREABLE } from "@/lib/market/listingStatus";
 import PageLoading from "@/app/loading";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -204,7 +205,7 @@ export default function DashboardPage() {
                   <div className="flex gap-2 flex-wrap">
                     <Link href={hrefOf(l.listing_id)} className="btn-base btn-small">Open</Link>
                     <Link href={`/studio/${l.listing_id}`} className="btn-base btn-small"><Settings2 size={13} /> Manage</Link>
-                    <Link href={`/share/${l.listing_id}`} className="btn-base btn-small btn-primary"><Share2 size={13} /> Share</Link>
+                    {SHAREABLE.has(l.status) && <Link href={`/share/${l.listing_id}`} className="btn-base btn-small btn-primary"><Share2 size={13} /> Share</Link>}
                   </div>
                 </Card>
               );

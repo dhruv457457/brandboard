@@ -29,6 +29,7 @@ import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst, SpotBubble } from "@/components/market/SpotBubble";
 import { StakePanel } from "@/components/market/StakePanel";
+import { ListingTools } from "@/components/market/ListingTools";
 import { EditableText } from "@/components/market/EditableText";
 import { PAGE_ACCENTS, PAGE_SECTIONS, type ListingPage, type PageAccent, type PageSection } from "@/lib/market/page";
 import { useAuthedFetch } from "@/lib/authedFetch";
@@ -298,8 +299,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                   <Pencil size={13} /> Edit page
                 </button>
               )}
-              <Link href={`/studio/${listing.id}`} className="btn-base btn-small">Manage</Link>
-              <Link href={`/share/${listing.id}`} className="btn-base btn-small btn-primary">Share kit</Link>
+              <ListingTools listingId={listing.id} pageHref={`/${listing.creatorHandle ?? listing.creator}/${listing.id}`} status={status} active="page" />
             </span>
           </div>
         </div>
@@ -335,11 +335,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             <b>{creatorLabel}</b>
             {listing.creatorVerified && <Chip variant="green"><Check size={12} /> X verified</Chip>}
             {listing.eventName && (
-              <Chip variant="orange">
-                {listing.eventName}
-                {eventDate ? ` · ${eventDate}` : ""}
-                {listing.eventCity ? ` · ${listing.eventCity}` : ""}
-              </Chip>
+              <Link href={`/e/${listing.eventId}`} className="no-underline" title="See every listing at this event">
+                <Chip variant="orange">
+                  {listing.eventName}
+                  {eventDate ? ` · ${eventDate}` : ""}
+                  {listing.eventCity ? ` · ${listing.eventCity}` : ""}
+                </Chip>
+              </Link>
             )}
           </div>
           <EditableText
