@@ -1,6 +1,6 @@
 "use client";
 
-import { useMfa, useMfaEnrollment, usePrivy } from "@privy-io/react-auth";
+import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { parseUsdc } from "@/lib/format";
 
 /** Bids (or sweep totals, or auto-bid maximums) at or above this many dollars need a passkey check. */
@@ -20,10 +20,7 @@ export class PasskeyRequired extends Error {
  * the user confirms with their passkey (Face ID, Touch ID, Windows Hello or a security key) first.
  */
 export function useStepUp() {
-  const { user } = usePrivy();
-  const { promptMfa } = useMfa();
-  const { showMfaEnrollmentModal } = useMfaEnrollment();
-  const hasPasskey = (user?.mfaMethods ?? []).includes("passkey");
+  const { hasPasskey, promptMfa, enrollPasskey } = usePatchedAuth();
 
   /** Resolve when `amount` (6-decimal USDC) is small or the passkey check passed; throw otherwise. */
   async function ensure(amount: bigint): Promise<void> {
@@ -32,5 +29,5 @@ export function useStepUp() {
     await promptMfa();
   }
 
-  return { ensure, hasPasskey, setUpPasskey: showMfaEnrollmentModal, threshold: STEP_UP };
+  return { ensure, hasPasskey, setUpPasskey: enrollPasskey, threshold: STEP_UP };
 }

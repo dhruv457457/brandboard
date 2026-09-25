@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi, parseSignature } from "viem";
-import { useSendTransaction, useSignTypedData } from "@privy-io/react-auth";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
 import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -50,9 +49,7 @@ export function friendlyError(err: unknown): string {
  * with a clear reason.
  */
 export function useBid() {
-  const { walletAddress, wallet, isEmbeddedWallet, authenticated, login } = usePatchedAuth();
-  const { signTypedData } = useSignTypedData();
-  const { sendTransaction } = useSendTransaction();
+  const { walletAddress, wallet, isEmbeddedWallet, authenticated, login, signTypedData, sendTransaction } = usePatchedAuth();
   const stepUp = useStepUp();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);

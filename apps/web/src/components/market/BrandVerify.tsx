@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Mail } from "lucide-react";
-import { useLinkAccount, usePrivy } from "@privy-io/react-auth";
-import { useUpdateEmail } from "@privy-io/react-auth/ui";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { useProfile } from "@/lib/profile";
 import { useAuthedFetch } from "@/lib/authedFetch";
+import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { websiteDomain } from "@/lib/brandDomain";
 
 /**
@@ -20,10 +19,9 @@ export function BrandVerify() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const site = websiteDomain(profile?.brand_website);
-  const { user } = usePrivy();
+  const { user, linkEmail, updateEmail: changeEmail } = usePatchedAuth();
   // Privy allows one email per account: with one linked, it has to be changed rather than added.
-  const linked = user?.email?.address ?? null;
-  const { update: changeEmail } = useUpdateEmail();
+  const linked = user?.email ?? null;
 
   async function verify(): Promise<{ needsEmail?: boolean }> {
     setBusy(true);
@@ -46,8 +44,8 @@ export function BrandVerify() {
     }
   }
 
-  const { linkEmail } = useLinkAccount({ onSuccess: () => void verify() });
-  const addOrChangeEmail = () => (linked ? changeEmail() : linkEmail());
+  // Once the email is linked in Privy's window, check it on our side right away.
+  const addOrChangeEmail = () => (linked ? changeEmail() : void linkEmail().then(() => verify(), () => {}));
 
   // After the email changes in Privy's window, check again on our side automatically.
   const lastEmail = useRef(linked);

@@ -1,7 +1,6 @@
 "use client";
 
 import { createWalletClient, custom, parseSignature } from "viem";
-import { useSignTypedData } from "@privy-io/react-auth";
 import { CHAIN, CHAIN_ID, USDC, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { permitAbi } from "@/lib/market/useBid";
@@ -11,8 +10,7 @@ import { permitAbi } from "@/lib/market/useBid";
  * wallet, or in the user's own wallet (MetaMask etc.). Returns the pieces a *WithPermit contract call needs.
  */
 export function usePermitSigner() {
-  const { walletAddress, wallet, isEmbeddedWallet } = usePatchedAuth();
-  const { signTypedData } = useSignTypedData();
+  const { walletAddress, wallet, isEmbeddedWallet, signTypedData } = usePatchedAuth();
 
   return async function signPermit(spender: `0x${string}`, value: bigint) {
     if (!walletAddress) throw new Error("not signed in");

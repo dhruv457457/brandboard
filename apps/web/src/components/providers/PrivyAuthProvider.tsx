@@ -1,11 +1,15 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
-import { PrivyProvider, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
-import { monadMainnet, monadTestnet } from "@patched/shared";
-import { CHAIN } from "@/lib/config";
+import React, { createContext, memo, useContext, useState } from "react";
+import dynamic from "next/dynamic";
+import type { ConnectedWallet, useExportWallet, useSendTransaction, useSignTypedData } from "@privy-io/react-auth";
 
-interface AuthContextValue {
+/**
+ * Auth and wallet actions for the whole app. Privy's SDK is big (about 700 KB compressed), so it is not part
+ * of the first page load: pages render and hydrate with a "not ready" value, and PrivyRuntime loads right
+ * after and fills this context in. Everything outside PrivyRuntime reaches Privy only through this context.
+ */
+export interface AuthContextValue {
   ready: boolean;
   authenticated: boolean;
   user: { id: string; walletAddress?: `0x${string}`; xHandle?: string; email?: string } | null;
@@ -17,62 +21,65 @@ interface AuthContextValue {
   login: () => void;
   logout: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
+  /** Embedded-wallet actions (Privy hooks, passed through as-is). */
+  sendTransaction: ReturnType<typeof useSendTransaction>["sendTransaction"];
+  signTypedData: ReturnType<typeof useSignTypedData>["signTypedData"];
+  exportWallet: ReturnType<typeof useExportWallet>["exportWallet"];
+  /** Passkey MFA: whether one is set up, ask for it, or open the setup window. */
+  hasPasskey: boolean;
+  promptMfa: () => Promise<void>;
+  enrollPasskey: () => void;
+  /** Link an email (resolves once it's linked) or change the one already linked. */
+  linkEmail: () => Promise<void>;
+  updateEmail: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const notReady = () => Promise.reject(new Error("Your wallet is still loading. Try again in a second."));
+
+/** A login pressed before Privy has loaded; PrivyRuntime opens it as soon as it's ready. */
+let pendingLogin = false;
+export function takePendingLogin() {
+  const was = pendingLogin;
+  pendingLogin = false;
+  return was;
+}
+
+const NOT_READY: AuthContextValue = {
+  ready: false,
+  authenticated: false,
+  user: null,
+  isEmbeddedWallet: false,
+  hasGasSponsorship: false,
+  login: () => {
+    pendingLogin = true;
+  },
+  logout: async () => {},
+  getAccessToken: async () => null,
+  sendTransaction: notReady,
+  signTypedData: notReady,
+  exportWallet: notReady,
+  hasPasskey: false,
+  promptMfa: notReady,
+  enrollPasskey: () => {},
+  linkEmail: notReady,
+  updateEmail: () => {},
+};
+
+const AuthContext = createContext<AuthContextValue>(NOT_READY);
 
 export function usePatchedAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("usePatchedAuth must be used inside PrivyAuthProvider");
-  return ctx;
+  return useContext(AuthContext);
 }
 
-function Bridge({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
-  const { wallets } = useWallets();
-
-  // Prefer the Privy embedded wallet: it gets gas sponsorship and silent signing.
-  const embedded = wallets.find((w) => w.walletClientType === "privy");
-  const wallet = embedded ?? wallets[0];
-  const walletAddress = wallet?.address as `0x${string}` | undefined;
-  const xHandle = user?.twitter?.username ?? undefined;
-
-  const value: AuthContextValue = {
-    ready,
-    authenticated,
-    user: authenticated && user ? { id: user.id, walletAddress, xHandle, email: user.email?.address } : null,
-    walletAddress,
-    wallet,
-    xHandle,
-    isEmbeddedWallet: Boolean(embedded),
-    hasGasSponsorship: Boolean(embedded),
-    login,
-    logout,
-    getAccessToken,
-  };
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+// Loaded in the browser after hydration. memo: re-rendering this provider must not re-render Privy.
+const PrivyRuntime = memo(dynamic(() => import("./PrivyRuntime"), { ssr: false }));
 
 export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  if (!appId) throw new Error("NEXT_PUBLIC_PRIVY_APP_ID is missing from .env.local");
-
+  const [value, setValue] = useState<AuthContextValue>(NOT_READY);
   return (
-    <PrivyProvider
-      appId={appId}
-      config={{
-        loginMethods: ["twitter", "email", "wallet"],
-        appearance: { theme: "light", accentColor: "#FF5A1F", showWalletLoginFirst: false },
-        embeddedWallets: {
-          ethereum: { createOnLogin: "users-without-wallets" },
-          // Bids are confirmed in our own UI; don't show Privy's extra confirmation modals.
-          showWalletUIs: false,
-        },
-        defaultChain: CHAIN,
-        supportedChains: [monadTestnet, monadMainnet],
-      }}
-    >
-      <Bridge>{children}</Bridge>
-    </PrivyProvider>
+    <AuthContext.Provider value={value}>
+      {children}
+      <PrivyRuntime onChange={setValue} />
+    </AuthContext.Provider>
   );
 }

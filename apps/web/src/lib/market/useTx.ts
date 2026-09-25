@@ -1,7 +1,6 @@
 "use client";
 
 import { createWalletClient, custom } from "viem";
-import { useSendTransaction } from "@privy-io/react-auth";
 import { CHAIN, CHAIN_ID, GAS_SPONSORED, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 
@@ -10,8 +9,7 @@ import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
  * Privy embedded wallet: gas-sponsored (when GAS_SPONSORED) and silent. External wallet: signed in the wallet, pays MON.
  */
 export function useTx() {
-  const { walletAddress, wallet, isEmbeddedWallet } = usePatchedAuth();
-  const { sendTransaction } = useSendTransaction();
+  const { walletAddress, wallet, isEmbeddedWallet, sendTransaction } = usePatchedAuth();
 
   return async function send(to: `0x${string}`, data: `0x${string}`) {
     if (!walletAddress) throw new Error("not signed in");

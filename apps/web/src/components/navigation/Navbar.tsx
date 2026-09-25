@@ -69,7 +69,10 @@ export function Navbar() {
           >
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          {!ready ? null : authenticated ? (
+          {!ready ? (
+            // Privy loads just after the page; hold its space so the bar doesn't jump.
+            <span className="w-24 h-9 rounded-xl bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
+          ) : authenticated ? (
             <>
               <NotificationBell />
               <AccountMenu />

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { erc20Abi, formatUnits } from "viem";
 import { Check, ChevronDown, Copy, ExternalLink, Fingerprint, KeyRound, LogOut, Wallet } from "lucide-react";
-import { useExportWallet } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useProfile } from "@/lib/profile";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -13,9 +12,8 @@ import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 
 /** Signed-in account chip: address, live balances, copy, explorer link, sign out. */
 export function AccountMenu() {
-  const { walletAddress, xHandle, logout, isEmbeddedWallet } = usePatchedAuth();
+  const { walletAddress, xHandle, logout, isEmbeddedWallet, exportWallet } = usePatchedAuth();
   const stepUp = useStepUp();
-  const { exportWallet } = useExportWallet();
   const { profile } = useProfile();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
