@@ -34,7 +34,7 @@ export function Navbar() {
           <Link href="/" className="inline-flex items-center no-underline" aria-label="Patched home">
             <Logo size={34} />
           </Link>
-          <nav className="flex items-center gap-1" aria-label="Main navigation">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
             {links.map((link) => {
               const active = link.href.startsWith("/#") ? false : pathname.startsWith(link.href);
               return (

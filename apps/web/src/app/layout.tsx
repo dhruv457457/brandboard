@@ -32,6 +32,8 @@ export const metadata: Metadata = {
 import { ProfileProvider } from "@/lib/profile";
 import { Navbar } from "@/components/navigation/Navbar";
 import { PrivyAuthProvider } from "@/components/providers/PrivyAuthProvider";
+import { BottomNav } from "@/components/navigation/BottomNav";
+import { RoleWelcome } from "@/components/navigation/RoleWelcome";
 
 export default function RootLayout({
   children,
@@ -67,6 +69,8 @@ export default function RootLayout({
               <SurfaceDefs />
               <Navbar />
               <div className="flex-1">{children}</div>
+              <BottomNav />
+              <RoleWelcome />
               <Toaster />
             </ProfileProvider>
           </PrivyAuthProvider>

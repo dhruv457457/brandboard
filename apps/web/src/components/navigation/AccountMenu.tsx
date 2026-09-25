@@ -67,8 +67,8 @@ export function AccountMenu() {
         className="inline-flex items-center gap-2 border-2 border-[var(--line)] rounded-xl px-2.5 py-1.5 bg-[var(--card)] font-mono text-xs font-semibold shadow-[2px_2px_0_var(--shadow)] hover:bg-[var(--soft)]"
       >
         <span className="w-2 h-2 rounded-full bg-[var(--green)]" />
-        {xHandle ? `@${xHandle}` : formatShortAddress(walletAddress)}
-        {usdc !== null && <span className="text-[var(--muted)]">· {usdc} USDC</span>}
+        <span className={usdc !== null ? "hidden sm:inline" : undefined}>{xHandle ? `@${xHandle}` : formatShortAddress(walletAddress)}</span>
+        {usdc !== null && <span className="sm:text-[var(--muted)]"><span className="hidden sm:inline">· </span>{usdc} USDC</span>}
         <ChevronDown size={14} />
       </button>
 
