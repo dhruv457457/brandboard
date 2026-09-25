@@ -92,14 +92,3 @@ export function NetworkOptions({ onPick }: { onPick?: () => void }) {
     </ul>
   );
 }
-
-/** A thin reminder on testnet that nothing here is real money. */
-export function TestnetBanner() {
-  if (CHAIN_ID !== 10143) return null;
-  return (
-    <div className="bg-[#FFF3C4] text-[#5C4700] border-b-2 border-[var(--line)] text-xs font-semibold text-center px-4 py-1.5">
-      <span className="sm:hidden">Testnet: test money only</span>
-      <span className="hidden sm:inline">Testnet: bids use test USDC, so nothing here costs real money.</span>
-    </div>
-  );
-}
