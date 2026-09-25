@@ -69,8 +69,16 @@ Creators sell ad space on things people look at: their outfit at an event, their
 ### Discovery and social
 
 - **Explore board.** Live listings with search, surface filters, bid counts and a live activity feed.
-- **Event pages.** `/e/<slug>` lists every listing for one event.
-- **Notifications.** A live bell for outbid, new bid, auto-bid placed or paused, won, listing live or rejected, bidding closed, proof posted, dispute opened, payment made, no-show refund and resale sold.
+- **Events.** `/events` lists every event, and `/e/<slug>` shows every listing for one event. Each listing links to its event.
+- **Notifications.** A live bell and a full `/notifications` page for outbid, new bid, auto-bid placed or paused, won, listing live or rejected, bidding closed, proof posted, dispute opened, payment made, no-show refund and resale sold.
+
+### Getting around
+
+- **One "You" menu for everything that's yours:** balances, your latest listings with their tools, My bids, your page, notifications, settings, security, the network and (for admins) the admin console. On desktop it opens from the account chip; on phones it's the "You" tab.
+- **Phone navigation:** a bottom bar (Explore, My bids, Create, Dashboard, You). Listing pages swap it for a sticky bid bar and quick-jump tabs.
+- **Settings** (`/settings`): profile, brand (name, logo, website, verified badge), security (passkey, wallet export) and network, in one place.
+- **Listing tools:** a creator's listing page, Manage screen and Share kit are tabs of one bar.
+- **Testnet and mainnet:** each runs as its own site from the same code. A switch in the navbar and the "You" menu moves between them and keeps you on the same page where it exists; testnet shows a "test money only" banner.
 
 ### Admin
 
