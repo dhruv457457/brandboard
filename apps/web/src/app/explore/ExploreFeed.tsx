@@ -128,9 +128,12 @@ export function ExploreFeed({ cards: wire, stats, activity }: { cards: Wire<List
           <span className="eyebrow">Explore</span>
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mt-1">Live on Patched</h1>
         </div>
-        <p className="text-sm text-[var(--muted)] flex items-center gap-2">
-          <span className="dot live" /> {liveCards.length} live auction{liveCards.length === 1 ? "" : "s"} · {cards.reduce((n, c) => n + c.patchCount - c.patchesWithBids, 0)} open spots
-        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-sm text-[var(--muted)] flex items-center gap-2">
+            <span className="dot live" /> {liveCards.length} live auction{liveCards.length === 1 ? "" : "s"} · {cards.reduce((n, c) => n + c.patchCount - c.patchesWithBids, 0)} open spots
+          </p>
+          <Link href="/events" className="btn-base btn-small">Browse by event</Link>
+        </div>
       </header>
 
       {/* ── Spotlight bento ── */}
