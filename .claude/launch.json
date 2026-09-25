@@ -13,6 +13,7 @@
         "NEXT_DIST_DIR=.next-claude",
         "next",
         "dev",
+        "--turbopack",
         "-p",
         "3100"
       ],
@@ -32,6 +33,7 @@
         "NEXT_DIST_DIR=.next-mainnet",
         "next",
         "dev",
+        "--turbopack",
         "-p",
         "3200"
       ],
