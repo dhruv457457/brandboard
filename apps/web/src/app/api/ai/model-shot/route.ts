@@ -12,7 +12,7 @@ export const maxDuration = 60;
  */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const { photoUrl, style, side, frontUrl } = (await req.json()) as {
     photoUrl?: string; style?: string; side?: "front" | "back"; frontUrl?: string;
   };

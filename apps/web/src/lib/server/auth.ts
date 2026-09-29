@@ -84,6 +84,8 @@ export function forgetUser(did: string) {
   userCache.delete(did);
 }
 
-export function unauthorized() {
-  return Response.json({ error: "Sign in first." }, { status: 401 });
+/** 401. Pass the looked-up user (when there is one) so a signed-in account whose wallet isn't ready gets an honest message. */
+export function unauthorized(user?: SessionUser | null) {
+  const walletPending = !!user && !user.wallet;
+  return Response.json({ error: walletPending ? "Your wallet is still being set up. Try again in a few seconds." : "Sign in first." }, { status: 401 });
 }

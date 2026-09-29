@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 /** Mark the signed-in user's notifications read: all of them, or `{ ids: [...] }`. */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const body = (await req.json().catch(() => ({}))) as { ids?: unknown };
   let q = supabaseAdmin()
     .from("notifications")

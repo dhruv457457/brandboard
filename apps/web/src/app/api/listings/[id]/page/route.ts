@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 /** Save the sponsor-page layer for a listing. Only its creator (per the indexed listing) may write it. */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id < 1) return Response.json({ error: "Unknown listing." }, { status: 404 });
 

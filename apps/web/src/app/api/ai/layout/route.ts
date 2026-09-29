@@ -8,7 +8,7 @@ export const maxDuration = 60;
 /** Suggest patch spots on a canvas image. Body: { canvasUrl, surface, count, view? }. Returns { patches }. */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const { canvasUrl, surface, count, view } = (await req.json()) as { canvasUrl?: string; surface?: Surface; count?: number; view?: string };
   if (!canvasUrl?.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!) || !surface) {
     return Response.json({ error: "Make a canvas first." }, { status: 400 });

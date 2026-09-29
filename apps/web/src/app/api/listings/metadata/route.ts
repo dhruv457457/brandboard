@@ -37,7 +37,7 @@ function cleanDeal(d: NonNullable<ListingMetadata["deal"]>): NonNullable<Listing
  */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
 
   let metadata: ListingMetadata;
   try {

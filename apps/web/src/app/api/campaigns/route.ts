@@ -13,7 +13,7 @@ export const maxDuration = 30;
  */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   if (!allow(`campaign:${user.wallet}`, 5)) return Response.json({ error: "You've started 5 campaigns today. Try again tomorrow." }, { status: 429 });
 
   const body = (await req.json()) as { eventId?: number; budget?: number; maxPerSpot?: number; goal?: string; endsAt?: number };

@@ -76,6 +76,17 @@ function Bridge({ onChange }: { onChange: (v: AuthContextValue) => void }) {
   const linkedRef = useRef(linked);
   linkedRef.current = linked;
 
+  // Email and X sign-ins need a wallet too. Privy only makes one on login when the app's dashboard setting allows
+  // it (ours says "off"), so make one right after sign-in whenever the account has none. Tried once per account
+  // per page load, with one retry: Privy sometimes needs a moment after the login finishes.
+  const walletTried = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || !authenticated || !user || linked.length > 0 || walletTried.current === user.id) return;
+    walletTried.current = user.id;
+    const make = () => createWallet().then(() => refreshUser());
+    make().catch(() => new Promise((r) => setTimeout(r, 2500)).then(make)).catch((e) => console.error("Couldn't create the wallet", e));
+  }, [ready, authenticated, user, linked.length, createWallet, refreshUser]);
+
   useEffect(() => {
     onChange({
       ready,

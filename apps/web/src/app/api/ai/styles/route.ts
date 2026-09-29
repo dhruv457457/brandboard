@@ -8,7 +8,7 @@ export const maxDuration = 30;
 /** Three outfit ideas for the person in the photo. Body: { photoUrl }. Returns { styles }. */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const { photoUrl } = (await req.json()) as { photoUrl?: string };
   if (!photoUrl?.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!)) return Response.json({ styles: [] });
   if (!allow(`styles:${user.wallet}`, 10)) return Response.json({ styles: [] });

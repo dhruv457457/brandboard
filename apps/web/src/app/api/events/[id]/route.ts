@@ -15,7 +15,7 @@ const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const isAdmin = await serverClient()
     .readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "hasRole", args: [ADMIN_ROLE, user.wallet as `0x${string}`] })
     .catch(() => false);

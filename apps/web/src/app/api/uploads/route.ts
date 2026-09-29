@@ -17,7 +17,7 @@ const EXT: Record<string, string> = {
 /** Upload one file for the signed-in user. Body: multipart form with `file` and `bucket`. */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
 
   const form = await req.formData();
   const file = form.get("file");

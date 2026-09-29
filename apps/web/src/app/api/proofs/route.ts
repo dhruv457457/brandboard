@@ -13,7 +13,7 @@ export const runtime = "nodejs";
  */
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
-  if (!user?.wallet) return unauthorized();
+  if (!user?.wallet) return unauthorized(user);
   const body = (await req.json()) as { listingId?: number; milestone?: number; files?: string[]; note?: string; xUrl?: string };
   const listingId = Number(body.listingId);
   const milestone = Number(body.milestone);
