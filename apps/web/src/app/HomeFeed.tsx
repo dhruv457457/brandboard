@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
+import { OffersForYou } from "@/components/market/OffersForYou";
 import type { PatchData } from "@/components/surface/Patch";
 import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
@@ -46,6 +47,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
         </header>
 
         <Composer />
+        <OffersForYou />
         {events.length > 0 && <EventsStrip events={events} />}
 
         {items.length === 0 ? (

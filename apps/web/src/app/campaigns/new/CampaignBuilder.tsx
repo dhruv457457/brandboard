@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { encodeFunctionData, erc20Abi } from "viem";
-import { Activity, CalendarClock, CircleDollarSign, Gavel, Loader2, Minus, Plus, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Activity, AtSign, CalendarClock, CircleDollarSign, Gavel, Loader2, Minus, Plus, ShieldCheck } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { toast } from "@/components/ui/Toast";
 import { useAuthedFetch } from "@/lib/authedFetch";
@@ -145,6 +146,9 @@ export function CampaignBuilder({ events }: { events: BuilderEvent[] }) {
         <span className="eyebrow">New campaign</span>
         <h1 className="text-4xl font-extrabold tracking-tight mt-1">Put your logo everywhere</h1>
         <p className="text-[var(--muted)] mt-1.5 text-[15px]">Say what you want once. A campaign wallet bids for you across the event, and Privy refuses anything outside your rules.</p>
+        <Link href="/offers/new" className="inline-flex items-center gap-1.5 mt-2 text-sm font-semibold underline decoration-[var(--accent)] decoration-2 underline-offset-4">
+          <AtSign size={14} /> Or offer a spot to one person on X, even if they&apos;re not on Patched
+        </Link>
       </div>
 
       <div className="rounded-3xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] p-6 sm:p-7 grid gap-5 shadow-[0_10px_30px_rgba(11,11,12,0.05)]">

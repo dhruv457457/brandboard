@@ -107,6 +107,25 @@ export function campaignRules(c: CampaignRulesInput) {
 }
 
 /**
+ * For an offer to one X account: the offer wallet may also pay that person's listing stake, to exactly their wallet and
+ * at most `advance`, so someone with an empty wallet can still list and get patched.
+ */
+export function offerAdvanceRule(c: { chainId: number; usdc: string; target: string; advance: bigint }) {
+  return {
+    name: "Pay the creator's listing stake",
+    method: "eth_sendTransaction" as const,
+    action: "ALLOW" as const,
+    conditions: [
+      { field_source: "ethereum_transaction" as const, field: "to" as const, operator: "eq" as const, value: c.usdc.toLowerCase() },
+      { field_source: "ethereum_transaction" as const, field: "chain_id" as const, operator: "eq" as const, value: String(c.chainId) },
+      { field_source: "ethereum_calldata" as const, field: "function_name", operator: "eq" as const, value: "transfer", abi: ERC20_SPEND_ABI },
+      { field_source: "ethereum_calldata" as const, field: "transfer.to", operator: "eq" as const, value: c.target.toLowerCase(), abi: ERC20_SPEND_ABI },
+      { field_source: "ethereum_calldata" as const, field: "transfer.amount", operator: "lte" as const, value: c.advance.toString(), abi: ERC20_SPEND_ABI },
+    ],
+  };
+}
+
+/**
  * The same rules, as the brand reads them. `privyTotal`: the budget is a Privy aggregation (campaigns started since
  * it was added); `startsAt` lets the text say whether Privy's 72-hour window covers the whole campaign.
  */

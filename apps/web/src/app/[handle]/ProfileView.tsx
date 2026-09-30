@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BadgeCheck, Check, Gavel, Link2, Pencil, Plus, Settings2, Share2, Trophy } from "lucide-react";
+import { AtSign, BadgeCheck, Check, Gavel, Link2, Pencil, Plus, Settings2, Share2, Trophy } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
 import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
@@ -197,7 +197,7 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
 const TABS: Tab[] = ["listings", "sponsoring", "campaigns", "earnings", "bids"];
 const CAMPAIGN_STATUS: Record<string, string> = { funding: "Waiting for funds", active: "Live", paused: "Paused", ending: "Ending", ended: "Ended" };
 
-interface CampaignRowLite { id: string; event_id: number; budget: number; max_per_spot: number; status: string; ends_at: string }
+interface CampaignRowLite { id: string; event_id: number; budget: number; max_per_spot: number; status: string; ends_at: string; kind: string; target_x_handle: string | null }
 
 /** Your campaigns, newest first, and a way to start one. */
 function CampaignsTab({ wallet }: { wallet: string }) {
@@ -206,7 +206,7 @@ function CampaignsTab({ wallet }: { wallet: string }) {
   useEffect(() => {
     let alive = true;
     const db = supabase();
-    db.from("brand_campaigns").select("id, event_id, budget, max_per_spot, status, ends_at").eq("chain_id", CHAIN_ID).eq("brand", wallet)
+    db.from("brand_campaigns").select("id, event_id, budget, max_per_spot, status, ends_at, kind, target_x_handle").eq("chain_id", CHAIN_ID).eq("brand", wallet)
       .order("created_at", { ascending: false }).limit(20)
       .then(async ({ data }) => {
         if (!alive) return;
@@ -225,7 +225,10 @@ function CampaignsTab({ wallet }: { wallet: string }) {
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[var(--muted)] max-w-[52ch]">A budget that spreads your logo across an event. Each campaign runs on its own Privy wallet with rules you set.</p>
-        <Link href="/campaigns/new" className="btn-base btn-small btn-primary"><Plus size={14} /> New campaign</Link>
+        <span className="flex gap-2 flex-wrap">
+          <Link href="/offers/new" className="btn-base btn-small"><AtSign size={14} /> Patch someone on X</Link>
+          <Link href="/campaigns/new" className="btn-base btn-small btn-primary"><Plus size={14} /> New campaign</Link>
+        </span>
       </div>
       {rows === null ? null : rows.length === 0 ? (
         <Empty text="No campaigns yet." />
@@ -233,10 +236,14 @@ function CampaignsTab({ wallet }: { wallet: string }) {
         <ul className="grid gap-2 list-none m-0 p-0">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={`/campaigns/${r.id}`} className="flex items-center gap-3 rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] px-4 py-3 no-underline text-[var(--ink)] hover:border-[var(--line)]">
+              <Link href={r.kind === "x_offer" ? `/offers/${r.id}` : `/campaigns/${r.id}`} className="flex items-center gap-3 rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] px-4 py-3 no-underline text-[var(--ink)] hover:border-[var(--line)]">
                 <span className="grid flex-1 min-w-0">
-                  <b className="truncate">{events[r.event_id] ?? `Event ${r.event_id}`}</b>
-                  <span className="text-sm text-[var(--muted)]">{formatUsdc(Number(r.budget) / 1e6)} budget · up to {formatUsdc(Number(r.max_per_spot) / 1e6)} a spot</span>
+                  <b className="truncate">{r.kind === "x_offer" ? `Offer to @${r.target_x_handle}` : events[r.event_id] ?? `Event ${r.event_id}`}</b>
+                  <span className="text-sm text-[var(--muted)]">
+                    {r.kind === "x_offer"
+                      ? `${formatUsdc(Number(r.budget) / 1e6)} for a spot at ${events[r.event_id] ?? `event ${r.event_id}`}`
+                      : `${formatUsdc(Number(r.budget) / 1e6)} budget · up to ${formatUsdc(Number(r.max_per_spot) / 1e6)} a spot`}
+                  </span>
                 </span>
                 <span className={cn("text-xs font-bold rounded-full px-2.5 py-1", r.status === "active" ? "bg-[var(--green-soft)] text-[var(--green)]" : "bg-[var(--soft)]")}>
                   {CAMPAIGN_STATUS[r.status] ?? r.status}
