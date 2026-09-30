@@ -1,5 +1,5 @@
 import "server-only";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, maxUint256 } from "viem";
 import postgres from "postgres";
 import { PrivyClient } from "@privy-io/node";
 import { patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
@@ -7,6 +7,7 @@ import { syncChain } from "@patched/indexer";
 import { AUTO_BIDDER, CHAIN_ID, MARKET, USDC, serverClient, serverRpcUrl } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 import { runCampaigns } from "./campaigns";
+import { isPolicyViolation, sendFromServerWallet } from "./privy";
 
 export interface KeeperAction {
   kind: "closeBidding" | "release" | "markFailed" | "autoBid";
@@ -17,6 +18,11 @@ export interface KeeperAction {
   patchId?: number;
   /** autoBid only: the top bid (6-decimal USDC string) this call is responding to, for the idempotency key. */
   topBid?: string;
+  /** autoBid only: "contract" = PatchAutoBidder.execute from the keeper; "signer" = a bid from the brand's own wallet. */
+  via?: "contract" | "signer";
+  /** Signer auto-bids: the brand's Privy wallet id and maximum (6-decimal USDC string). */
+  walletId?: string;
+  max?: string;
   status: "sent" | "skipped" | "failed";
   hash?: string;
   reason?: string;
@@ -78,15 +84,17 @@ let responding: Promise<KeeperAction[]> | null = null;
  * auto-bidders on one patch settle in one call. Concurrent callers share one run.
  */
 export function respondAutoBids(): Promise<KeeperAction[]> {
-  if (!AUTO_BIDDER || !process.env.PRIVY_SERVER_WALLET_ID) return Promise.resolve([]);
+  const contract = !!AUTO_BIDDER && !!process.env.PRIVY_SERVER_WALLET_ID;
+  const signer = !!process.env.PRIVY_SIGNER_QUORUM_ID;
+  if (!contract && !signer) return Promise.resolve([]);
   responding ??= (async () => {
     sql ??= postgres(process.env.DATABASE_URL!, { prepare: false, max: 2, onnotice: () => {} });
     const all: KeeperAction[] = [];
     for (let round = 0; round < 6; round++) {
-      const jobs = await dueAutoBids();
+      const jobs = [...(contract ? await dueAutoBids() : []), ...(signer ? await dueSignerBids() : [])];
       if (!jobs.length) break;
       const results: KeeperAction[] = [];
-      for (const job of jobs) results.push(await execute(job));
+      for (const job of jobs) results.push(job.via === "signer" ? await executeSignerBid(job) : await execute(job));
       await notifyPaused(results);
       all.push(...results);
       if (!results.some((r) => r.status === "sent")) break;
@@ -111,10 +119,12 @@ async function notifyPaused(results: KeeperAction[]) {
   const causes = await Promise.all(
     skipped.map(async (r) => {
       const brand = r.brand as `0x${string}`;
+      // Signer auto-bids approve the market themselves, so only the balance can stop them.
+      const spender = r.via === "signer" ? null : AUTO_BIDDER;
       const [need, balance, allowance] = await Promise.all([
         client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minNextBid", args: [BigInt(r.listingId), r.patchId!] }),
         client.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [brand] }),
-        client.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [brand, AUTO_BIDDER!] }),
+        spender ? client.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [brand, spender] }) : Promise.resolve(maxUint256),
       ]).catch(() => [0n, 1n, 1n] as const);
       return balance < need ? "balance" : allowance < need ? "allowance" : null;
     }),
@@ -135,11 +145,35 @@ async function notifyPaused(results: KeeperAction[]) {
   }
 }
 
+type Rule = { wallet: string; listing_id: number; patch_id: number; max_amount: number | string };
+
 async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
+  const { data: rules } = await supabaseAdmin().from("auto_bid_rules").select("wallet, listing_id, patch_id, max_amount")
+    .eq("chain_id", CHAIN_ID).eq("active", true).limit(200);
+  return (await dueRules(rules ?? [])).map(({ rule, topBid }) => ({
+    kind: "autoBid" as const, via: "contract" as const, listingId: rule.listing_id, patchId: rule.patch_id, brand: rule.wallet, topBid,
+  }));
+}
+
+/** Signer auto-bids whose brand is outbid, for wallets where our signer is on (and not revoked). */
+async function dueSignerBids(): Promise<Omit<KeeperAction, "status">[]> {
   const db = supabaseAdmin();
-  const { data: rules } = await db.from("auto_bid_rules").select("wallet, listing_id, patch_id, max_amount")
+  const { data: rules } = await db.from("signer_auto_bids").select("wallet, listing_id, patch_id, max_amount")
     .eq("chain_id", CHAIN_ID).eq("active", true).limit(200);
   if (!rules?.length) return [];
+  const { data: delegations } = await db.from("signer_delegations").select("wallet, privy_wallet_id")
+    .in("wallet", [...new Set(rules.map((r) => r.wallet))]).not("signer_added_at", "is", null).is("revoked_at", null);
+  const walletIds = new Map((delegations ?? []).map((d) => [d.wallet, d.privy_wallet_id as string]));
+  return (await dueRules(rules.filter((r) => walletIds.has(r.wallet)))).map(({ rule, topBid }) => ({
+    kind: "autoBid" as const, via: "signer" as const, listingId: rule.listing_id, patchId: rule.patch_id, brand: rule.wallet, topBid,
+    walletId: walletIds.get(rule.wallet), max: String(rule.max_amount),
+  }));
+}
+
+/** The rules whose brand is outbid on a live patch and whose maximum can still beat the top bid. */
+async function dueRules(rules: Rule[]): Promise<{ rule: Rule; topBid: string }[]> {
+  if (!rules.length) return [];
+  const db = supabaseAdmin();
   const ids = [...new Set(rules.map((r) => r.listing_id))];
   const [{ data: live }, { data: patches }] = await Promise.all([
     db.from("listings").select("listing_id, creator").eq("chain_id", CHAIN_ID).eq("status", 1)
@@ -159,8 +193,57 @@ async function dueAutoBids(): Promise<Omit<KeeperAction, "status">[]> {
     })
     .map((r) => {
       const p = patches!.find((x) => x.listing_id === r.listing_id && x.patch_id === r.patch_id)!;
-      return { kind: "autoBid" as const, listingId: r.listing_id, patchId: r.patch_id, brand: r.wallet, topBid: String(p.top_bid) };
+      return { rule: r, topBid: String(p.top_bid) };
     });
+}
+
+/**
+ * A signer auto-bid: from the brand's own Privy wallet, signed by our key quorum, within the wallet's Privy policy
+ * (a bid on this spot up to the brand's max; an approval of the market up to their largest max). Approves exactly the
+ * next bid when the allowance is short, then bids it.
+ */
+async function executeSignerBid(job: Omit<KeeperAction, "status">): Promise<KeeperAction> {
+  const client = serverClient();
+  const brand = job.brand as `0x${string}`;
+  const chain = `patched:${CHAIN_ID}`;
+  const spot = `${job.listingId}:${job.patchId}:${brand}:${job.topBid ?? "0"}`;
+  const sponsor = process.env.KEEPER_GAS_SPONSORED !== "false";
+  const t0 = Date.now();
+  try {
+    const amount = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minNextBid", args: [BigInt(job.listingId), job.patchId!] });
+    if (amount > BigInt(job.max!)) return { ...job, status: "skipped", reason: "over the brand's maximum" };
+    const [balance, allowance] = await Promise.all([
+      client.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [brand] }),
+      client.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [brand, MARKET] }),
+    ]);
+    if (balance < amount) return { ...job, status: "skipped", reason: "not enough USDC" };
+
+    if (allowance < amount) {
+      const approve = await sendFromServerWallet(
+        job.walletId!,
+        { to: USDC, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [MARKET, amount] }), chainId: CHAIN_ID },
+        { idempotencyKey: `${chain}:sapprove:${spot}`, sponsor, signed: true },
+      );
+      if (approve.hash) await client.waitForTransactionReceipt({ hash: approve.hash, timeout: 30_000 });
+    }
+
+    const data = encodeFunctionData({ abi: patchedMarketAbi, functionName: "bid", args: [BigInt(job.listingId), job.patchId!, amount] });
+    try {
+      await client.call({ account: brand, to: MARKET, data });
+    } catch (err) {
+      return { ...job, status: "skipped", reason: err instanceof Error ? err.message.split("\n")[0] : "not due" };
+    }
+    const sent = await sendFromServerWallet(job.walletId!, { to: MARKET, data, chainId: CHAIN_ID }, { idempotencyKey: `${chain}:sbid:${spot}`, sponsor, signed: true });
+    const timings: NonNullable<KeeperAction["timings"]> = { accepted: Date.now() - t0 };
+    if (!sent.hash) return { ...job, status: "sent", reason: `submitted as ${sent.transactionId}`, timings };
+    timings.hash = Date.now() - t0;
+    await client.waitForTransactionReceipt({ hash: sent.hash, timeout: 30_000 });
+    timings.mined = Date.now() - t0;
+    return { ...job, status: "sent", hash: sent.hash, timings };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    return { ...job, status: isPolicyViolation(err) ? "skipped" : "failed", reason: isPolicyViolation(err) ? `refused by the brand's Privy policy: ${reason}` : reason };
+  }
 }
 
 /**

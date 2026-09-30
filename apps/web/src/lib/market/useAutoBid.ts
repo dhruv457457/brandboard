@@ -15,28 +15,56 @@ import { useStepUp } from "@/lib/market/stepUp";
  *  above the max, and at most one bid per patch is locked at a time. */
 const ALLOWANCE_HEADROOM = 10n;
 
+const SIGNER_ID = process.env.NEXT_PUBLIC_PRIVY_SIGNER_ID ?? "";
+
 /**
- * Auto-bid ("keep me on top up to $X") through PatchAutoBidder. Turning it on is one permit signature
- * plus one transaction (setAutoBidWithPermit). After that the Patched keeper, a Privy server wallet whose
- * policy only allows PatchAutoBidder.execute, answers every outbid within seconds.
+ * Auto-bid ("keep me on top up to $X"), two ways:
+ * - "signer" (Patched wallets): Patched's key quorum is added to the brand's own wallet as a Privy signer, limited by
+ *   a Privy policy that only allows bids on the spots the brand chose, up to each maximum. The keeper then bids from
+ *   the brand's wallet within seconds of an outbid. Revoked in one tap from Settings.
+ * - "contract" (outside wallets such as MetaMask, which can't take a Privy signer): PatchAutoBidder. Turning it on is
+ *   one permit signature plus one transaction; the keeper, a Privy server wallet whose policy only allows
+ *   PatchAutoBidder.execute, answers every outbid.
  */
 export function useAutoBid() {
-  const { walletAddress } = usePatchedAuth();
+  const { walletAddress, isEmbeddedWallet, getAccessToken, addSigner, removeSigner } = usePatchedAuth();
   const signPermit = usePermitSigner();
   const send = useTx();
   const stepUp = useStepUp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mode: "signer" | "contract" | null = isEmbeddedWallet && SIGNER_ID ? "signer" : AUTO_BIDDER ? "contract" : null;
+
+  const api = useCallback(
+    async <T,>(method: "GET" | "POST", body?: object): Promise<T> => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/autobid", {
+        method,
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const json = (await res.json().catch(() => ({}))) as T & { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Auto-bid didn't go through. Try again.");
+      return json;
+    },
+    [getAccessToken],
+  );
 
   /** The signed-in brand's current maximum for a patch (0n = off). */
   const current = useCallback(
     async (listingId: number, patchId: number): Promise<bigint> => {
-      if (!AUTO_BIDDER || !walletAddress) return 0n;
+      if (!walletAddress) return 0n;
+      if (mode === "signer") {
+        const { bids } = await api<{ bids: { listingId: number; patchId: number; max: string }[] }>("GET");
+        const b = bids.find((x) => x.listingId === listingId && x.patchId === patchId);
+        return b ? BigInt(b.max) : 0n;
+      }
+      if (!AUTO_BIDDER) return 0n;
       return publicClient.readContract({
         address: AUTO_BIDDER, abi: patchAutoBidderAbi, functionName: "maxBid", args: [walletAddress, BigInt(listingId), patchId],
       });
     },
-    [walletAddress],
+    [walletAddress, mode, api],
   );
 
   async function run(fn: () => Promise<void>): Promise<boolean> {
@@ -48,7 +76,9 @@ export function useAutoBid() {
       fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
       return true;
     } catch (err) {
-      setError(friendlyError(err).replace("The bid didn't", "Auto-bid didn't"));
+      const msg = err instanceof Error ? err.message : "";
+      // Our API's own sentences are already readable; wallet and contract errors go through friendlyError.
+      setError(/^(Pick|Bidding|This spot|You can't|Auto-bid|Privy|Too many|Enter)/.test(msg) ? msg : friendlyError(err).replace("The bid didn't", "Auto-bid didn't"));
       return false;
     } finally {
       setBusy(false);
@@ -57,25 +87,36 @@ export function useAutoBid() {
 
   function enable(listingId: number, patchId: number, max: bigint) {
     return run(async () => {
-      if (!AUTO_BIDDER || !walletAddress) throw new Error("not signed in");
-      const [balance, allowance] = await Promise.all([
-        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),
-        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER] }),
-      ]);
+      if (!walletAddress || !mode) throw new Error("not signed in");
+      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
       if (balance < max) throw new Error("insufficient USDC");
-      // A high maximum lets the keeper spend that much for you, so it gets the same passkey check as a big bid.
+      // A high maximum lets Patched spend that much for you, so it gets the same passkey check as a big bid.
       await stepUp.ensure(max);
 
+      if (mode === "signer") {
+        const r = await api<{ signerId: string; policyId: string; signer: "ok" | "missing" | "other-policy" }>("POST", {
+          action: "set", listingId, patchId, max: max.toString(),
+        });
+        if (r.signer !== "ok") {
+          // A signer from an older policy must come off first: a signer's policy can't be swapped in place.
+          if (r.signer === "other-policy") await removeSigner();
+          await addSigner(r.signerId, r.policyId);
+          await api("POST", { action: "confirm" });
+        }
+        return;
+      }
+
+      const allowance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER!] });
       // Enough allowance for a long bidding war already: just set the rule. Otherwise top it up with a permit,
       // because every auto-bid uses allowance and outbid refunds don't give it back.
       if (allowance >= max * ALLOWANCE_HEADROOM) {
-        await send(AUTO_BIDDER, encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, max] }));
+        await send(AUTO_BIDDER!, encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, max] }));
         return;
       }
 
       const value = max * ALLOWANCE_HEADROOM;
-      const { deadline, v, r, s } = await signPermit(AUTO_BIDDER, value);
-      await send(AUTO_BIDDER, encodeFunctionData({
+      const { deadline, v, r, s } = await signPermit(AUTO_BIDDER!, value);
+      await send(AUTO_BIDDER!, encodeFunctionData({
         abi: patchAutoBidderAbi, functionName: "setAutoBidWithPermit",
         args: [BigInt(listingId), patchId, max, value, deadline, v, r, s],
       }));
@@ -84,26 +125,30 @@ export function useAutoBid() {
 
   function disable(listingId: number, patchId: number) {
     return run(async () => {
+      if (mode === "signer") {
+        await api("POST", { action: "off", listingId, patchId });
+        return;
+      }
       if (!AUTO_BIDDER) return;
       await send(AUTO_BIDDER, encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, 0n] }));
     });
   }
 
   /**
-   * Can the keeper actually place the next auto-bid? It needs USDC in the wallet and allowance for the
-   * auto-bidder; both run down during a long bidding war.
+   * Can Patched actually place the next auto-bid? It needs USDC in the wallet, and for the contract way also
+   * allowance for the auto-bidder; both run down during a long bidding war. The signer way approves as it goes.
    */
   const health = useCallback(
     async (need: bigint): Promise<"ok" | "balance" | "allowance"> => {
-      if (!AUTO_BIDDER || !walletAddress) return "ok";
-      const [balance, allowance] = await Promise.all([
-        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),
-        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER] }),
-      ]);
-      return balance < need ? "balance" : allowance < need ? "allowance" : "ok";
+      if (!walletAddress || !mode) return "ok";
+      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
+      if (balance < need) return "balance";
+      if (mode === "signer") return "ok";
+      const allowance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER!] });
+      return allowance < need ? "allowance" : "ok";
     },
-    [walletAddress],
+    [walletAddress, mode],
   );
 
-  return { available: !!AUTO_BIDDER, current, health, enable, disable, busy, error };
+  return { available: !!mode, mode, current, health, enable, disable, busy, error };
 }
