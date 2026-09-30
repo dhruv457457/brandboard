@@ -54,7 +54,9 @@ const EXTRUDE: THREE.ExtrudeGeometryOptions = {
   bevelSize: 0.16,
   bevelOffset: -0.12,
   bevelSegments: 12,
-  curveSegments: 48,
+  // Not 48 (or 32-49): at those counts three.js drops part of the tee's front face on one sleeve, and the sleeve
+  // looks see-through. 64 leaves every shape whole; check the tee again if this or the shapes change.
+  curveSegments: 64,
 };
 
 function teeShape() {
