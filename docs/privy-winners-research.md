@@ -22,7 +22,7 @@ We studied 24 ETHGlobal projects that won a Privy prize. For each, we read the s
 | 3 | Share-to-earn referrals (market upgrade) | None |
 | 4 | **Built 2026-09-30.** Auto-bid through signers (`addSigners` with a policy, one-tap revoke), `PatchAutoBidder` stays the fallback for outside wallets | Key quorum registered by API (`scripts/privy-signer-setup.mjs`), no dashboard step. Apply migration 0015. Proven by `scripts/privy-signer-check.mts`; the bid rules still need a run against a live listing. |
 | 5 | Linked X data on creator pages (reach, floor suggestion, new-creator gate) | Same X data source as #2 |
-| 6 | Campaign budget as a Privy aggregation | None |
+| 6 | **Built 2026-10-01.** Campaign budget as a Privy aggregation, plus a value-capped gas tank for the gas signed bids need | Apply migration 0016; fund the gas tank (`GAS_TANK_ADDRESS`) with MON. Proven by `scripts/privy-campaign-budget-check.mts`. Found live: aggregations only apply to `eth_signTransaction` rules, count per wallet, include the current tx, have a 72 h max window, and lag a few seconds. |
 | 7 | Team hoodie vault on a 2-of-3 key quorum (`intents` + `useAuthorizationSignature`) | None |
 | 8 | Deposit from any chain (`useDepositAddress`), mainnet only if Monad is supported | Check Monad support |
 

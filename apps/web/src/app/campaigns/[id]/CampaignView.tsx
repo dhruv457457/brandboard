@@ -31,6 +31,10 @@ export interface CampaignInfo {
   endsAt: number;
   walletAddress: string;
   policyId: string;
+  /** The Privy aggregation that caps the total; null for campaigns from before it existed. */
+  aggregationId: string | null;
+  /** Unix seconds the campaign was created. */
+  startsAt: number;
   status: "funding" | "active" | "paused" | "ending" | "ended";
 }
 
@@ -129,7 +133,7 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
   const total = spent + (balance ?? 0);
   const bids = actions.filter((a) => a.kind === "bid").length;
   const blocked = actions.filter((a) => a.kind === "blocked").length;
-  const words = campaignRulesInWords({ maxPerSpot: c.maxPerSpot, budget: c.budget, endsAt: c.endsAt, eventName: c.eventName });
+  const words = campaignRulesInWords({ maxPerSpot: c.maxPerSpot, budget: c.budget, endsAt: c.endsAt, eventName: c.eventName, privyTotal: !!c.aggregationId, startsAt: c.startsAt });
   const s = STATUS[c.status];
   const name = c.brandName ?? formatShortAddress(c.brand);
 
