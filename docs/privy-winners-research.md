@@ -20,7 +20,7 @@ We studied 24 ETHGlobal projects that won a Privy prize. For each, we read the s
 | 1 | Judge test login + "what's verified" tx per README row | Enable Test accounts |
 | 2 | "Patch anyone on X" (pregenerated wallet for an X handle, offer waits for them) | A way to turn a handle into a numeric X user id (X API access, or another source) |
 | 3 | Share-to-earn referrals (market upgrade) | None |
-| 4 | Auto-bid through signers (`addSigners` with a policy, one-tap revoke), `PatchAutoBidder` stays the fallback | Register a key quorum wrapping our authorization public key |
+| 4 | **Built 2026-09-30.** Auto-bid through signers (`addSigners` with a policy, one-tap revoke), `PatchAutoBidder` stays the fallback for outside wallets | Key quorum registered by API (`scripts/privy-signer-setup.mjs`), no dashboard step. Apply migration 0015. Proven by `scripts/privy-signer-check.mts`; the bid rules still need a run against a live listing. |
 | 5 | Linked X data on creator pages (reach, floor suggestion, new-creator gate) | Same X data source as #2 |
 | 6 | Campaign budget as a Privy aggregation | None |
 | 7 | Team hoodie vault on a 2-of-3 key quorum (`intents` + `useAuthorizationSignature`) | None |

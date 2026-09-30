@@ -13,6 +13,7 @@ import {
   useMfaEnrollment,
   usePrivy,
   useSendTransaction,
+  useSigners,
   useUser,
   useSignTypedData,
   useWallets,
@@ -42,6 +43,7 @@ function Bridge({ onChange }: { onChange: (v: AuthContextValue) => void }) {
   const { generateSiweMessage, loginWithSiwe } = useLoginWithSiwe();
   const { createWallet } = useCreateWallet();
   const { refreshUser } = useUser();
+  const { addSigners, removeSigners } = useSigners();
 
   // linkEmail() resolves when Privy reports the email linked.
   const linking = useRef<{ resolve: () => void; reject: (e: unknown) => void } | null>(null);
@@ -145,6 +147,15 @@ function Bridge({ onChange }: { onChange: (v: AuthContextValue) => void }) {
           linkEmail();
         }),
       updateEmail,
+      // Auto-bid through signers: put Patched's key quorum on the wallet, limited by one policy, or take it off.
+      addSigner: async (signerId: string, policyId: string) => {
+        if (!walletAddress) throw new Error("not signed in");
+        await addSigners({ address: walletAddress, signers: [{ signerId, policyIds: [policyId] }] });
+      },
+      removeSigner: async () => {
+        if (!walletAddress) throw new Error("not signed in");
+        await removeSigners({ address: walletAddress });
+      },
     });
   });
 

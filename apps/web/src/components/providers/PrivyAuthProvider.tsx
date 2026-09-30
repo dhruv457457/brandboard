@@ -48,6 +48,9 @@ export interface AuthContextValue {
   /** Link an email (resolves once it's linked) or change the one already linked. */
   linkEmail: () => Promise<void>;
   updateEmail: () => void;
+  /** Privy signers: add Patched's key quorum to the embedded wallet with one policy, or remove every signer we added. */
+  addSigner: (signerId: string, policyId: string) => Promise<void>;
+  removeSigner: () => Promise<void>;
 }
 
 const notReady = () => Promise.reject(new Error("Your wallet is still loading. Try again in a second."));
@@ -85,6 +88,8 @@ const NOT_READY: AuthContextValue = {
   enrollPasskey: () => {},
   linkEmail: notReady,
   updateEmail: () => {},
+  addSigner: notReady,
+  removeSigner: notReady,
 };
 
 const AuthContext = createContext<AuthContextValue>(NOT_READY);

@@ -5,7 +5,7 @@ import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { encodeFunctionData, stringToHex } from "viem";
-import { Check, Copy, ExternalLink, Fingerprint, KeyRound, LogOut, Settings, Upload } from "lucide-react";
+import { Check, Copy, ExternalLink, Fingerprint, KeyRound, LogOut, Settings, ShieldCheck, Upload } from "lucide-react";
 import { patchedMarketAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -253,7 +253,72 @@ function SecuritySettings() {
         </Card>
       )}
 
+      {isEmbeddedWallet && walletAddress && <AutoBidPermission />}
+
       <Button variant="ghost" onClick={() => void logout()} className="justify-self-start"><LogOut size={14} /> Sign out</Button>
     </div>
+  );
+}
+
+/** What Patched may do in your wallet for auto-bid (its Privy signer and policy, in plain words), and one-tap revoke. */
+function AutoBidPermission() {
+  const { removeSigner } = usePatchedAuth();
+  const authedFetch = useAuthedFetch();
+  const [state, setState] = useState<{ delegated: boolean; bids: { listingId: number; patchId: number; max: string; href: string }[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    authedFetch("/api/autobid").then((r) => (r.ok ? r.json() : null)).then((j) => alive && j && setState(j)).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [authedFetch]);
+
+  if (!state?.delegated) return null;
+
+  async function revoke() {
+    setBusy(true);
+    try {
+      await removeSigner();
+      const res = await authedFetch("/api/autobid", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "revoke" }) });
+      if (!res.ok) throw new Error("revoke failed");
+      setState({ delegated: false, bids: [] });
+      toast("Patched is off your wallet. Your auto-bids are stopped.");
+    } catch (err) {
+      toast(friendlyError(err).replace("The bid didn't", "Revoking didn't"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="p-5 grid gap-3">
+      <span className="flex gap-3 items-start">
+        <ShieldCheck size={22} className="flex-none text-[var(--accent-text)] mt-0.5" />
+        <span>
+          <b className="block">Auto-bid permission</b>
+          <span className="text-sm text-[var(--muted)]">
+            Patched is a Privy signer on your wallet. Its policy only lets it bid on the spots below, never above your maximum.
+            No transfers, nothing else.
+          </span>
+        </span>
+      </span>
+      {state.bids.length > 0 ? (
+        <ul className="grid gap-1 text-sm">
+          {state.bids.map((b) => (
+            <li key={`${b.listingId}-${b.patchId}`} className="flex justify-between gap-3 border-t border-[var(--line)] pt-1">
+              <Link href={b.href} className="underline">Listing #{b.listingId}, spot {b.patchId + 1}</Link>
+              <span className="font-semibold">up to ${(Number(b.max) / 1e6).toLocaleString("en-US")}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-[var(--muted)]">No auto-bids running. The policy allows nothing right now.</p>
+      )}
+      <Button size="small" variant="ghost" disabled={busy} onClick={revoke} className="justify-self-start">
+        {busy ? "Revoking…" : "Revoke Patched's access"}
+      </Button>
+    </Card>
   );
 }
