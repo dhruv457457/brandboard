@@ -7,6 +7,25 @@ We studied 24 ETHGlobal projects that won a Privy prize. For each, we read the s
 - Gap 2 (idempotency): every keeper send now carries an `idempotency_key` — see [keeper.ts](../apps/web/src/lib/server/keeper.ts).
 - Still open: session signers (needs a key quorum registered in the Privy dashboard first, an operator step, not just code), campaign wallets with policies, "Patch anyone on X", the key-quorum team vault, deposit addresses, and test accounts.
 
+**Checked against the code on 2026-09-30:**
+- Done since: campaign wallets with policies ([campaigns.ts](../apps/web/src/lib/server/campaigns.ts), [campaignPolicy.ts](../apps/web/src/lib/market/campaignPolicy.ts)) with `bidFor.bidder`, `bidFor.amount` and `current_unix_timestamp` rules; transaction polling for sponsored sends ([privy.ts](../apps/web/src/lib/server/privy.ts)); a "keep my wallet or get a fresh Patched wallet" choice at wallet sign-in. The keeper policy allows the v3 market and auto-bidder and refuses everything else (`scripts/privy-policy-check.mjs`, run 2026-09-30).
+- Not built: signers, "Patch anyone on X", the team vault, deposit addresses, a judge test login, linked-X data, a Privy aggregation for the campaign budget (the budget is capped only by the wallet balance today), and a "what's verified" transaction per README row.
+- Installed SDKs already cover all of it: `@privy-io/node` 0.35 has `aggregations`, `keyQuorums`, `intents` and `users().create` with `twitter_oauth`; `@privy-io/react-auth` 3.45 has `useSigners`, `useAuthorizationSignature` and `useDepositAddress`. No upgrade needed.
+- `users().create` with a `twitter_oauth` account needs the numeric X user id (`subject`), not only the handle.
+
+**Decided 2026-09-30: build everything below except Farcaster and x402.** Order (bounty value per day, deadline Oct 14 09:29 IST):
+
+| # | Feature | Operator step first (Privy dashboard / accounts) |
+|---|---|---|
+| 1 | Judge test login + "what's verified" tx per README row | Enable Test accounts |
+| 2 | "Patch anyone on X" (pregenerated wallet for an X handle, offer waits for them) | A way to turn a handle into a numeric X user id (X API access, or another source) |
+| 3 | Share-to-earn referrals (market upgrade) | None |
+| 4 | Auto-bid through signers (`addSigners` with a policy, one-tap revoke), `PatchAutoBidder` stays the fallback | Register a key quorum wrapping our authorization public key |
+| 5 | Linked X data on creator pages (reach, floor suggestion, new-creator gate) | Same X data source as #2 |
+| 6 | Campaign budget as a Privy aggregation | None |
+| 7 | Team hoodie vault on a 2-of-3 key quorum (`intents` + `useAuthorizationSignature`) | None |
+| 8 | Deposit from any chain (`useDepositAddress`), mainnet only if Monad is supported | Check Monad support |
+
 ## How winners win Privy prizes
 
 1. **The Privy feature is the product, not a login add-on.**
