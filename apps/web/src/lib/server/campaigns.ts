@@ -5,8 +5,7 @@ import { CHAIN_ID, MARKET, USDC, serverClient } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 import { formatUsdc } from "@/lib/format";
 import { BID_FOR_ABI, ERC20_SPEND_ABI, campaignAggregation, campaignRules, offerAdvanceRule } from "@/lib/market/campaignPolicy";
-import { createAggregation, isPolicyViolation, keyOwner, prepareTx, privyServer, sendFromServerWallet, signAndBroadcast } from "./privy";
-import { ensureGas } from "./gasTank";
+import { budgetCheck, createAggregation, isPolicyViolation, keyOwner, privyServer, sendFromServerWallet } from "./privy";
 
 export interface CampaignRow {
   id: string;
@@ -164,7 +163,6 @@ async function tick(c: CampaignRow) {
   if (c.status === "ending" || Date.now() > new Date(c.ends_at).getTime()) {
     if (balance > 0n) {
       const data = encodeFunctionData({ abi: ERC20_SPEND_ABI, functionName: "transfer", args: [brand, balance] });
-      if (!(await gasForSend(wallet, USDC, data))) return;
       const { hash } = await sendFromServerWallet(c.wallet_id, { to: USDC, chainId: CHAIN_ID, data },
         { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:return:${balance}`, sponsor: SPONSORED, signed: true });
       await log(c.id, { kind: "returned", text: `Sent the unspent ${formatUsdc(Number(balance) / 1e6)} back to your wallet.`, amount: balance, tx_hash: hash });
@@ -179,7 +177,6 @@ async function tick(c: CampaignRow) {
   const allowance = await client.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [wallet, MARKET] });
   if (allowance < balance) {
     const data = encodeFunctionData({ abi: ERC20_SPEND_ABI, functionName: "approve", args: [MARKET, maxUint256] });
-    if (!(await gasForSend(wallet, USDC, data))) return;
     const { hash } = await sendFromServerWallet(c.wallet_id, { to: USDC, chainId: CHAIN_ID, data },
       { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:approve`, sponsor: SPONSORED, signed: true });
     if (hash) await client.waitForTransactionReceipt({ hash, timeout: 30_000 });
@@ -187,31 +184,29 @@ async function tick(c: CampaignRow) {
 
   const picks = await pickSpots(c, balance);
   let left = balance;
-  let signed = false;
+  let checked = false;
   // An offer is for one spot on one person: one bid at a time.
   for (const p of picks.slice(0, c.kind === "x_offer" ? 1 : BIDS_PER_TICK)) {
     if (p.amount > left) continue;
     const data = encodeFunctionData({ abi: BID_FOR_ABI, functionName: "bidFor", args: [brand, BigInt(p.listingId), p.patchId, p.amount] });
     try {
-      let hash: `0x${string}` | null;
-      if (c.aggregation_id) {
-        // Privy's running total catches up a few seconds after each signature: space this campaign's bids out so a
-        // bid is never checked against a stale total.
-        if (signed) await new Promise((r) => setTimeout(r, AGGREGATION_GAP_MS));
-        const prepared = await prepareTx(wallet, { to: MARKET, data });
-        const gas = await ensureGas(wallet, prepared.cost);
-        if (gas !== "ok") {
-          console.warn(`campaign ${c.id}: waiting for gas (${gas})`);
-          break;
-        }
-        signed = true;
-        hash = await signAndBroadcast(c.wallet_id, wallet, { to: MARKET, data, chainId: CHAIN_ID }, prepared);
-        const receipt = await client.waitForTransactionReceipt({ hash, timeout: 30_000 });
-        if (receipt.status !== "success") throw new Error("bid reverted");
-      } else {
-        ({ hash } = await sendFromServerWallet(c.wallet_id, { to: MARKET, chainId: CHAIN_ID, data },
-          { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:${p.listingId}:${p.patchId}:${p.topBid}`, sponsor: SPONSORED, signed: true }));
+      // Simulate first: a bid that would revert (outbid a moment ago, bidding closed) is skipped before Privy counts it
+      // toward the budget.
+      try {
+        await client.call({ account: wallet, to: MARKET, data });
+      } catch (err) {
+        console.warn(`campaign ${c.id}: skipped a bid on ${p.listingId}/${p.patchId}: ${err instanceof Error ? err.message.split("\n")[0] : err}`);
+        continue;
       }
+      if (c.aggregation_id) {
+        // Privy's running total catches up a few seconds after each check: space this campaign's checks out so a bid
+        // is never checked against a stale total.
+        if (checked) await new Promise((r) => setTimeout(r, AGGREGATION_GAP_MS));
+        checked = true;
+        await budgetCheck(c.wallet_id, { to: MARKET, data, chainId: CHAIN_ID });
+      }
+      const { hash } = await sendFromServerWallet(c.wallet_id, { to: MARKET, chainId: CHAIN_ID, data },
+        { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:${p.listingId}:${p.patchId}:${p.topBid}`, sponsor: SPONSORED, signed: true });
       left -= p.amount;
       await log(c.id, {
         kind: "bid",
@@ -244,22 +239,13 @@ async function tick(c: CampaignRow) {
   }
 }
 
-/** Seconds Privy needs to add a signature to an aggregation's running total (measured: 3 s was enough, 0 s was not). */
+/** Time Privy needs to add a checked bid to an aggregation's running total (measured: 3 s was enough, 0 s was not). */
 const AGGREGATION_GAP_MS = 5_000;
 
 /** What the campaign has bid so far, from its own log. */
 async function spentSoFar(campaignId: string): Promise<bigint> {
   const { data } = await supabaseAdmin().from("brand_campaign_actions").select("amount").eq("campaign_id", campaignId).eq("kind", "bid");
   return (data ?? []).reduce((sum, a) => sum + BigInt(a.amount ?? 0), 0n);
-}
-
-/** Unsponsored sends (mainnet) are paid by the campaign wallet itself: top it up from the gas tank first. */
-export async function gasForSend(wallet: `0x${string}`, to: `0x${string}`, data: `0x${string}`): Promise<boolean> {
-  if (SPONSORED) return true;
-  const { cost } = await prepareTx(wallet, { to, data });
-  const gas = await ensureGas(wallet, cost);
-  if (gas !== "ok") console.warn(`campaign wallet ${wallet}: waiting for gas (${gas})`);
-  return gas === "ok";
 }
 
 interface Pick { listingId: number; patchId: number; amount: bigint; topBid: string; label: string; title: string; score: number; buyNow: boolean }

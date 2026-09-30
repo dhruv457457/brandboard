@@ -32,8 +32,9 @@ export interface CampaignRulesInput {
   /** Unix seconds after which bids are refused. */
   endsAt: number;
   /**
-   * The campaign's Privy aggregation (the sum of its bids) and the budget it may not pass. With these, bids must be
-   * signed through Privy (eth_signTransaction, broadcast by us), because Privy only checks aggregations on signing.
+   * The campaign's Privy aggregation (the sum of its bids) and the budget it may not pass. Privy only checks
+   * aggregations when it signs (eth_signTransaction), so these add a budget-check rule: before each bid, the keeper asks
+   * Privy to sign it, Privy adds it to the running total or refuses, and only then is the bid sent (sponsored).
    */
   aggregationId?: string;
   budget?: bigint;
@@ -64,23 +65,31 @@ export function campaignAggregation(c: { chainId: number; market: string; name: 
 export function campaignRules(c: CampaignRulesInput) {
   const chain = { field_source: "ethereum_transaction" as const, field: "chain_id" as const, operator: "eq" as const, value: String(c.chainId) };
   const lc = (a: string) => a.toLowerCase();
-  const total = c.aggregationId && c.budget !== undefined;
+  const bid = [
+    { field_source: "ethereum_transaction" as const, field: "to" as const, operator: "eq" as const, value: lc(c.market) },
+    chain,
+    { field_source: "ethereum_calldata" as const, field: "function_name", operator: "eq" as const, value: "bidFor", abi: BID_FOR_ABI },
+    { field_source: "ethereum_calldata" as const, field: "bidFor.bidder", operator: "eq" as const, value: lc(c.brand), abi: BID_FOR_ABI },
+    { field_source: "ethereum_calldata" as const, field: "bidFor.amount", operator: "lte" as const, value: c.maxPerSpot.toString(), abi: BID_FOR_ABI },
+    { field_source: "system" as const, field: "current_unix_timestamp" as const, operator: "lte" as const, value: String(c.endsAt) },
+  ];
   return [
     {
-      name: total ? "Bids for the brand, capped, in budget, until end" : "Bids for the brand, capped, until the end",
-      method: total ? ("eth_signTransaction" as const) : ("eth_sendTransaction" as const),
+      name: "Bids for the brand, capped, until the end",
+      method: "eth_sendTransaction" as const,
       action: "ALLOW" as const,
-      conditions: [
-        { field_source: "ethereum_transaction" as const, field: "to" as const, operator: "eq" as const, value: lc(c.market) },
-        chain,
-        { field_source: "ethereum_calldata" as const, field: "function_name", operator: "eq" as const, value: "bidFor", abi: BID_FOR_ABI },
-        { field_source: "ethereum_calldata" as const, field: "bidFor.bidder", operator: "eq" as const, value: lc(c.brand), abi: BID_FOR_ABI },
-        { field_source: "ethereum_calldata" as const, field: "bidFor.amount", operator: "lte" as const, value: c.maxPerSpot.toString(), abi: BID_FOR_ABI },
-        { field_source: "system" as const, field: "current_unix_timestamp" as const, operator: "lte" as const, value: String(c.endsAt) },
-        // The running total includes the bid being signed, so the last bid can't overshoot the budget.
-        ...(total ? [{ field_source: "reference" as const, field: `aggregation.${c.aggregationId}`, operator: "lte" as const, value: c.budget!.toString() }] : []),
-      ],
+      conditions: bid,
     },
+    // The budget check: the same bid, signed only, and only while the running total (which includes this bid) stays
+    // within the budget, so the last bid can't overshoot it.
+    ...(c.aggregationId && c.budget !== undefined
+      ? [{
+          name: "Budget check: total bids within budget",
+          method: "eth_signTransaction" as const,
+          action: "ALLOW" as const,
+          conditions: [...bid, { field_source: "reference" as const, field: `aggregation.${c.aggregationId}`, operator: "lte" as const, value: c.budget.toString() }],
+        }]
+      : []),
     {
       name: "Approve the market for bids",
       method: "eth_sendTransaction" as const,
@@ -140,8 +149,8 @@ export function campaignRulesInWords(c: { maxPerSpot: number; budget: number; en
       ? {
           title: `${budget} in total`,
           body: whole
-            ? `Privy adds up every bid this campaign signs and refuses the one that would take it past ${budget}.`
-            : `Privy adds up the bids this campaign signs and refuses any that would pass ${budget} within 72 hours. The wallet also only ever holds your budget.`,
+            ? `Privy keeps the running total and approves each bid only while it stays within ${budget}. The wallet also only ever holds your budget.`
+            : `Privy keeps the running total and approves bids only while they stay within ${budget} over 72 hours. The wallet also only ever holds your budget.`,
         }
       : { title: `${budget} in total`, body: "The campaign wallet only ever holds your budget, so it can't spend more." },
     { title: `Stops ${end}`, body: "Checked against Privy's clock, not ours. What's left comes back to you." },

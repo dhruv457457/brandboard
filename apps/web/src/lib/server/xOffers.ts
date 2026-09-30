@@ -5,7 +5,7 @@ import { CHAIN_ID, MARKET, USDC, serverClient } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ERC20_SPEND_ABI } from "@/lib/market/campaignPolicy";
 import { privyServer, sendFromServerWallet } from "./privy";
-import { gasForSend, type CampaignRow } from "./campaigns";
+import type { CampaignRow } from "./campaigns";
 import type { XAccount } from "./xLookup";
 
 const SPONSORED = process.env.KEEPER_GAS_SPONSORED !== "false";
@@ -91,7 +91,6 @@ export async function claimOffer(c: CampaignRow, user: { did: string; wallets: s
   if (theirs >= advance || offer < advance) return { advanced: 0n };
 
   const data = encodeFunctionData({ abi: ERC20_SPEND_ABI, functionName: "transfer", args: [target as `0x${string}`, advance] });
-  if (!(await gasForSend(c.wallet_address as `0x${string}`, USDC, data))) throw new ClaimError("The offer wallet is waiting for gas. Try again in a minute.");
   const { hash } = await sendFromServerWallet(c.wallet_id, { to: USDC, chainId: CHAIN_ID, data },
     { idempotencyKey: `patched:${CHAIN_ID}:offer:${c.id}:advance`, sponsor: SPONSORED, signed: true });
   if (hash) await client.waitForTransactionReceipt({ hash, timeout: 30_000 });

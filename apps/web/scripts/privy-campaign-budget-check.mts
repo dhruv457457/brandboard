@@ -1,6 +1,7 @@
-// Proof that a campaign's total budget is enforced by Privy (an aggregation), using the app's own policy code:
-// a throwaway campaign wallet with a $5 budget and $3 per bid signs bidFor bids in sequence. Privy must refuse the bid
-// that would pass $5, a bid over $3, and a bid for another brand. Nothing is broadcast; everything is deleted after.
+// Proof of the campaign budget check (a Privy aggregation), using the app's own policy code: a throwaway campaign wallet
+// with a $5 budget and $3 per bid asks Privy's budget check (eth_signTransaction) to approve bidFor bids in sequence,
+// as the keeper does before each sponsored send. Privy must refuse the bid that would pass $5, a bid over $3, and a bid
+// for another brand. Nothing is broadcast; everything is deleted afterwards.
 // Run from apps/web:  NODE_USE_ENV_PROXY=1 npx tsx scripts/privy-campaign-budget-check.mts
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -59,7 +60,7 @@ const sign = async (bidder: `0x${string}`, amount: bigint) => {
 };
 const wait = () => new Promise((r) => setTimeout(r, 6000));
 const cases: [string, `0x${string}`, bigint, "allowed" | "blocked"][] = [
-  ["bid $3 (total $3)", BRAND, 3_000_000n, "allowed"],
+  ["check $3 (total $3)", BRAND, 3_000_000n, "allowed"],
   ["bid $3 more (would be $6, over the $5 budget)", BRAND, 3_000_000n, "blocked"],
   ["bid $2 (total $5, exactly the budget)", BRAND, 2_000_000n, "allowed"],
   ["bid $1 more (would be $6)", BRAND, 1_000_000n, "blocked"],
