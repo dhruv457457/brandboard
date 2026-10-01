@@ -10,6 +10,9 @@ export interface SessionUser {
   /** Every Ethereum wallet linked to the account (the account's wallet is one of them). */
   wallets: string[];
   xHandle: string | null;
+  /** The linked X account's display name and profile picture, as Privy has them. */
+  xName: string | null;
+  xAvatar: string | null;
   /** Emails Privy has verified for this user (email login/link or Google). */
   emails: string[];
 }
@@ -20,6 +23,8 @@ interface PrivyLinkedAccount {
   wallet_client_type?: string;
   chain_type?: string;
   username?: string;
+  name?: string | null;
+  profile_picture_url?: string | null;
   email?: string;
   /** Unix seconds when this account was first linked. */
   first_verified_at?: number | null;
@@ -60,7 +65,7 @@ async function lookupUser(did: string): Promise<SessionUser> {
     },
     cache: "no-store",
   });
-  if (!res.ok) return { did, wallet: null, wallets: [], xHandle: null, emails: [] };
+  if (!res.ok) return { did, wallet: null, wallets: [], xHandle: null, xName: null, xAvatar: null, emails: [] };
   const user = (await res.json()) as { linked_accounts?: PrivyLinkedAccount[]; custom_metadata?: { accountWallet?: string } };
   const accounts = user.linked_accounts ?? [];
   const evm = accounts.filter((a) => a.type === "wallet" && (a.chain_type ?? "ethereum") === "ethereum" && a.address);
@@ -76,7 +81,9 @@ async function lookupUser(did: string): Promise<SessionUser> {
     .map((a) => (a.type === "email" ? a.address : a.type === "google_oauth" ? a.email : undefined))
     .filter((e): e is string => !!e)
     .map((e) => e.toLowerCase());
-  return { did, wallet: wallet as `0x${string}` | null, wallets, xHandle: x?.username ?? null, emails };
+  // X serves a 48px "_normal" picture by default; "_400x400" is the same picture at a size that looks right on a profile.
+  const xAvatar = x?.profile_picture_url?.replace(/_normal(\.\w+)$/, "_400x400$1") ?? null;
+  return { did, wallet: wallet as `0x${string}` | null, wallets, xHandle: x?.username ?? null, xName: x?.name ?? null, xAvatar, emails };
 }
 
 /** Forget the cached lookup for a user (after their wallet choice changes). */

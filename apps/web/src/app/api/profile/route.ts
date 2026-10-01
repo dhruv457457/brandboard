@@ -1,28 +1,50 @@
+import { after } from "next/server";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { lookupX } from "@/lib/server/xLookup";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { handleProblem } from "@/lib/handles";
 
 export const runtime = "nodejs";
 
-const FIELDS = "id, wallet, handle, display_name, x_handle, x_verified, avatar_url, banner_color, bio, brand_name, brand_logo_url, brand_website, brand_verified_domain, is_admin";
+const FIELDS = "id, wallet, handle, display_name, x_handle, x_verified, x_followers, avatar_url, banner_color, bio, brand_name, brand_logo_url, brand_website, brand_verified_domain, is_admin";
+/** Read every column (so a column a pending migration adds can't break sign-in) and return only these. */
+const pick = (row: Record<string, unknown> | null) => row && Object.fromEntries(FIELDS.split(", ").map((k) => [k, row[k] ?? null]));
+const DAY = 86_400_000;
+
+/** Refresh the follower count from X (at most once a day), after the response is sent. */
+function syncFollowers(did: string, xHandle: string | null, syncedAt: string | null) {
+  if (!xHandle || (syncedAt && Date.now() - new Date(syncedAt).getTime() < DAY)) return;
+  after(async () => {
+    try {
+      const x = await lookupX(xHandle);
+      if (x) await supabaseAdmin().from("profiles").update({ x_followers: x.followers, x_synced_at: new Date().toISOString() }).eq("privy_did", did);
+    } catch (err) {
+      console.warn("x follower sync failed", err instanceof Error ? err.message : err);
+    }
+  });
+}
 
 /** The signed-in user's profile, created on first call from their Privy account (wallet + X handle). */
 export async function GET(req: Request) {
   const user = await getSessionUser(req);
   if (!user) return unauthorized();
   const db = supabaseAdmin();
-  const { data: existing } = await db.from("profiles").select(FIELDS).eq("privy_did", user.did).maybeSingle();
+  const { data: existing } = await db.from("profiles").select("*").eq("privy_did", user.did).maybeSingle();
   if (existing) {
     // Keep wallet and X link in sync with Privy (e.g. user linked X later).
     const patch: Record<string, unknown> = {};
     if (user.wallet && existing.wallet !== user.wallet) patch.wallet = user.wallet;
     if (user.xHandle && existing.x_handle !== user.xHandle) Object.assign(patch, { x_handle: user.xHandle, x_verified: true });
+    // The X profile picture follows X; the X name only fills a name the person hasn't set themselves.
+    if (user.xAvatar && existing.avatar_url !== user.xAvatar) patch.avatar_url = user.xAvatar;
+    if (user.xName && (!existing.display_name || existing.display_name === existing.x_handle)) patch.display_name = user.xName;
+    syncFollowers(user.did, user.xHandle, existing.x_synced_at);
     if (Object.keys(patch).length) {
-      const { data } = await db.from("profiles").update(patch).eq("privy_did", user.did).select(FIELDS).single();
-      return Response.json(data);
+      const { data } = await db.from("profiles").update(patch).eq("privy_did", user.did).select("*").single();
+      return Response.json(pick(data));
     }
-    return Response.json(existing);
+    return Response.json(pick(existing));
   }
   const handle = await freeHandle(user.xHandle?.toLowerCase() ?? null);
   const { data, error } = await db
@@ -31,14 +53,16 @@ export async function GET(req: Request) {
       privy_did: user.did,
       wallet: user.wallet,
       handle,
-      display_name: user.xHandle ?? null,
+      display_name: user.xName ?? user.xHandle ?? null,
+      avatar_url: user.xAvatar,
       x_handle: user.xHandle,
       x_verified: Boolean(user.xHandle),
     })
-    .select(FIELDS)
+    .select("*")
     .single();
   if (error) return Response.json({ error: "Couldn't create your profile." }, { status: 500 });
-  return Response.json(data);
+  syncFollowers(user.did, user.xHandle, null);
+  return Response.json(pick(data));
 }
 
 /** Update your own profile. Body: any of displayName, handle, bio, bannerColor, brandName, brandLogoUrl, brandWebsite. */
@@ -76,7 +100,7 @@ export async function PATCH(req: Request) {
     patch.handle = h;
   }
 
-  const { data, error } = await supabaseAdmin().from("profiles").update(patch).eq("privy_did", user.did).select(FIELDS).single();
+  const { data, error } = await supabaseAdmin().from("profiles").update(patch).eq("privy_did", user.did).select("*").single();
   if (error) {
     if (error.code === "23505") return bad("That handle is taken.");
     return Response.json({ error: "Couldn't save your profile." }, { status: 500 });
@@ -84,7 +108,7 @@ export async function PATCH(req: Request) {
   // Profile pages are cached; show the change right away.
   if (data.handle) revalidatePath(`/${data.handle}`);
   if (data.wallet) revalidatePath(`/${data.wallet}`);
-  return Response.json(data);
+  return Response.json(pick(data));
 }
 
 function bad(error: string) {

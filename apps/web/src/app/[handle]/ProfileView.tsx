@@ -25,6 +25,8 @@ export interface PublicProfile {
   displayName: string | null;
   xHandle: string | null;
   xVerified: boolean;
+  /** From the linked X account, refreshed daily. */
+  xFollowers: number | null;
   avatarUrl: string | null;
   bio: string | null;
   bannerColor: string;
@@ -110,6 +112,7 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
           <p className="text-[var(--muted)] text-[15px]">
             {p.handle ? `@${p.handle}` : named ? formatShortAddress(p.wallet) : "On Patched"}
             {p.xHandle && <> · <a className="hover:underline" href={`https://x.com/${p.xHandle}`} target="_blank" rel="noopener noreferrer">x.com/{p.xHandle}</a></>}
+            {p.xHandle && p.xFollowers !== null && <> · <b className="text-[var(--ink)]">{new Intl.NumberFormat("en-US", { notation: "compact" }).format(p.xFollowers)}</b> followers on X</>}
           </p>
         </div>
         {p.bio && <p className="mt-3 max-w-[60ch] text-[15px]">{p.bio}</p>}
