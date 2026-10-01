@@ -71,7 +71,14 @@ export default function RootLayout({
       <body className="antialiased selection:bg-[var(--accent)] selection:text-[var(--on-accent)] min-h-screen flex flex-col">
         {/* Shown by CSS only while a remembered sign-in waits for the app (no flash of the landing page). */}
         <div className="boot-loader" role="status" aria-live="polite">
-          <img src="/icon.svg" alt="" width={56} height={56} />
+          <svg viewBox="0 0 40 40" width={56} height={56} aria-hidden="true">
+            <g transform="rotate(-8 20 20)">
+              <rect x="6" y="6" width="31" height="31" rx="9" fill="#0B0B0C" />
+              <rect x="3.5" y="3.5" width="31" height="31" rx="9" fill="#FF5A1F" stroke="#0B0B0C" strokeWidth="2.4" />
+              <rect x="7.8" y="7.8" width="22.4" height="22.4" rx="5.5" fill="none" stroke="#FFFFFF" strokeWidth="1.6" strokeDasharray="3 2.4" />
+              <path d="M15.5 28V12.5h5.2a4.4 4.4 0 0 1 0 8.8h-5.2" fill="none" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </svg>
           <span>Loading your feed</span>
         </div>
         <ThemeProvider>

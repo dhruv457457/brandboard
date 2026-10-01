@@ -443,7 +443,7 @@ html[data-signed-in] body:has(.landing-only) .boot-loader {
   font-size: 14px;
   font-weight: 600;
 }
-.boot-loader img {
+.boot-loader svg {
   animation: boot-pulse 1.2s ease-in-out infinite;
 }
 @keyframes boot-pulse {
@@ -451,7 +451,7 @@ html[data-signed-in] body:has(.landing-only) .boot-loader {
   50% { transform: scale(0.9); opacity: 0.6; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .boot-loader img { animation: none; }
+  .boot-loader svg { animation: none; }
 }
 
 @keyframes story-fill {
