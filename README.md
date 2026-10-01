@@ -12,7 +12,7 @@ Creators sell ad space on things people look at: their outfit at an event, their
 
 ## Try it
 
-1. Open the site and press **Sign in**.
+1. Open [monad.patched.world](https://monad.patched.world) and press **Sign in**.
 2. Press **Try the demo account** at the top of the sign-in card. One tap signs you in to a shared Privy test account
    with its own embedded wallet: no email, no seed phrase, no extension. (It only appears on test money: testnet, or
    mainnet on TestUSD.)
