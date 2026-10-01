@@ -6,7 +6,7 @@ import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar, TabBar } from "./TabBar";
 import { RoleWelcome } from "./RoleWelcome";
-import { isListingPage } from "@/lib/routes";
+import { isHome, isListingPage } from "@/lib/routes";
 
 /**
  * The persistent frame around every page. Three looks:
@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <div className="flex-1">{children}</div>;
   }
 
-  if (pathname === "/" && !signedIn) {
+  if (isHome(pathname) && !signedIn) {
     return (
       <div className="landing-only flex-1 flex flex-col">
         <Navbar />

@@ -1,7 +1,7 @@
 /** Top-level routes: a handle with one of these names would be unreachable. */
 export const RESERVED_HANDLES = new Set([
   "admin", "api", "bids", "campaigns", "create", "dashboard", "e", "events", "explore", "listing", "share", "studio",
-  "settings", "about", "notifications", "welcome", "offers", "icon.svg",
+  "settings", "about", "notifications", "welcome", "offers", "index", "icon.svg",
 ]);
 
 export const HANDLE_RE = /^[a-z0-9][a-z0-9._-]{1,30}$/;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isHome } from "@/lib/routes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, CalendarDays, Home, LogIn, MoreHorizontal, Plus, Search, UserRound, type LucideIcon } from "lucide-react";
@@ -30,7 +31,7 @@ export function useNavItems(): NavItem[] {
   const me = profile?.handle ?? walletAddress?.toLowerCase();
   const profileHref = me ? `/${me}` : "/settings";
   return [
-    { href: "/", label: "Home", icon: Home, active: pathname === "/" },
+    { href: "/", label: "Home", icon: Home, active: isHome(pathname) },
     { href: "/events", label: "Events", icon: CalendarDays, active: pathname.startsWith("/events") || pathname.startsWith("/e/") },
     { href: "/explore", label: "Explore", icon: Search, active: pathname.startsWith("/explore") },
     { href: "/notifications", label: "Activity", icon: Bell, active: pathname.startsWith("/notifications"), badge: unread },

@@ -15,7 +15,14 @@ const subscribe = (cb: () => void) => {
   obs.observe(document.documentElement, { attributes: true, attributeFilter: [ATTR] });
   return () => obs.disconnect();
 };
-const read = () => document.documentElement.hasAttribute(ATTR);
+const read = () => {
+  if (document.documentElement.hasAttribute(ATTR)) return true;
+  try {
+    return localStorage.getItem(KEY) === "1";
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Privy can say "ready, signed out" for about a second while it restores a session after a reload. When this browser
