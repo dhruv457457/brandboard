@@ -50,6 +50,38 @@ export async function sendFromServerWallet(walletId: string, tx: { to: `0x${stri
   return { hash: hash || null, transactionId: res.transaction_id ?? null };
 }
 
+/**
+ * Privy's budget check for a campaign bid. Privy only evaluates aggregations when it signs, so we ask it to sign the
+ * exact bid (eth_signTransaction): the policy's budget rule adds it to the campaign's running total, or refuses with a
+ * policy violation if the total would pass the budget. The signature is thrown away; the bid itself is sent through
+ * Privy's sponsored sendTransaction afterwards. The gas fields don't matter for a signature nobody broadcasts.
+ */
+export async function budgetCheck(walletId: string, tx: { to: `0x${string}`; data: `0x${string}`; chainId: number }) {
+  await privyServer().wallets().ethereum().signTransaction(walletId, {
+    params: {
+      transaction: { to: tx.to, data: tx.data, chain_id: tx.chainId, type: 2, nonce: 0, gas_limit: "0x7a120", max_fee_per_gas: "0x1", max_priority_fee_per_gas: "0x1" },
+    },
+    authorization_context: authContext(),
+  });
+}
+
+/** Create a Privy aggregation (the SDK has the types but no method yet), owned by our authorization key. */
+export async function createAggregation(input: object): Promise<string> {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
+  const res = await fetch("https://api.privy.io/v1/aggregations", {
+    method: "POST",
+    headers: {
+      "privy-app-id": appId,
+      authorization: `Basic ${Buffer.from(`${appId}:${process.env.PRIVY_APP_SECRET}`).toString("base64")}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ ...input, owner: keyOwner() }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+  if (!res.ok || !json.id) throw new Error(`Privy aggregation: ${json.error ?? res.status}`);
+  return json.id;
+}
+
 /** Did Privy refuse this because of the wallet's policy (not a chain or network problem)? */
 export function isPolicyViolation(err: unknown) {
   const msg = err instanceof Error ? err.message : String(err);

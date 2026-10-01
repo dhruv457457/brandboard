@@ -1,11 +1,12 @@
 import { patchedMarketAbi } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
-import { StudioEditor, type StudioEvent } from "./StudioEditor";
+import { StudioEditor, type StudioEvent, type StudioOffer } from "./StudioEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudioPage() {
+export default async function StudioPage({ searchParams }: { searchParams: Promise<{ event?: string; offer?: string }> }) {
+  const params = await searchParams;
   const client = serverClient();
   const [minBond, newCreatorCap, events] = await Promise.all([
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minBond" }),
@@ -24,5 +25,16 @@ export default async function StudioPage() {
     startsAt: new Date(e.starts_at).getTime(),
     endsAt: new Date(e.ends_at).getTime(),
   }));
-  return <StudioEditor events={list} minBond={minBond.toString()} newCreatorCap={newCreatorCap.toString()} />;
+  // Coming from an offer ("Patch anyone on X"): open on its event and say what's waiting.
+  let offer: StudioOffer | null = null;
+  if (params.offer && /^[0-9a-f-]{36}$/i.test(params.offer)) {
+    const { data: o } = await supabase().from("brand_campaigns").select("id, brand, budget, event_id, status")
+      .eq("id", params.offer).eq("kind", "x_offer").maybeSingle();
+    if (o && (o.status === "active" || o.status === "funding")) {
+      const { data: b } = await supabase().from("profiles").select("brand_name, display_name").eq("wallet", o.brand).maybeSingle();
+      offer = { id: o.id, amount: Number(o.budget) / 1e6, brand: b?.brand_name ?? b?.display_name ?? "A brand", eventId: o.event_id };
+    }
+  }
+  const initialEventId = Number(params.event) || offer?.eventId || undefined;
+  return <StudioEditor events={list} minBond={minBond.toString()} newCreatorCap={newCreatorCap.toString()} initialEventId={initialEventId} offer={offer} />;
 }

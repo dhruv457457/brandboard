@@ -128,7 +128,15 @@ const draft = (side: Side, s: { name: string; x: number; y: number; w: number; h
   id: idSeq++, side, name: s.name, x: s.x, y: s.y, w: s.w, h: s.h, r: s.r ?? 0, floor: 10, buyNow: 50 + i * 10,
 });
 
-export function StudioEditor({ events, minBond, newCreatorCap }: { events: StudioEvent[]; minBond: string; newCreatorCap: string }) {
+/** An offer made to this creator on X ("Patch anyone on X"), when they came here from it. */
+export interface StudioOffer {
+  id: string;
+  amount: number;
+  brand: string;
+  eventId: number;
+}
+
+export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, offer }: { events: StudioEvent[]; minBond: string; newCreatorCap: string; initialEventId?: number; offer?: StudioOffer | null }) {
   const router = useRouter();
   const { authenticated, login, walletAddress } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
@@ -139,7 +147,7 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
   const [ideaText, setIdeaText] = useState("");
   const [deal, setDeal] = useState<DealDraft>(() => defaultDraft("outfit"));
   const [title, setTitle] = useState("");
-  const [eventId, setEventId] = useState<number>(events[0]?.id ?? 0);
+  const [eventId, setEventId] = useState<number>(() => (initialEventId && events.some((e) => e.id === initialEventId) ? initialEventId : events[0]?.id ?? 0));
   const [bidAmount, setBidAmount] = useState("3");
   const [bidUnit, setBidUnit] = useState<BidUnit>("day");
   // Demo timing: minute-long auctions and proofs a few minutes apart, so a whole listing can be shown in one sitting.
@@ -443,6 +451,12 @@ export function StudioEditor({ events, minBond, newCreatorCap }: { events: Studi
           <span className="eyebrow">Studio</span>
           <h1 className="font-extrabold text-4xl tracking-tight mt-1">Create a listing</h1>
         </div>
+        {offer && (
+          <p className="rounded-2xl bg-[var(--accent-soft)] p-3.5 text-sm" role="status">
+            <b>{offer.brand} offered you ${offer.amount.toLocaleString("en-US")}.</b> List at {events.find((e) => e.id === offer.eventId)?.name ?? "the event"} and
+            price one spot&apos;s buy-now at ${offer.amount.toLocaleString("en-US")} or less: the offer buys it as soon as your listing is approved.
+          </p>
+        )}
         <Stepper step={stepIdx} onPick={goTo} />
       </div>
 

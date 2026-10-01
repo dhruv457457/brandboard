@@ -51,6 +51,7 @@ Written by the **app** (server routes, RLS by wallet/user):
 | `posts` | `id`, `author`, `listing_id?`, `body`, `media`, `created_at` |
 | `notifications` | `user_id`, `kind`, `payload`, `read_at` |
 | `auto_bid_rules` | `brand_wallet`, `listing_id`, `patch_id`, `max_amount`, `active`, indexed from `PatchAutoBidder`'s `AutoBidSet` (outside wallets) |
+| `brand_campaigns` (offers) | `kind` = `x_offer` for "Patch anyone on X": `target_x_id`, `target_x_handle`, `target_x_name`, `target_x_avatar`, `target_wallet`, `target_privy_did`, `pregenerated`, `message`, `advance` (listing stake it may pay them), `advanced_at`, `claimed_at`. Plus `aggregation_id` on every campaign: its Privy spend total. |
 | `signer_auto_bids` | `chain_id`, `wallet`, `listing_id`, `patch_id`, `max_amount`, `active`: auto-bids through Privy signers (Patched wallets). The wallet's Privy policy is rebuilt from its active rows. Public read. |
 | `signer_delegations` | `wallet`, `privy_did`, `privy_wallet_id`, `policy_id`, `signer_added_at`, `revoked_at`: whether our key quorum is a signer on the wallet, and with which policy. Service role only. |
 | `brand_logos` | `wallet`, `listing_id`, `patch_id`, `logo_url` (logos shown on patches) |

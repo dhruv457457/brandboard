@@ -51,6 +51,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     endsAt: Math.floor(new Date(c.ends_at).getTime() / 1000),
     walletAddress: c.wallet_address,
     policyId: c.policy_id,
+    aggregationId: c.aggregation_id ?? null,
+    startsAt: Math.floor(new Date(c.created_at).getTime() / 1000),
     status: c.status,
   };
   return <CampaignView campaign={info} held={held} />;

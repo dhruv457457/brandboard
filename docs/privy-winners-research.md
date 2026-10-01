@@ -18,11 +18,11 @@ We studied 24 ETHGlobal projects that won a Privy prize. For each, we read the s
 | # | Feature | Operator step first (Privy dashboard / accounts) |
 |---|---|---|
 | 1 | Judge test login + "what's verified" tx per README row | Enable Test accounts |
-| 2 | "Patch anyone on X" (pregenerated wallet for an X handle, offer waits for them) | A way to turn a handle into a numeric X user id (X API access, or another source) |
+| 2 | **Built 2026-10-01.** "Patch anyone on X" (pregenerated wallet for an X handle, offer waits for them) | Handle -> id through the free FxTwitter API, or the X API when `X_BEARER_TOKEN` is set. Apply migration 0017. Proven by `scripts/privy-x-offer-check.mts`. |
 | 3 | Share-to-earn referrals (market upgrade) | None |
 | 4 | **Built 2026-09-30.** Auto-bid through signers (`addSigners` with a policy, one-tap revoke), `PatchAutoBidder` stays the fallback for outside wallets | Key quorum registered by API (`scripts/privy-signer-setup.mjs`), no dashboard step. Apply migration 0015. Proven by `scripts/privy-signer-check.mts`; the bid rules still need a run against a live listing. |
 | 5 | Linked X data on creator pages (reach, floor suggestion, new-creator gate) | Same X data source as #2 |
-| 6 | Campaign budget as a Privy aggregation | None |
+| 6 | **Built 2026-10-01.** Campaign budget as a Privy aggregation: each bid is simulated, then Privy's budget check signs it (or refuses past the budget), then it's sent with Privy's gas sponsorship | Apply migration 0016. Proven by `scripts/privy-campaign-budget-check.mts`. Found live: aggregations only apply to `eth_signTransaction` rules (not sponsored sends), count per wallet, include the current tx, have a 72 h max window, and lag a few seconds. |
 | 7 | Team hoodie vault on a 2-of-3 key quorum (`intents` + `useAuthorizationSignature`) | None |
 | 8 | Deposit from any chain (`useDepositAddress`), mainnet only if Monad is supported | Check Monad support |
 

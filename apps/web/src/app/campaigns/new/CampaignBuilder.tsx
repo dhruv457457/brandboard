@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { encodeFunctionData, erc20Abi } from "viem";
-import { Activity, CalendarClock, CircleDollarSign, Gavel, Loader2, Minus, Plus, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Activity, AtSign, CalendarClock, CircleDollarSign, Gavel, Loader2, Minus, Plus, ShieldCheck } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { toast } from "@/components/ui/Toast";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
 import { useStepUp } from "@/lib/market/stepUp";
-import { campaignRules, campaignRulesInWords } from "@/lib/market/campaignPolicy";
+import { campaignAggregation, campaignRules, campaignRulesInWords } from "@/lib/market/campaignPolicy";
 import { CHAIN_ID, MARKET, USDC, publicClient } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -80,15 +81,17 @@ export function CampaignBuilder({ events }: { events: BuilderEvent[] }) {
     return { n, open: event?.prices.length ?? 0 };
   }, [budget, cap, event]);
 
-  const words = campaignRulesInWords({ maxPerSpot: cap, budget, endsAt, eventName: event?.name ?? "" });
+  const words = campaignRulesInWords({ maxPerSpot: cap, budget, endsAt, eventName: event?.name ?? "", privyTotal: true, startsAt: Math.floor(Date.now() / 1000) });
   const policyJson = useMemo(() => {
     const rules = campaignRules({
       chainId: CHAIN_ID, market: MARKET, usdc: USDC, brand: walletAddress ?? "0xYourWallet",
       maxPerSpot: BigInt(cap) * 1_000_000n, endsAt,
+      aggregationId: "<created with the campaign>", budget: BigInt(budget) * 1_000_000n,
     });
+    const aggregation = campaignAggregation({ chainId: CHAIN_ID, market: MARKET, name: "Campaign spend", windowSeconds: endsAt - Date.now() / 1000 + 3600 });
     // The ABIs are long; show where they go, not what they are.
-    return JSON.stringify({ version: "1.0", chain_type: "ethereum", rules }, (k, v) => (k === "abi" ? "[contract ABI]" : v), 2);
-  }, [walletAddress, cap, endsAt]);
+    return JSON.stringify({ aggregation, policy: { version: "1.0", chain_type: "ethereum", rules } }, (k, v) => (k === "abi" ? "[contract ABI]" : typeof v === "bigint" ? v.toString() : v), 2);
+  }, [walletAddress, cap, endsAt, budget]);
 
   async function start() {
     if (!authenticated || !walletAddress) return login();
@@ -143,6 +146,9 @@ export function CampaignBuilder({ events }: { events: BuilderEvent[] }) {
         <span className="eyebrow">New campaign</span>
         <h1 className="text-4xl font-extrabold tracking-tight mt-1">Put your logo everywhere</h1>
         <p className="text-[var(--muted)] mt-1.5 text-[15px]">Say what you want once. A campaign wallet bids for you across the event, and Privy refuses anything outside your rules.</p>
+        <Link href="/offers/new" className="inline-flex items-center gap-1.5 mt-2 text-sm font-semibold underline decoration-[var(--accent)] decoration-2 underline-offset-4">
+          <AtSign size={14} /> Or offer a spot to one person on X, even if they&apos;re not on Patched
+        </Link>
       </div>
 
       <div className="rounded-3xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] p-6 sm:p-7 grid gap-5 shadow-[0_10px_30px_rgba(11,11,12,0.05)]">
