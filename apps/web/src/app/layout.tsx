@@ -38,6 +38,7 @@ export const metadata: Metadata = {
 import { ProfileProvider } from "@/lib/profile";
 import { PrivyAuthProvider } from "@/components/providers/PrivyAuthProvider";
 import { AppShell } from "@/components/navigation/AppShell";
+import { MotionProvider } from "@/components/providers/MotionProvider";
 import { SIGNED_IN_SCRIPT } from "@/lib/signedInScript";
 
 export default function RootLayout({
@@ -85,7 +86,9 @@ export default function RootLayout({
           <PrivyAuthProvider>
             <ProfileProvider>
               <SurfaceDefs />
-              <AppShell>{children}</AppShell>
+              <MotionProvider>
+                <AppShell>{children}</AppShell>
+              </MotionProvider>
               <Toaster />
             </ProfileProvider>
           </PrivyAuthProvider>
