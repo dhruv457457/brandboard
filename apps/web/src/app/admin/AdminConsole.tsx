@@ -19,6 +19,7 @@ import type { AdminReviewItem, ListingCard } from "@/lib/market/server";
 import { formatCountdown, formatShortAddress } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
+import { useAuthedFetch } from "@/lib/authedFetch";
 import { useIndexerSync } from "@/lib/market/useIndexerSync";
 import { DISPUTE_CATEGORIES } from "@/lib/market/dispute";
 import { EventDetailsForm } from "./EventDetailsForm";
@@ -40,12 +41,15 @@ export interface AdminEvent {
 }
 
 const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
+/** Hackathon demo: anyone signed in may use the console; their actions go through a policy-limited Privy wallet. */
+const OPEN_ADMIN = process.env.NEXT_PUBLIC_OPEN_ADMIN === "true";
 
 export function AdminConsole({ pending: wire, review, events }: { pending: Wire<ListingCard[]>; review: AdminReviewItem[]; events: AdminEvent[] }) {
   const pending = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
   const router = useRouter();
   const { walletAddress, authenticated, ready } = usePatchedAuth();
   const send = useTx();
+  const authedFetch = useAuthedFetch();
   useIndexerSync();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,12 +67,18 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
   async function run(key: string, label: string, data: `0x${string}`) {
     setBusy(key);
     try {
-      await send(MARKET, data);
+      if (isAdmin) {
+        await send(MARKET, data);
+      } else {
+        const res = await authedFetch("/api/admin/act", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data }) });
+        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't go through.");
+      }
       await fetch("/api/indexer/sync", { method: "POST" });
       toast(label);
       router.refresh();
     } catch (err) {
-      toast(friendlyError(err).replace("The bid didn't", "That didn't"));
+      const msg = err instanceof Error ? err.message : "";
+      toast(!isAdmin && msg ? msg : friendlyError(err).replace("The bid didn't", "That didn't"));
     } finally {
       setBusy(null);
     }
@@ -77,10 +87,10 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
   if (!ready) return <PageLoading />;
   if (!authenticated) {
     return (
-      <SignInPrompt icon={ShieldHalf} title="Admin console" text="Sign in with an admin wallet to review listings, proofs and events." />
+      <SignInPrompt icon={ShieldHalf} title="Admin console" text={OPEN_ADMIN ? "Sign in to review listings, proofs and events." : "Sign in with an admin wallet to review listings, proofs and events."} />
     );
   }
-  if (isAdmin === false) {
+  if (isAdmin === false && !OPEN_ADMIN) {
     return (
       <main className="wrap pt-10 pb-24"><Card className="p-8 text-center">
         <h1 className="text-3xl font-extrabold">Admins only</h1>
@@ -91,6 +101,13 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
 
   return (
     <main className="wrap pt-8 pb-24 grid gap-10">
+      {isAdmin === false && OPEN_ADMIN && (
+        <p className="rounded-2xl bg-[var(--accent-soft)] p-4 text-sm" role="status">
+          <b>Open admin for the hackathon demo.</b> Anyone signed in can approve listings, fast-track proofs, settle disputes and
+          manage events. Your actions are sent by a Patched Privy server wallet whose policy allows only these calls: it can&apos;t
+          pause the market, change fees or upgrade the contract.
+        </p>
+      )}
       <section>
         <span className="eyebrow">Admin console</span>
         <h1 className="font-extrabold text-4xl tracking-tight mt-1 mb-5">Waiting for approval</h1>
@@ -193,7 +210,7 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
         )}
       </section>
 
-      <TimingPanel />
+      {isAdmin && <TimingPanel />}
 
       <section>
         <h2 className="font-extrabold text-3xl tracking-tight mb-4">Events</h2>

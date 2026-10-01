@@ -19,7 +19,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const isAdmin = await serverClient()
     .readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "hasRole", args: [ADMIN_ROLE, user.wallet as `0x${string}`] })
     .catch(() => false);
-  if (!isAdmin) return Response.json({ error: "Only admins can edit events." }, { status: 403 });
+  // Open admin (hackathon demo) lets anyone signed in edit event pages too.
+  if (!isAdmin && process.env.OPEN_ADMIN !== "true") return Response.json({ error: "Only admins can edit events." }, { status: 403 });
 
   const id = Number((await params).id);
   const body = (await req.json()) as Record<string, string | null | undefined>;
