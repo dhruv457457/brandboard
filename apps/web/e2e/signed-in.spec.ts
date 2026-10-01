@@ -14,7 +14,7 @@ async function signIn(page: Page) {
   await page.getByLabel("Email").fill(EMAIL!);
   await page.getByRole("button", { name: "Send code" }).click();
   await page.getByPlaceholder("123456").fill(CODE!);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   // First time: the profile step. Later: straight back to where we were.
   const profile = page.getByRole("heading", { name: "Set up your profile" });
   const back = page.waitForURL(/\/explore/, { timeout: 30_000 }).then(() => "back" as const);

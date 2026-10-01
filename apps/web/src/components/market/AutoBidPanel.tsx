@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
@@ -25,6 +25,8 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
   const auto = useAutoBid();
   const [active, setActive] = useState<bigint | null>(null);
   const [text, setText] = useState("");
+  // Once the brand types, a load that lands late must not overwrite what they typed.
+  const typed = useRef(false);
   const [paused, setPaused] = useState<null | "balance" | "allowance">(null);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
     auto.current(listingId, patchId).then((v) => {
       if (!alive) return;
       setActive(v);
-      setText(String(Number(v > 0n ? v : suggested(minNext, buyNow)) / 1e6));
+      if (!typed.current) setText(String(Number(v > 0n ? v : suggested(minNext, buyNow)) / 1e6));
     }).catch(() => alive && setActive(0n));
     return () => {
       alive = false;
@@ -66,6 +68,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
     const ok = await auto.enable(listingId, patchId, max);
     if (ok) {
       setActive(max);
+      setText(String(Number(max) / 1e6));
       toast(`Auto-bid on for ${label}. You stay on top up to ${usd(max)}.`);
     }
   }
@@ -94,7 +97,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
         <span className="field-label">Up to</span>
         <div className="amt">
           <span>$</span>
-          <input inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} disabled={disabled || auto.busy} aria-label="Auto-bid maximum" />
+          <input inputMode="decimal" value={text} onChange={(e) => { typed.current = true; setText(e.target.value); }} disabled={disabled || auto.busy} aria-label="Auto-bid maximum" />
           <span>USDC</span>
         </div>
       </label>
