@@ -13,7 +13,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
   if (!user?.wallet) return unauthorized(user);
-  const { photoUrl, style, side, frontUrl } = (await req.json()) as {
+  const { photoUrl, style, side, frontUrl } = (await req.json().catch(() => ({}))) as {
     photoUrl?: string; style?: string; side?: "front" | "back"; frontUrl?: string;
   };
   const ours = (u?: string) => Boolean(u?.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!));
@@ -22,6 +22,10 @@ export async function POST(req: Request) {
   }
   if (side === "front" && !allow(`shots:${user.wallet}`, 3)) {
     return Response.json({ error: "You've generated 3 outfits today. Try again tomorrow." }, { status: 429 });
+  }
+  // Each front comes with its back; a few spare for retries, but not an open tap on the AI budget.
+  if (side === "back" && !allow(`shots-back:${user.wallet}`, 6)) {
+    return Response.json({ error: "You've generated a lot of back views today. Try again tomorrow." }, { status: 429 });
   }
   try {
     const { image } = await makeModelShot({ photo: photoUrl!, style, side, front: frontUrl });

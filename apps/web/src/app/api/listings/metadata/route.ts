@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
   let metadata: ListingMetadata;
   try {
-    const body = (await req.json()) as ListingMetadata;
+    const body = (await req.json().catch(() => ({}))) as ListingMetadata;
     if (!SURFACES.includes(body.surface)) throw new Error("surface");
     const title = String(body.title ?? "").trim().slice(0, 80);
     if (!title) throw new Error("title");

@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
   if (!user?.wallet) return unauthorized(user);
-  const body = (await req.json()) as { listingId?: number; milestone?: number; files?: string[]; note?: string; xUrl?: string };
+  const body = (await req.json().catch(() => ({}))) as { listingId?: number; milestone?: number; files?: string[]; note?: string; xUrl?: string };
   const listingId = Number(body.listingId);
   const milestone = Number(body.milestone);
   const supa = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,8 +23,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "Add at least one photo." }, { status: 400 });
   }
 
-  const listing = await serverClient().readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [BigInt(listingId)] });
+  const client = serverClient();
+  const listing = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [BigInt(listingId)] });
   if (listing.creator.toLowerCase() !== user.wallet) return Response.json({ error: "Only the creator can submit proof." }, { status: 403 });
+  // Once a proof is on-chain its files are fixed: brands review what was hashed, not a later replacement.
+  const m = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getMilestone", args: [BigInt(listingId), milestone] }).catch(() => null);
+  if (!m) return Response.json({ error: "No such milestone." }, { status: 404 });
+  if (m.status !== 0) return Response.json({ error: "Proof for this milestone is already in. It can't be changed." }, { status: 409 });
 
   const note = String(body.note ?? "").trim().slice(0, 500) || null;
   const xUrl = normalizeXUrl(body.xUrl);

@@ -14,7 +14,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
   if (!user?.wallet) return unauthorized(user);
-  const { photoUrl, view, description, referenceUrl } = (await req.json()) as {
+  const { photoUrl, view, description, referenceUrl } = (await req.json().catch(() => ({}))) as {
     photoUrl?: string; view?: string; description?: string; referenceUrl?: string;
   };
   const ours = (u?: string) => Boolean(u?.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!));

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!user?.wallet) return unauthorized(user);
   if (!allow(`campaign:${user.wallet}`, 5)) return Response.json({ error: "You've started 5 campaigns today. Try again tomorrow." }, { status: 429 });
 
-  const body = (await req.json()) as { eventId?: number; budget?: number; maxPerSpot?: number; goal?: string; endsAt?: number };
+  const body = (await req.json().catch(() => ({}))) as { eventId?: number; budget?: number; maxPerSpot?: number; goal?: string; endsAt?: number };
   const budget = Math.round(Number(body.budget));
   const maxPerSpot = Math.round(Number(body.maxPerSpot));
   const endsAt = Math.floor(Number(body.endsAt));

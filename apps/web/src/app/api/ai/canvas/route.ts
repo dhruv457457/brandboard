@@ -13,7 +13,7 @@ const SURFACES: Surface[] = ["outfit", "car", "hoodie"];
 export async function POST(req: Request) {
   const user = await getSessionUser(req);
   if (!user?.wallet) return unauthorized(user);
-  const { imageUrl, surface, idea } = (await req.json()) as { imageUrl?: string; surface?: Surface; idea?: string };
+  const { imageUrl, surface, idea } = (await req.json().catch(() => ({}))) as { imageUrl?: string; surface?: Surface; idea?: string };
   if (!imageUrl?.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL!) || !surface || !SURFACES.includes(surface)) {
     return Response.json({ error: "Upload a photo first." }, { status: 400 });
   }

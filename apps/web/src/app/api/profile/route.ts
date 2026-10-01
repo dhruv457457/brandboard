@@ -69,7 +69,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const user = await getSessionUser(req);
   if (!user) return unauthorized();
-  const body = (await req.json()) as Record<string, string | null | undefined>;
+  const body = (await req.json().catch(() => ({}))) as Record<string, string | null | undefined>;
   const patch: Record<string, unknown> = {};
   const text = (v: unknown, max: number) => (v == null ? null : String(v).trim().slice(0, max) || null);
 
@@ -100,6 +100,7 @@ export async function PATCH(req: Request) {
     patch.handle = h;
   }
 
+  if (Object.keys(patch).length === 0) return bad("Nothing to save.");
   const { data, error } = await supabaseAdmin().from("profiles").update(patch).eq("privy_did", user.did).select("*").single();
   if (error) {
     if (error.code === "23505") return bad("That handle is taken.");
