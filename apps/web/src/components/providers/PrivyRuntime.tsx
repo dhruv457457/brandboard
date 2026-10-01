@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { forgetSignedIn } from "@/lib/signedIn";
 import {
   PrivyProvider,
   useCreateWallet,
@@ -133,7 +134,11 @@ function Bridge({ onChange }: { onChange: (v: AuthContextValue) => void }) {
         if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Couldn't save your wallet choice.");
         await refreshUser();
       },
-      logout,
+      // Sign out switches to the signed-out view at once (no grace period for a session being restored).
+      logout: async () => {
+        forgetSignedIn();
+        await logout();
+      },
       getAccessToken,
       sendTransaction,
       signTypedData,

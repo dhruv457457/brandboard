@@ -426,6 +426,34 @@ html[data-signed-in] .landing-only {
   display: none;
 }
 
+/* While that hidden landing page is still the only content, show a calm loader instead of a blank screen. */
+.boot-loader {
+  display: none;
+}
+html[data-signed-in] body:has(.landing-only) .boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.boot-loader img {
+  animation: boot-pulse 1.2s ease-in-out infinite;
+}
+@keyframes boot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.9); opacity: 0.6; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loader img { animation: none; }
+}
+
 @keyframes story-fill {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }

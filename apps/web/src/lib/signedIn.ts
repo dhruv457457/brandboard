@@ -17,6 +17,22 @@ const subscribe = (cb: () => void) => {
 };
 const read = () => document.documentElement.hasAttribute(ATTR);
 
+/**
+ * Privy can say "ready, signed out" for about a second while it restores a session after a reload. When this browser
+ * remembers a sign-in, that answer has to hold this long before the landing page replaces the app.
+ */
+const SIGNED_OUT_GRACE_MS = 4000;
+
+/** Forget the sign-in in this browser right away (Sign out). */
+export function forgetSignedIn() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage blocked */
+  }
+  document.documentElement.removeAttribute(ATTR);
+}
+
 /** Whether to show the signed-in app: Privy's answer once it's ready, this browser's memory before that. */
 export function useSignedIn(): boolean {
   const { ready, authenticated } = usePatchedAuth();
@@ -24,14 +40,19 @@ export function useSignedIn(): boolean {
 
   useEffect(() => {
     if (!ready) return;
-    try {
-      if (authenticated) localStorage.setItem(KEY, "1");
-      else localStorage.removeItem(KEY);
-    } catch {
-      /* storage blocked */
+    if (authenticated) {
+      try {
+        localStorage.setItem(KEY, "1");
+      } catch {
+        /* storage blocked */
+      }
+      document.documentElement.setAttribute(ATTR, "");
+      return;
     }
-    document.documentElement.toggleAttribute(ATTR, authenticated);
+    // A remembered sign-in gets a moment for Privy to finish restoring it; a real sign-out clears it at once.
+    const t = setTimeout(forgetSignedIn, read() ? SIGNED_OUT_GRACE_MS : 0);
+    return () => clearTimeout(t);
   }, [ready, authenticated]);
 
-  return ready ? authenticated : hint;
+  return ready && authenticated ? true : hint;
 }

@@ -69,6 +69,11 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased selection:bg-[var(--accent)] selection:text-[var(--on-accent)] min-h-screen flex flex-col">
+        {/* Shown by CSS only while a remembered sign-in waits for the app (no flash of the landing page). */}
+        <div className="boot-loader" role="status" aria-live="polite">
+          <img src="/icon.svg" alt="" width={56} height={56} />
+          <span>Loading your feed</span>
+        </div>
         <ThemeProvider>
           <PrivyAuthProvider>
             <ProfileProvider>
