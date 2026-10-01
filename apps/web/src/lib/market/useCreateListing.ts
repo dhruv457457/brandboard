@@ -33,6 +33,7 @@ export function useCreateListing() {
   async function create(input: CreateListingInput): Promise<number | null> {
     if (!walletAddress) return null;
     setError(null);
+    let stage: CreateStep = "saving";
     try {
       setStep("saving");
       const res = await authedFetch("/api/listings/metadata", {
@@ -49,11 +50,11 @@ export function useCreateListing() {
       ]);
       if (balance < input.bond) throw new Error("insufficient USDC for the bond");
       if (allowance < input.bond) {
-        setStep("approving");
+        setStep((stage = "approving"));
         await send(USDC, encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [MARKET, input.bond] }));
       }
 
-      setStep("creating");
+      setStep((stage = "creating"));
       const params = {
         surface: input.surfaceIndex,
         eventId: input.eventId,
@@ -78,6 +79,8 @@ export function useCreateListing() {
       setStep("done");
       return created ? Number(created.args.listingId) : null;
     } catch (err) {
+      // The person sees one plain sentence; the console keeps the real cause (Privy, RPC or contract) for debugging.
+      console.error(`Publishing failed while ${stage === "approving" ? "approving the stake" : stage}:`, err);
       const msg = err instanceof Error && /Couldn't|invalid|Sign in/.test(err.message) ? err.message : friendlyError(err);
       setError(/bond/.test(String(err)) ? "You need enough USDC in your wallet to cover the bond." : msg.replace("The bid didn't", "It didn't"));
       setStep("error");
