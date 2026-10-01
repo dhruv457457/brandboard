@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * "Try the demo account" on the sign-in card: shown exactly when the site offers a demo account (a Privy test account,
+ * "Use the demo account" on the sign-in card: shown exactly when the site offers a demo account (a Privy test account,
  * play money only). Doesn't press it: signing in is covered by signed-in.spec.ts with the same account.
  */
 test("the demo account button shows when the site offers one", async ({ page, request }) => {
@@ -11,7 +11,7 @@ test("the demo account button shows when the site offers one", async ({ page, re
 
   await page.goto("/welcome");
   await expect(page.getByRole("heading", { name: "Welcome to Patched" })).toBeVisible({ timeout: 30_000 });
-  const button = page.getByRole("button", { name: "Try the demo account" });
+  const button = page.getByRole("button", { name: "Use the demo account" });
   if (offer.enabled) await expect(button).toBeVisible();
   else await expect(button).toHaveCount(0);
 });
