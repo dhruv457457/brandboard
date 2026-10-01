@@ -13,7 +13,7 @@ import { Pill } from "@/components/ui/Pill";
 import { toast } from "@/components/ui/Toast";
 import { ListingCardView } from "@/components/market/ListingCardView";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
-import { MARKET, publicClient } from "@/lib/config";
+import { MARKET, OPEN_ADMIN, publicClient } from "@/lib/config";
 import { fromWire, type Wire } from "@/lib/market/types";
 import type { AdminReviewItem, ListingCard } from "@/lib/market/server";
 import { formatCountdown, formatShortAddress } from "@/lib/format";
@@ -42,8 +42,6 @@ export interface AdminEvent {
 }
 
 const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
-/** Hackathon demo: anyone signed in may use the console; their actions go through a policy-limited Privy wallet. */
-const OPEN_ADMIN = process.env.NEXT_PUBLIC_OPEN_ADMIN === "true";
 const IDLE: EventProgress = { step: null, createdId: null, error: null };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

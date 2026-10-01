@@ -1,9 +1,10 @@
 import { keccak256, toBytes } from "viem";
 import { revalidatePath } from "next/cache";
 import { patchedMarketAbi } from "@patched/shared";
-import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
+import { CHAIN_ID, MARKET, PLAY_MONEY, serverClient } from "@/lib/config";
 import { slugProblem } from "@/lib/events";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -20,8 +21,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const isAdmin = await serverClient()
     .readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "hasRole", args: [ADMIN_ROLE, user.wallet as `0x${string}`] })
     .catch(() => false);
-  // Open admin (hackathon demo) lets anyone signed in edit event pages too.
-  if (!isAdmin && process.env.OPEN_ADMIN !== "true") return Response.json({ error: "Only admins can edit events." }, { status: 403 });
+  // Open admin (hackathon demo, play money only) lets anyone signed in edit event pages too, a few times a day.
+  if (!isAdmin && (process.env.OPEN_ADMIN !== "true" || !PLAY_MONEY)) return Response.json({ error: "Only admins can edit events." }, { status: 403 });
+  if (!isAdmin && !allow(`open-admin-events:${user.did}`, 100)) return Response.json({ error: "Too many event edits today." }, { status: 429 });
 
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id < 1) return Response.json({ error: "No such event." }, { status: 404 });

@@ -8,7 +8,7 @@ import { useBalances } from "@/lib/useBalances";
 import { useIsAdmin } from "@/lib/useIsAdmin";
 import { useProfile } from "@/lib/profile";
 import { useTheme } from "@/lib/theme";
-import { CHAIN, EXPLORER, GAS_SPONSORED } from "@/lib/config";
+import { CHAIN, EXPLORER, GAS_SPONSORED, OPEN_ADMIN } from "@/lib/config";
 import { formatShortAddress } from "@/lib/format";
 import { NetworkOptions } from "./NetworkSwitch";
 
@@ -65,7 +65,7 @@ export function WalletPanel({ onNavigate }: { onNavigate?: () => void }) {
         <Link href={`${me}?tab=campaigns`} onClick={go} className={ROW}><Megaphone size={17} /> Campaigns</Link>
         <Link href={`${me}?tab=earnings`} onClick={go} className={ROW}><LayoutDashboard size={17} /> Earnings</Link>
         <Link href="/settings" onClick={go} className={ROW}><Settings size={17} /> Settings</Link>
-        {isAdmin && <Link href="/admin" onClick={go} className={ROW}><ShieldHalf size={17} /> Admin</Link>}
+        {(isAdmin || OPEN_ADMIN) && <Link href="/admin" onClick={go} className={ROW}><ShieldHalf size={17} /> Admin</Link>}
         <button onClick={toggleTheme} className={ROW}>
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />} {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>

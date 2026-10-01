@@ -17,6 +17,13 @@ export const SWEEPER = deployment.sweeper ?? null;
 export const USDC = deployment.usdc;
 /** The dollar token is the TestUSD faucet token (mainnet test run), not real USDC. */
 export const TEST_TOKEN = deployment.testToken === true;
+/**
+ * No real money on this site: a test network, or mainnet running on the TestUSD token. Demo shortcuts (open admin,
+ * the demo account) only work while this is true, and switch off by themselves when a chain moves to real USDC.
+ */
+export const PLAY_MONEY = CHAIN.testnet === true || TEST_TOKEN;
+/** Open admin (hackathon demo): anyone signed in can use the admin console, through a policy-limited Privy wallet. */
+export const OPEN_ADMIN = process.env.NEXT_PUBLIC_OPEN_ADMIN === "true" && PLAY_MONEY;
 export { USDC_DECIMALS };
 
 /** Whether Privy pays gas for embedded wallets. Off: every wallet pays its own gas in MON. */
@@ -29,7 +36,7 @@ export const EXPLORER = CHAIN_ID === 143 ? "https://monadvision.com" : "https://
  * other one; set both URLs in production (the defaults are the two local dev servers).
  */
 export const NETWORK_SITES: Record<10143 | 143, { label: string; url: string }> = {
-  10143: { label: "Testnet", url: process.env.NEXT_PUBLIC_TESTNET_URL ?? "http://localhost:3100" },
+  10143: { label: "Testnet", url: process.env.NEXT_PUBLIC_TESTNET_URL ?? "http://localhost:3000" },
   143: { label: "Mainnet", url: process.env.NEXT_PUBLIC_MAINNET_URL ?? "http://localhost:3200" },
 };
 

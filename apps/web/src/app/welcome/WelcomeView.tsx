@@ -107,7 +107,7 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState<null | "x" | "send" | "code" | "wallet">(null);
+  const [busy, setBusy] = useState<null | "x" | "send" | "code" | "wallet" | "demo">(null);
   const [error, setError] = useState<string | null>(null);
   const [showWallets, setShowWallets] = useState(false);
   const [signingWith, setSigningWith] = useState<string | null>(null);
@@ -115,6 +115,20 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
   const [picked, setPicked] = useState<InjectedWallet | null>(null);
   const [signingKind, setSigningKind] = useState<"own" | "fresh" | null>(null);
   const wallets = useInjectedWallets();
+  // The shared demo account (a Privy test account), offered only where the site runs on play money.
+  const [demo, setDemo] = useState<{ email: string; code: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/demo-login")
+      .then((r) => r.json())
+      .then((j: { enabled?: boolean; email?: string; code?: string }) => {
+        if (live && j.enabled && j.email && j.code) setDemo({ email: j.email, code: j.code });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   async function signInWithWallet(w: InjectedWallet, kind: "own" | "fresh") {
     setBusy("wallet");
@@ -144,7 +158,7 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
     setSigningKind(null);
   }
 
-  async function run(kind: "x" | "send" | "code", fn: () => Promise<void>) {
+  async function run(kind: "x" | "send" | "code" | "demo", fn: () => Promise<void>) {
     setBusy(kind);
     setError(null);
     try {
@@ -152,7 +166,8 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
       if (kind === "send") setSent(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      setError(kind === "code" ? "That code didn't work. Check it, or send a new one." : /email/i.test(msg) ? "Check the email address." : "That didn't go through. Try again.");
+      setError(kind === "demo" ? "The demo account didn't sign in. Try again, or use X or email."
+        : kind === "code" ? "That code didn't work. Check it, or send a new one." : /email/i.test(msg) ? "Check the email address." : "That didn't go through. Try again.");
     } finally {
       if (kind !== "x") setBusy(null);
     }
@@ -167,6 +182,27 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
         <h2 className="text-2xl font-extrabold">Welcome to Patched</h2>
         <p className="text-sm text-[var(--muted)]">Sign in and your wallet is ready. No app, no seed phrase.</p>
       </div>
+
+      {demo && (
+        <div className="relative rounded-2xl bg-[var(--accent-soft)] p-3.5 grid gap-2.5">
+          <span className="absolute inset-1 rounded-[13px] border-[1.5px] border-dashed border-[var(--accent-text)]/45 pointer-events-none" aria-hidden="true" />
+          <div className="flex items-center gap-2.5">
+            <span className="size-9 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] border-2 border-[var(--line)] shadow-[2px_2px_0_var(--shadow)] grid place-items-center flex-none -rotate-6">
+              <Zap size={17} />
+            </span>
+            <span className="grid min-w-0">
+              <b className="text-[15px] leading-tight">Judging Patched? Skip sign‑up.</b>
+              <span className="text-xs text-[var(--muted)] leading-snug">A ready-made account with its own Privy wallet. Test money only.</span>
+            </span>
+          </div>
+          <button type="button" disabled={!!busy}
+            onClick={() => run("demo", async () => { await sendEmailCode(demo.email); await loginWithEmailCode(demo.code); })}
+            className="btn-base btn-primary h-12 w-full !rounded-xl text-[15px]">
+            {busy === "demo" ? <><Loader2 size={16} className="animate-spin" /> Signing in…</> : <>Try the demo account <ChevronRight size={16} /></>}
+          </button>
+        </div>
+      )}
+      {demo && <div className="flex items-center gap-3 text-xs text-[var(--muted)]"><span className="h-px flex-1 bg-[var(--soft)]" />or use your own<span className="h-px flex-1 bg-[var(--soft)]" /></div>}
 
       <button onClick={() => run("x", loginWithX)} disabled={!!busy}
         className="h-12 rounded-full bg-[var(--ink)] text-[var(--paper)] font-bold flex items-center justify-center gap-2.5 hover:opacity-90 disabled:opacity-60">

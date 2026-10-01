@@ -1,6 +1,6 @@
 import { decodeFunctionData, keccak256 } from "viem";
 import { patchedMarketAbi } from "@patched/shared";
-import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
+import { CHAIN_ID, MARKET, PLAY_MONEY, serverClient } from "@/lib/config";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { isPolicyViolation, sendFromServerWallet } from "@/lib/server/privy";
 import { allow } from "@/lib/server/rateLimit";
@@ -15,9 +15,11 @@ const OPEN_FNS = new Set(["approveListing", "rejectListing", "fastTrack", "resol
  * Open admin (hackathon demo, OPEN_ADMIN=true): a signed-in person who isn't an admin can still approve listings,
  * fast-track milestones, settle disputes and manage events. Body { data } is the market calldata; it is sent from the
  * open-admin Privy server wallet, whose policy refuses anything outside OPEN_FNS on our market.
+ * Only while the site runs on play money (PLAY_MONEY), and never on your own listing or your own dispute: a creator
+ * can't skip the review window on their own proof, and neither side can settle a dispute it is part of.
  */
 export async function POST(req: Request) {
-  if (process.env.OPEN_ADMIN !== "true" || !process.env.PRIVY_OPEN_ADMIN_WALLET_ID) {
+  if (process.env.OPEN_ADMIN !== "true" || !PLAY_MONEY || !process.env.PRIVY_OPEN_ADMIN_WALLET_ID) {
     return Response.json({ error: "The admin console is for admins only." }, { status: 403 });
   }
   const user = await getSessionUser(req);
@@ -25,13 +27,25 @@ export async function POST(req: Request) {
   if (!allow(`open-admin:${user.did}`, 100)) return Response.json({ error: "Too many admin actions today." }, { status: 429 });
 
   const { data } = (await req.json().catch(() => ({}))) as { data?: `0x${string}` };
-  let fn: string;
+  let call: ReturnType<typeof decodeFunctionData<typeof patchedMarketAbi>>;
   try {
-    fn = decodeFunctionData({ abi: patchedMarketAbi, data: data! }).functionName;
+    call = decodeFunctionData({ abi: patchedMarketAbi, data: data! });
   } catch {
     return Response.json({ error: "That isn't a market call." }, { status: 400 });
   }
+  const fn = call.functionName;
   if (!OPEN_FNS.has(fn)) return Response.json({ error: "That action is for the real admins only." }, { status: 403 });
+  if (call.functionName === "fastTrack" || call.functionName === "resolveDispute") {
+    const mine = new Set([...user.wallets, ...(user.wallet ? [user.wallet] : [])].map((w) => w.toLowerCase()));
+    const listingId = call.args[0];
+    const client = serverClient();
+    const listing = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [listingId] });
+    if (mine.has(listing.creator.toLowerCase())) return Response.json({ error: "That's your own listing. Another person has to review it." }, { status: 403 });
+    if (call.functionName === "resolveDispute") {
+      const patch = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatch", args: [listingId, call.args[2]] });
+      if (mine.has(patch.topBidder.toLowerCase())) return Response.json({ error: "You're part of this dispute. Another person has to settle it." }, { status: 403 });
+    }
+  }
 
   const admin = process.env.OPEN_ADMIN_ADDRESS as `0x${string}`;
   try {
