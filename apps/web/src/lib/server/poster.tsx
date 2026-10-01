@@ -1,4 +1,5 @@
 import "server-only";
+import { publicUrl } from "@/lib/handles";
 // Share posters drawn with next/og from live listing data: story, square, X card and a QR sticker sheet.
 // Used by /share/[id]/poster and by the listing's link preview (opengraph-image), so they always match.
 import QRCode from "qrcode";
@@ -242,7 +243,8 @@ export function Stickers({ qr, accent, title }: { qr: string; accent: (typeof AC
 
 /** Everything a poster needs besides the listing: fonts, the QR code and the cutout as PNG. */
 export async function posterAssets(listing: ListingView, origin: string) {
-  const url = `${origin}/${listing.creatorHandle ?? listing.creator}/${listing.id}`;
+  // The creator's own subdomain when there is one (dhruv.monad.patched.world/6), so the printed QR matches Copy link.
+  const url = publicUrl(`/${listing.creatorHandle ?? listing.creator}/${listing.id}`, origin);
   const [fonts, qr, image] = await Promise.all([
     posterFonts().catch(() => []),
     QRCode.toDataURL(url, { margin: 1, width: 520, color: { dark: INK, light: "#FFFFFF" } }),
