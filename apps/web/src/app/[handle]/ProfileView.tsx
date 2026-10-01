@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { publicUrl } from "@/lib/handles";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AtSign, BadgeCheck, Check, Gavel, Link2, Pencil, Plus, Settings2, Share2, Trophy } from "lucide-react";
@@ -98,7 +99,7 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
           <Avatar src={p.avatarUrl} name={named} wallet={p.wallet} size={112} className="relative z-10 !border-[3px] shadow-[3px_3px_0_var(--shadow)] ring-4 ring-[var(--paper)]" />
           <div className="flex gap-2 pb-1 flex-wrap justify-end">
             {isOwner && <Link href="/settings" className="btn-base btn-small"><Pencil size={13} /> Edit profile</Link>}
-            <button className="btn-base btn-small" onClick={() => navigator.clipboard.writeText(`${window.location.origin}${pageHref}`).then(() => toast("Profile link copied.")).catch(() => {})}>
+            <button className="btn-base btn-small" onClick={() => navigator.clipboard.writeText(publicUrl(pageHref)).then(() => toast("Profile link copied.")).catch(() => {})}>
               <Link2 size={13} /> Share
             </button>
           </div>

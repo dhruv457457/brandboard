@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { publicUrl } from "@/lib/handles";
 import { MonadLogo, PrivyLogo } from "@/components/brand/PartnerLogos";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -198,7 +199,7 @@ function PostHead({ card, time, mounted, verb }: { card: ListingCard; time: numb
 }
 
 function copyLink(href: string) {
-  navigator.clipboard.writeText(`${window.location.origin}${href}`).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {});
+  navigator.clipboard.writeText(publicUrl(href)).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {});
 }
 
 /** A new listing: the photo with its spots, the price to start, and Bid. */

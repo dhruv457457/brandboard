@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar as UserAvatar } from "@/components/ui/Avatar";
+import { publicUrl } from "@/lib/handles";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -407,7 +408,7 @@ function SpotlightTile({ card, stats, now }: { card: ListingCard; stats: FeedSta
   const accent = PAGE_ACCENTS[card.accent];
   const copyLink = (e: React.MouseEvent) => {
     e.preventDefault();
-    navigator.clipboard.writeText(`${window.location.origin}${card.href}`).then(() => toast("Link copied.")).catch(() => {});
+    navigator.clipboard.writeText(publicUrl(card.href)).then(() => toast("Link copied.")).catch(() => {});
   };
   return (
     <Link href={card.href} className="group card-surface !p-0 overflow-hidden grid sm:grid-cols-[1fr_1.05fr]">

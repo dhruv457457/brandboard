@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { publicUrl } from "@/lib/handles";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy } from "lucide-react";
 import NumberFlow from "@number-flow/react";
@@ -324,7 +325,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         <span className="ml-auto text-xs font-semibold text-[var(--muted)] hidden sm:inline-flex items-center gap-1.5">USDC on <MonadMark size={13} /> Monad</span>
         <button
           className="h-8 px-3 rounded-full border-[1.5px] border-[var(--soft)] bg-[var(--card)] text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--line)] ml-auto sm:ml-0"
-          onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {})}
+          onClick={() => navigator.clipboard.writeText(publicUrl(`/${listing.creatorHandle ?? listing.creator}/${listing.id}`)).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {})}
         >
           <Link2 size={13} /> Copy link
         </button>

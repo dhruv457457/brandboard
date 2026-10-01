@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { publicUrl } from "@/lib/handles";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Loader2, Printer, Share2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -57,7 +58,7 @@ export function ShareKit({ listing }: { listing: ShareListing }) {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
-  const url = origin ? `${origin}${listing.path}` : "";
+  const url = origin ? publicUrl(listing.path, origin) : "";
 
   // Wait for typing to pause before re-rendering the poster.
   useEffect(() => {
