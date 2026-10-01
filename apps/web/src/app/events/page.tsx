@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { CalendarDays, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { Chip } from "@/components/ui/Chip";
+import { EventCard } from "@/components/events/EventCard";
 import { CHAIN_ID } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 
@@ -20,9 +19,6 @@ interface EventRow {
   banner_url: string | null;
   description: string | null;
 }
-const PASTELS = ["var(--p3)", "var(--p2)", "var(--p1)", "var(--p4)", "var(--p5)"];
-
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 /** Every event creators can sell spots for, with how many listings each has. */
 export default async function EventsPage() {
@@ -45,24 +41,10 @@ export default async function EventsPage() {
   const card = (e: EventRow) => {
     const n = count(e.event_id);
     return (
-      <Link key={e.event_id} href={`/e/${e.slug ?? e.event_id}`} className="no-underline">
-        <Card className="!p-0 overflow-hidden grid h-full hover:bg-[var(--soft)]">
-          <span className="block h-[110px] border-b-2 border-[var(--line)]"
-            style={{ background: e.banner_url ? `center/cover url(${e.banner_url})` : PASTELS[e.event_id % PASTELS.length] }} />
-          <div className="p-5 grid gap-2 content-start">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-xl font-extrabold leading-tight">{e.name}</h3>
-            {n.live > 0 && <Chip variant="green">{n.live} live</Chip>}
-          </div>
-          <p className="text-sm text-[var(--muted)] flex flex-wrap gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-1"><CalendarDays size={14} /> {day(e.starts_at)}{e.ends_at.slice(0, 10) !== e.starts_at.slice(0, 10) ? ` – ${day(e.ends_at)}` : ""}</span>
-            {(e.venue || e.city) && <span className="inline-flex items-center gap-1"><MapPin size={14} /> {[e.venue, e.city].filter(Boolean).join(", ")}</span>}
-          </p>
-          {e.description && <p className="text-sm line-clamp-2">{e.description}</p>}
-          <p className="text-sm font-semibold mt-auto">{n.all === 0 ? "No listings yet. Be the first." : `${n.all} ${n.all === 1 ? "listing" : "listings"}`}</p>
-          </div>
-        </Card>
-      </Link>
+      <EventCard key={e.event_id} event={{
+        id: e.event_id, name: e.name, slug: e.slug, startsAt: e.starts_at, endsAt: e.ends_at, city: e.city, venue: e.venue,
+        banner: e.banner_url, description: e.description, live: n.live, listings: n.all,
+      }} />
     );
   };
 

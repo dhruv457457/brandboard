@@ -1,11 +1,11 @@
 "use client";
 
-import { ShieldHalf } from "lucide-react";
+import { ExternalLink, Pencil, Plus, ShieldHalf } from "lucide-react";
 import { SignInPrompt } from "@/components/ui/SignInPrompt";
 import PageLoading from "@/app/loading";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { encodeFunctionData, keccak256, stringToHex, toBytes } from "viem";
+import { encodeFunctionData, keccak256, parseEventLogs, stringToHex, toBytes } from "viem";
 import { patchedMarketAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -22,7 +22,8 @@ import { useTx } from "@/lib/market/useTx";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { useIndexerSync } from "@/lib/market/useIndexerSync";
 import { DISPUTE_CATEGORIES } from "@/lib/market/dispute";
-import { EventDetailsForm } from "./EventDetailsForm";
+import { EventCover } from "@/components/events/EventCover";
+import { EMPTY_EVENT, EventForm, type EventFormValues, type EventProgress } from "./EventForm";
 import { TimingPanel } from "./TimingPanel";
 
 export interface AdminEvent {
@@ -43,6 +44,8 @@ export interface AdminEvent {
 const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
 /** Hackathon demo: anyone signed in may use the console; their actions go through a policy-limited Privy wallet. */
 const OPEN_ADMIN = process.env.NEXT_PUBLIC_OPEN_ADMIN === "true";
+const IDLE: EventProgress = { step: null, createdId: null, error: null };
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function AdminConsole({ pending: wire, review, events }: { pending: Wire<ListingCard[]>; review: AdminReviewItem[]; events: AdminEvent[] }) {
   const pending = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
@@ -53,8 +56,9 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
   useIndexerSync();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [eventForm, setEventForm] = useState({ name: "", start: "", end: "" });
-  const [editingEvent, setEditingEvent] = useState<number | null>(null);
+  const [panel, setPanel] = useState<null | { mode: "create" } | { mode: "edit"; id: number }>(null);
+  const [progress, setProgress] = useState<EventProgress>(IDLE);
+  const eventsTop = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!walletAddress) return setIsAdmin(null);
@@ -64,15 +68,19 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
       .catch(() => setIsAdmin(false));
   }, [walletAddress]);
 
+  /** Send a market call as the admin wallet, or through the open-admin server wallet, and wait until it is mined. */
+  async function exec(data: `0x${string}`) {
+    if (isAdmin) return send(MARKET, data);
+    const res = await authedFetch("/api/admin/act", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data }) });
+    const json = (await res.json().catch(() => ({}))) as { hash?: `0x${string}`; error?: string };
+    if (!res.ok) throw new Error(json.error ?? "That didn't go through.");
+    return json.hash ? publicClient.waitForTransactionReceipt({ hash: json.hash }) : null;
+  }
+
   async function run(key: string, label: string, data: `0x${string}`) {
     setBusy(key);
     try {
-      if (isAdmin) {
-        await send(MARKET, data);
-      } else {
-        const res = await authedFetch("/api/admin/act", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data }) });
-        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't go through.");
-      }
+      await exec(data);
       await fetch("/api/indexer/sync", { method: "POST" });
       toast(label);
       router.refresh();
@@ -82,6 +90,63 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
     } finally {
       setBusy(null);
     }
+  }
+
+  /** The event page's details. The row exists once the indexer has seen the new event, so a 404 means "not yet". */
+  async function saveDetails(id: number, v: EventFormValues) {
+    const body = JSON.stringify({ slug: v.slug, city: v.city, venue: v.venue, description: v.description, bannerUrl: v.bannerUrl, website: v.website, x: v.x });
+    for (let attempt = 0; ; attempt++) {
+      const res = await authedFetch(`/api/events/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body });
+      if (res.ok) return;
+      if (res.status === 404 && attempt < 7) {
+        await fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
+        await sleep(1500);
+        continue;
+      }
+      throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Couldn't save the page.");
+    }
+  }
+
+  /** Create (on-chain, then the page) or edit (the page only). If the page fails after the event exists, the form stays open to retry it. */
+  async function submitEvent(v: EventFormValues) {
+    const editing = panel?.mode === "edit";
+    let id: number | null = panel?.mode === "edit" ? panel.id : progress.createdId;
+    try {
+      if (id === null) {
+        setProgress({ step: "chain", createdId: null, error: null });
+        const expected = Number(await publicClient.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "nextEventId" }));
+        const start = Math.floor(Date.parse(v.start) / 1000);
+        const end = Math.floor(Date.parse(v.end) / 1000) + 86_399;
+        const receipt = await exec(encodeFunctionData({
+          abi: patchedMarketAbi, functionName: "createEvent", args: [stringToHex(v.name.trim(), { size: 32 }), start, end],
+        }));
+        const made = receipt ? parseEventLogs({ abi: patchedMarketAbi, logs: receipt.logs, eventName: "EventCreated" })[0]?.args.eventId : undefined;
+        id = made !== undefined ? Number(made) : expected;
+      }
+      setProgress({ step: "save", createdId: editing ? null : id, error: null });
+      await saveDetails(id, v);
+      closePanel();
+      toast(editing ? `${v.name} saved.` : `${v.name.trim()} is live.`);
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const why = id === null ? (!isAdmin && msg ? msg : friendlyError(err).replace("The bid didn't", "That didn't")) : msg || "Couldn't save the page.";
+      setProgress({
+        step: null, createdId: editing ? null : id,
+        error: id !== null && !editing ? `${v.name.trim()} is on Monad as event #${id}, but its page didn't save: ${why} Your details are kept. Try again.` : why,
+      });
+    }
+  }
+
+  function openPanel(next: NonNullable<typeof panel>) {
+    setProgress(IDLE);
+    setPanel(next);
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => eventsTop.current?.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" }));
+  }
+  function closePanel() {
+    setPanel(null);
+    setProgress(IDLE);
   }
 
   if (!ready) return <PageLoading />;
@@ -212,61 +277,62 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
 
       {isAdmin && <TimingPanel />}
 
-      <section>
-        <h2 className="font-extrabold text-3xl tracking-tight mb-4">Events</h2>
-        <Card className="p-4 grid gap-3 sm:grid-cols-[1.4fr_1fr_1fr_auto] items-end mb-4">
-          <label className="grid gap-1"><span className="field-label">Name (max 31 characters)</span>
-            <input className="border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]" maxLength={31} value={eventForm.name}
-              placeholder="Devcon 8" onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })} /></label>
-          <label className="grid gap-1"><span className="field-label">Starts</span>
-            <input type="date" className="border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]" value={eventForm.start}
-              onChange={(e) => setEventForm({ ...eventForm, start: e.target.value })} /></label>
-          <label className="grid gap-1"><span className="field-label">Ends</span>
-            <input type="date" className="border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]" value={eventForm.end}
-              onChange={(e) => setEventForm({ ...eventForm, end: e.target.value })} /></label>
-          <Button variant="primary" disabled={!!busy || !eventForm.name || !eventForm.start || !eventForm.end}
-            onClick={() => {
-              const s = Math.floor(new Date(eventForm.start).getTime() / 1000);
-              const e = Math.floor(new Date(eventForm.end).getTime() / 1000) + 86_399;
-              if (e <= s) return toast("The end date has to be after the start date.");
-              run("event", `${eventForm.name} created.`, encodeFunctionData({
-                abi: patchedMarketAbi, functionName: "createEvent", args: [stringToHex(eventForm.name, { size: 32 }), s, e],
-              })).then(() => setEventForm({ name: "", start: "", end: "" }));
-            }}>
-            {busy === "event" ? "Creating…" : "Create event"}
-          </Button>
-        </Card>
+      <section ref={eventsTop} className="scroll-mt-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h2 className="font-extrabold text-3xl tracking-tight">Events</h2>
+          {!panel && <Button variant="primary" onClick={() => openPanel({ mode: "create" })}><Plus size={16} /> New event</Button>}
+        </div>
+        {panel && (
+          <Card className="p-5 sm:p-6 mb-6">
+            <h3 className="text-2xl font-extrabold mb-5">{panel.mode === "create" ? "New event" : `Edit ${events.find((e) => e.id === panel.id)?.name ?? "event"}`}</h3>
+            <EventForm
+              key={panel.mode === "create" ? "new" : panel.id}
+              mode={panel.mode}
+              previewId={panel.mode === "edit" ? panel.id : Math.max(0, ...events.map((e) => e.id)) + 1}
+              initial={panel.mode === "edit" ? toValues(events.find((e) => e.id === panel.id)) : EMPTY_EVENT}
+              progress={progress}
+              onSubmit={submitEvent}
+              onCancel={closePanel}
+            />
+          </Card>
+        )}
         <Card className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[520px]">
+          <table className="w-full text-sm min-w-[620px]">
             <thead><tr className="text-left font-mono text-[11px] uppercase tracking-wider text-[var(--muted)]">
-              <th className="p-3 border-b-2 border-[var(--line)]">#</th><th className="p-3 border-b-2 border-[var(--line)]">Event</th>
-              <th className="p-3 border-b-2 border-[var(--line)]">Dates</th><th className="p-3 border-b-2 border-[var(--line)]">Status</th>
-              <th className="p-3 border-b-2 border-[var(--line)]">Page</th>
+              <th className="p-3 border-b-2 border-[var(--line)]">Cover</th><th className="p-3 border-b-2 border-[var(--line)]">#</th>
+              <th className="p-3 border-b-2 border-[var(--line)]">Event</th><th className="p-3 border-b-2 border-[var(--line)]">Dates</th>
+              <th className="p-3 border-b-2 border-[var(--line)]">Status</th><th className="p-3 border-b-2 border-[var(--line)]">Page</th>
             </tr></thead>
             <tbody>
               {events.map((e) => (
-                <Fragment key={e.id}>
-                  <tr className="border-b border-[var(--soft)]">
-                    <td className="p-3 font-mono">{e.id}</td>
-                    <td className="p-3 font-semibold">{e.name}</td>
-                    <td className="p-3 font-mono text-xs">{e.startsAt.slice(0, 10)} → {e.endsAt.slice(0, 10)}</td>
-                    <td className="p-3">{e.active ? <Pill variant="top">Accepting listings</Pill> : <Pill variant="wait">Closed</Pill>}</td>
-                    <td className="p-3">
-                      <Button size="small" variant="ghost" onClick={() => setEditingEvent(editingEvent === e.id ? null : e.id)}>
-                        {editingEvent === e.id ? "Close" : e.bannerUrl || e.description ? "Edit page" : "Add cover and details"}
-                      </Button>
-                    </td>
-                  </tr>
-                  {editingEvent === e.id && (
-                    <tr><td colSpan={5} className="p-3"><EventDetailsForm event={e} onSaved={() => { setEditingEvent(null); router.refresh(); }} /></td></tr>
-                  )}
-                </Fragment>
+                <tr key={e.id} className="border-b border-[var(--soft)]">
+                  <td className="p-3"><EventCover name={e.name} banner={e.bannerUrl} seed={e.id} variant="thumb" /></td>
+                  <td className="p-3 font-mono">{e.id}</td>
+                  <td className="p-3 font-semibold">{e.name}</td>
+                  <td className="p-3 font-mono text-xs">{e.startsAt.slice(0, 10)} → {e.endsAt.slice(0, 10)}</td>
+                  <td className="p-3">{e.active ? <Pill variant="top">Accepting listings</Pill> : <Pill variant="wait">Closed</Pill>}</td>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <Button size="small" variant="ghost" onClick={() => openPanel({ mode: "edit", id: e.id })}><Pencil size={13} /> {e.bannerUrl || e.description ? "Edit" : "Add cover"}</Button>
+                      <a href={`/e/${e.slug ?? e.id}`} target="_blank" rel="noopener noreferrer" className="btn-base btn-small btn-ghost" aria-label={`Open ${e.name}`}><ExternalLink size={13} /> View</a>
+                    </div>
+                  </td>
+                </tr>
               ))}
-              {events.length === 0 && <tr><td className="p-3 muted" colSpan={5}>No events yet.</td></tr>}
+              {events.length === 0 && <tr><td className="p-3 muted" colSpan={6}>No events yet.</td></tr>}
             </tbody>
           </table>
         </Card>
       </section>
     </main>
   );
+}
+
+/** An existing event as form values; the dates are the on-chain days (UTC). */
+function toValues(e: AdminEvent | undefined): EventFormValues {
+  if (!e) return EMPTY_EVENT;
+  return {
+    name: e.name, slug: e.slug ?? "", start: e.startsAt.slice(0, 10), end: e.endsAt.slice(0, 10), city: e.city ?? "", venue: e.venue ?? "",
+    description: e.description ?? "", website: e.website ?? "", x: e.x ?? "", bannerUrl: e.bannerUrl ?? "",
+  };
 }

@@ -13,7 +13,8 @@ export function isHome(path: string) {
 }
 
 export function isListingPage(path: string) {
-  return (/^\/[^/]+\/\d+\/?$/.test(path) && !/^\/(studio|share)\//.test(path)) || /^\/\d+\/?$/.test(path);
+  // /e/<number> is an event page (an event with no slug yet), not creator "e"'s listing: it keeps the app frame.
+  return (/^\/[^/]+\/\d+\/?$/.test(path) && !/^\/(studio|share|e)\//.test(path)) || /^\/\d+\/?$/.test(path);
 }
 
 /**

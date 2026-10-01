@@ -2,6 +2,7 @@ import { keccak256, toBytes } from "viem";
 import { revalidatePath } from "next/cache";
 import { patchedMarketAbi } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
+import { slugProblem } from "@/lib/events";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -23,7 +24,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!isAdmin && process.env.OPEN_ADMIN !== "true") return Response.json({ error: "Only admins can edit events." }, { status: 403 });
 
   const id = Number((await params).id);
-  const body = (await req.json()) as Record<string, string | null | undefined>;
+  if (!Number.isInteger(id) || id < 1) return Response.json({ error: "No such event." }, { status: 404 });
+  const body = (await req.json().catch(() => null)) as Record<string, string | null | undefined> | null;
+  if (!body || typeof body !== "object") return Response.json({ error: "Send the event details as JSON." }, { status: 400 });
   const text = (v: unknown, max: number) => (v == null ? null : String(v).trim().slice(0, max) || null);
   const url = (v: unknown) => {
     const u = text(v, 200);
@@ -35,7 +38,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     if ("slug" in body) {
       const slug = text(body.slug, 48)?.toLowerCase() ?? null;
-      if (slug && !/^[a-z0-9][a-z0-9-]{1,47}$/.test(slug)) throw new Error("A slug is letters, numbers and dashes.");
+      const problem = slug ? slugProblem(slug) : null;
+      if (problem) throw new Error(problem);
       patch.slug = slug;
     }
     if ("city" in body) patch.city = text(body.city, 60);

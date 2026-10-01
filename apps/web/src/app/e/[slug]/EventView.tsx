@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ExternalLink, Flame, Globe, MapPin, Megaphone, Plus, Swords, Trophy, Users, Zap } from "lucide-react";
+import { ExternalLink, Flame, Globe, Megaphone, Plus, Swords, Trophy, Users, Zap } from "lucide-react";
+import { EventHeader } from "@/components/events/EventHeader";
 import { ListingCardView } from "@/components/market/ListingCardView";
 import { Avatar } from "@/components/ui/Avatar";
 import { formatTimeAgo, formatUsdc } from "@/lib/format";
@@ -45,7 +46,6 @@ export interface EventBid {
 
 const SURFACE_WORD = { outfit: "outfit", car: "vehicle", hoodie: "team" } as const;
 const X_PATH = "M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8zM16.7 19.2h1.7L7.3 4.7H5.5z";
-const fmt = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 /**
  * The event page, the centre of V2: the cover and links, who's going (creators, vehicles and teams with spots),
@@ -65,36 +65,26 @@ export function EventView({ event, cards: wire, leaderboards, wall }: { event: E
   const past = event.endsAt < now;
   const days = Math.ceil((event.startsAt - now) / 86_400_000);
   const badge = past ? "Ended" : live ? "Happening now" : days <= 1 ? "Starts tomorrow" : `In ${days} days`;
-  const sameDay = fmt(event.startsAt) === fmt(event.endsAt);
 
   return (
     <div className="pb-24">
-      {/* Cover */}
-      <div className="relative h-[190px] sm:h-[240px] border-b-[1.5px] border-[var(--soft)] overflow-hidden"
-        style={{ background: event.banner ? `center/cover url(${event.banner})` : "linear-gradient(135deg, var(--p3), var(--p5) 55%, var(--p2))" }}>
-        {!event.banner && <span className="absolute right-5 -bottom-6 font-display font-extrabold text-[120px] leading-none tracking-[-.06em] text-black/10 select-none" aria-hidden="true">{event.name}</span>}
-        <span className={cn("absolute left-4 sm:left-6 bottom-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold",
-          live ? "bg-[var(--accent)] text-[var(--on-accent)] border-2 border-[#0B0B0C]" : "bg-[#0B0B0C]/80 text-[#FAFAF7]")}>
-          {live && <span className="dot live" />}{mounted ? badge : "Event"}
-        </span>
-      </div>
+      <EventHeader
+        id={event.id} name={event.name} banner={event.banner} startsAt={event.startsAt} endsAt={event.endsAt} city={event.city} venue={event.venue}
+        badge={
+          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold",
+            live ? "bg-[var(--accent)] text-[var(--on-accent)] border-2 border-[#0B0B0C]" : "bg-[#0B0B0C]/80 text-[#FAFAF7]")}>
+            {live && <span className="dot live" />}{mounted ? badge : "Event"}
+          </span>
+        }
+        actions={<>
+          {event.website && <a href={event.website} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><Globe size={14} /> Website <ExternalLink size={12} /></a>}
+          {event.x && <a href={event.x} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg> On X</a>}
+          {event.active && !past && <Link href={`/campaigns/new?event=${event.id}`} className="btn-base btn-small"><Megaphone size={14} /> Sponsor everyone here</Link>}
+          {event.active && !past && <Link href="/studio" className="btn-base btn-small btn-primary"><Plus size={14} /> Get patched here</Link>}
+        </>}
+      />
 
       <div className="px-4 sm:px-6 pt-5 grid gap-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="grid gap-2 min-w-0">
-            <h1 className="font-extrabold text-4xl sm:text-5xl tracking-tight">{event.name}</h1>
-            <p className="flex flex-wrap gap-x-4 gap-y-1 text-[15px] text-[var(--muted)]">
-              <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} /> {sameDay ? fmt(event.startsAt) : `${fmt(event.startsAt)} – ${fmt(event.endsAt)}`}</span>
-              {(event.venue || event.city) && <span className="inline-flex items-center gap-1.5"><MapPin size={15} /> {[event.venue, event.city].filter(Boolean).join(", ")}</span>}
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {event.website && <a href={event.website} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><Globe size={14} /> Website <ExternalLink size={12} /></a>}
-            {event.x && <a href={event.x} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg> On X</a>}
-            {event.active && !past && <Link href={`/campaigns/new?event=${event.id}`} className="btn-base btn-small"><Megaphone size={14} /> Sponsor everyone here</Link>}
-            {event.active && !past && <Link href="/studio" className="btn-base btn-small btn-primary"><Plus size={14} /> Get patched here</Link>}
-          </div>
-        </div>
         {event.description && <p className="max-w-[70ch] text-[15px] leading-relaxed">{event.description}</p>}
         <p className="text-xs text-[var(--muted)]">Run by its organisers. Patched lists who&apos;s going and their spots; it doesn&apos;t sell tickets.</p>
 
