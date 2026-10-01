@@ -8,7 +8,8 @@ section assumes the ones before it. Status as of 2026-10-01.
 1. **Privy allowed domains.** Privy dashboard → Configuration → App settings → Domains. Every site you test on must be
    listed (`https://patched.world`, `https://monad.patched.world`, `http://localhost:3000`, your `*.vercel.app` URL).
    If sign-in shows "That didn't go through" and the console shows a 403 from `auth.privy.io/api/v1/oauth/init`, the
-   domain is missing.
+   domain is missing. `pnpm web:dev` and the UI tests use port 3000; a dev server on any other port (3100, say) needs
+   that port added too, or every page logs a Privy frame error and the page tests fail.
 2. **Database.** `pnpm db:migrate` (applies everything up to `0018`).
 3. **Env** (local `.env.local` and Vercel): everything in `.env.example`, including `PRIVY_SIGNER_QUORUM_ID` and
    `NEXT_PUBLIC_PRIVY_SIGNER_ID`. Redeploy after changing any `NEXT_PUBLIC_` value.
@@ -22,6 +23,7 @@ section assumes the ones before it. Status as of 2026-10-01.
 
 | Try | Expect |
 |---|---|
+| Try the demo account (top of the sign-in card) | One tap signs in to the shared Privy test account. Only shown on play money (testnet, or mainnet on TestUSD) and when `DEMO_LOGIN_EMAIL`/`DEMO_LOGIN_CODE` (or the `E2E_TEST_*` pair) are set. |
 | Continue with X | You land back signed in; a Patched wallet exists (Settings → Security shows it). |
 | Open your profile `/<handle>` | Your X name and profile picture, `x.com/<you>`, and your follower count (filled within a minute of first sign-in, refreshed daily). |
 | Sign in with email in another window | A second wallet, made without any popup. |

@@ -10,6 +10,21 @@ Creators sell ad space on things people look at: their outfit at an event, their
 - Data model: [docs/data-model.md](docs/data-model.md)
 - Agent guide: [AGENTS.md](AGENTS.md)
 
+## Try it
+
+1. Open the site and press **Sign in**.
+2. Press **Try the demo account** at the top of the sign-in card. One tap signs you in to a shared Privy test account
+   with its own embedded wallet: no email, no seed phrase, no extension. (It only appears on test money: testnet, or
+   mainnet on TestUSD.)
+3. Open an event, tap a spot and bid. There is no wallet pop-up and no gas prompt: Privy signs the permit and
+   sponsors the gas. Big bids (over `NEXT_PUBLIC_STEP_UP_USD`, $1,000 by default) ask for a passkey first.
+4. On a spot, turn on **Auto-bid**: Privy adds Patched as a signer limited by a policy, and Settings → Security has a
+   one-tap Revoke.
+5. **Admin** (wallet menu → Admin) lets anyone approve listings and create events during judging, through a
+   policy-limited Privy server wallet. Nobody can review their own listing or settle their own dispute.
+
+Test USDC on testnet: Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+
 ## Surfaces
 
 | Surface | What | Proof |

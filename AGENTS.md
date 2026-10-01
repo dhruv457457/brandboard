@@ -26,7 +26,7 @@ Full product spec: [docs/SPEC.md](docs/SPEC.md). Contract API: [docs/contracts.m
 
 - **Monad hackathon (Metropolis)** — deadline **Oct 14 2026, 09:29 IST**. Track: *Social, Attention & Culture*. Judging: technical execution 20%, design & craft 20%, originality 15%, founder/market readiness 25%, traction 20%.
 - Sponsor bounties we are targeting (each must be visibly used in the demo):
-  - **Privy (main target)** — must be used *beyond login*: embedded wallets, gas sponsorship, one-signature permit bids, server wallets + policies (the keeper and auto-bid through `PatchAutoBidder`), plus sweep, passkey step-up, verified brands and wallet export (planned). Session signers are not enabled on our Privy app, so auto-bid does not use them.
+  - **Privy (main target)** — must be used *beyond login*: embedded wallets, gas sponsorship, one-signature permit bids, server wallets + policies (the keeper, campaign wallets with a budget aggregation, open admin), session signers for auto-bid from a brand's own Patched wallet (`PatchAutoBidder` for outside wallets), pregenerated wallets ("Patch anyone on X"), sweep, passkey step-up, verified brands, wallet export, and a test account behind the "Try the demo account" button. All of these are built; the README's "How Patched uses Privy" table links each to its code.
 - Not used: Aurora Intents, Hunyuan, Kimi, Envio, Chainlink CRE, Dynamic, Mera wallets.
 - Later: a mirrored repo for **Arc (Circle) Microgrants** on Arc mainnet. Keep chain-specific values in config, never hard-coded.
 
@@ -38,7 +38,7 @@ brandboard/
 ├─ docs/                ← specs; any agent may propose edits, keep them in sync with code
 ├─ contracts/           ← Foundry. OWNER: Claude
 ├─ packages/shared/     ← ABIs, TS types, chain config, addresses. OWNER: Claude
-├─ packages/ai/         ← OpenRouter client + prompts (canvas, layout, moderation, disputes, copy). OWNER: Claude
+├─ packages/ai/         ← OpenRouter client + prompts (canvas, spot layout, outfit shots, car views, style ideas). OWNER: Claude
 ├─ apps/web/            ← Next.js app. OWNER: Claude (since 2026-09-23; Antigravity only on explicitly assigned tasks)
 └─ supabase/            ← migrations. OWNER: Claude
 ```
@@ -46,7 +46,8 @@ brandboard/
 Rules:
 - **Stay in your folder.** If you need a change in someone else's folder, write it down in `docs/requests.md` (who, what, why) instead of editing it.
 - `packages/shared` is the only bridge between contracts and the web app. The web app imports ABIs, types and addresses from `@patched/shared`, never from `contracts/out`.
-- Until contracts are deployed, the web app runs on **mock data** behind the same interfaces (see docs/data-model.md → "Mock mode"). Switching to real data must be a config change, not a rewrite.
+- The web app reads indexed chain data from Supabase and the contracts directly; there is no mock mode any more. Chain-specific values live in `apps/web/src/lib/config.ts` and `@patched/shared`, so a new chain is a config change, not a rewrite.
+- Demo shortcuts (open admin, the demo account) only work while the site runs on play money (`PLAY_MONEY` in `lib/config.ts`: a testnet, or mainnet on TestUSD). They switch off by themselves on real USDC.
 
 ## Tech stack
 

@@ -60,12 +60,7 @@ Storage buckets: `canvases`, `logos`, `proofs`, `avatars`.
 
 Realtime: the listing page subscribes to `bids` and `patches` filtered by `listing_id`.
 
-## Mock mode (for building the UI before contracts are live)
+## Mock mode (retired)
 
-`apps/web` reads data only through `lib/data/*` functions and writes only through `lib/chain/*` hooks. With `NEXT_PUBLIC_DATA_MODE=mock`:
-
-- `lib/data` returns fixtures from `lib/data/fixtures.ts` shaped exactly like the tables above (listings for Mira / Samir / Team Rektangle from the prototype).
-- `lib/chain` hooks resolve after a fake 1s delay and emit the same events into a local event bus, so the live-bid animations work.
-- A mock "other brands bidding" timer (every 4.5–8.5s) drives the live feed, like the prototype.
-
-Switching to `NEXT_PUBLIC_DATA_MODE=live` swaps in Supabase + viem implementations with the same function signatures.
+The early UI ran on fixtures behind `NEXT_PUBLIC_DATA_MODE=mock`. That was removed once the contracts went live: the app now
+reads these tables (filled by the indexer) and the contracts directly, and `NEXT_PUBLIC_DATA_MODE` is not read anywhere.

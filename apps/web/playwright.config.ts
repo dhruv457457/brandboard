@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * UI tests. They run against a dev server that is already up (pnpm web:dev, port 3100) or E2E_BASE_URL, in the
+ * UI tests. They run against a dev server that is already up (pnpm web:dev, port 3000) or E2E_BASE_URL, in the
  * Chrome installed on this machine, so no browser download is needed. Run: pnpm --filter web test:ui
  */
 export default defineConfig({
@@ -16,7 +16,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { outputFolder: "e2e/report", open: "never" }]],
   outputDir: "e2e/results",
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3100",
+    // 3000 is in Privy's allowed domains; on a port that isn't, Privy logs a frame error on every page and the tests fail.
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     channel: process.env.E2E_CHANNEL ?? "chrome",
     trace: "retain-on-failure",
   },

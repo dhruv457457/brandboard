@@ -69,7 +69,7 @@ Built; the README's "How Patched uses Privy" table links each one to its code.
 2. Gas sponsorship on Monad (per network: on for testnet, off for the mainnet TestUSD run).
 3. One-signature bids: USDC permit signed silently + `bidWithPermit`.
 4. Server wallet with a policy that may only call `closeBidding` / `release` / `markFailed` on the market and `execute` on the auto-bidder (the keeper).
-5. Auto-bid ("keep me on top up to $X") through `PatchAutoBidder` + the policy-limited server wallet (session signers aren't enabled on our Privy app).
+5. Auto-bid ("keep me on top up to $X"): Privy session signers with a policy on a Patched wallet, and `PatchAutoBidder` + the policy-limited server wallet for outside wallets.
 6. Sweep: several patches in one signature and one transaction (`PatchSweeper`).
 7. Passkey MFA step-up for big bids, sweeps and auto-bid maximums.
 8. Verified brands through a Privy-linked work email.
