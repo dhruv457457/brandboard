@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAppHref } from "@/lib/appHref";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth/useAuth";
@@ -11,13 +12,14 @@ import { Logo } from "@/components/brand/Logo";
  * goes through sign-in; signed-in people get the app sidebar instead.
  */
 export function Navbar() {
+  const appHref = useAppHref();
   const { ready } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-40 bg-[var(--paper)]/90 backdrop-blur-md border-b-[1.5px] border-[var(--soft)] px-4 sm:px-8 py-2.5">
       <div className="max-w-6xl mx-auto flex items-center gap-3 justify-between">
-        <Link href="/" className="inline-flex items-center no-underline" aria-label="Patched home">
+        <Link href={appHref("/")} className="inline-flex items-center no-underline" aria-label="Patched home">
           <Logo size={34} />
         </Link>
         <nav className="flex items-center gap-1.5 sm:gap-2.5" aria-label="Main navigation">
@@ -36,8 +38,8 @@ export function Navbar() {
             <span className="w-40 h-9 rounded-xl bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
           ) : (
             <>
-              <Link href="/welcome" className="btn-base btn-small btn-ghost">Sign in</Link>
-              <Link href="/welcome?next=/studio" className="btn-base btn-small btn-primary hidden sm:inline-flex">Get patched</Link>
+              <Link href={appHref("/welcome")} className="btn-base btn-small btn-ghost">Sign in</Link>
+              <Link href={appHref("/welcome?next=/studio")} className="btn-base btn-small btn-primary hidden sm:inline-flex">Get patched</Link>
             </>
           )}
         </nav>

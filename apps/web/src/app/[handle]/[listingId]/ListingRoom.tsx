@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAppHref } from "@/lib/appHref";
 import { publicUrl } from "@/lib/handles";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy } from "lucide-react";
@@ -69,6 +70,7 @@ function minNextFor(p: LivePatch, minIncrement: bigint, minIncrementBps: number)
 }
 
 export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingView>; delivery: Wire<DeliveryView> | null }) {
+  const appHref = useAppHref();
   const listing = useMemo(() => fromWire<ListingView>(initial), [initial]);
   const delivery = useMemo(() => (dw ? fromWire<DeliveryView>(dw) : null), [dw]);
   const router = useRouter();
@@ -319,7 +321,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     >
       <div className="wrap pt-5 flex items-center gap-3 flex-wrap">
         {/* The creator's own page: only a small mark says where it's hosted. */}
-        <Link href="/" className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-[var(--soft)] bg-[var(--card)] pl-1.5 pr-3 py-1 text-xs font-semibold no-underline text-[var(--ink)] hover:border-[var(--line)]">
+        <Link href={appHref("/")} className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-[var(--soft)] bg-[var(--card)] pl-1.5 pr-3 py-1 text-xs font-semibold no-underline text-[var(--ink)] hover:border-[var(--line)]">
           <LogoMark size={20} /> Made with Patched <span className="text-[var(--muted)] hidden sm:inline">· Open the app</span>
         </Link>
         <span className="ml-auto text-xs font-semibold text-[var(--muted)] hidden sm:inline-flex items-center gap-1.5">USDC on <MonadMark size={13} /> Monad</span>
