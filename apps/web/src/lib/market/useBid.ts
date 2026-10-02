@@ -1,19 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi, parseSignature } from "viem";
+import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi } from "viem";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
 import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
+import { usePermitOrApprove } from "@/lib/market/permit";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
-
-export const permitAbi = [
-  { type: "function", name: "nonces", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "uint256" }] },
-  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { type: "function", name: "version", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-] as const;
 
 /** Turn any wallet / contract error into one sentence a person understands. */
 export function friendlyError(err: unknown): string {
@@ -44,13 +39,14 @@ export function friendlyError(err: unknown): string {
 }
 
 /**
- * Real bid: one USDC permit signature + one transaction (bidWithPermit). With the Privy embedded
- * wallet the transaction is gas-sponsored and silent; with an external wallet (MetaMask etc.) the user
- * signs in their wallet and pays a little MON. The call is simulated first so a stale bid fails fast
- * with a clear reason.
+ * Real bid. A plain external wallet (MetaMask etc.) signs one USDC permit and sends bidWithPermit, paying a little
+ * MON. A Privy embedded wallet approves the exact amount, then bids: two gas-sponsored transactions, both silent
+ * (permits don't work for wallets with code, see usePermitOrApprove). The call is simulated first so a stale bid
+ * fails fast with a clear reason.
  */
 export function useBid() {
-  const { walletAddress, wallet, isEmbeddedWallet, authenticated, login, signTypedData, sendTransaction } = usePatchedAuth();
+  const { walletAddress, wallet, isEmbeddedWallet, authenticated, login, sendTransaction } = usePatchedAuth();
+  const authorize = usePermitOrApprove();
   const stepUp = useStepUp();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -68,12 +64,7 @@ export function useBid() {
       // Big bids: passkey check through Privy MFA before anything is signed.
       await stepUp.ensure(amount);
       setStatus("signing");
-      const [balance, nonce, name, version] = await Promise.all([
-        publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "nonces", args: [walletAddress] }),
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "name" }),
-        publicClient.readContract({ address: USDC, abi: permitAbi, functionName: "version" }),
-      ]);
+      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
       if (balance < amount) throw new Error("insufficient USDC");
 
       // External wallets pay their own gas; check before asking them to sign anything.
@@ -85,34 +76,21 @@ export function useBid() {
         external = createWalletClient({ account: walletAddress, chain: CHAIN, transport: custom(await wallet.getEthereumProvider()) });
       }
 
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
-      const typedData = {
-        domain: { name, version, chainId: CHAIN_ID, verifyingContract: USDC },
-        types: {
-          Permit: [
-            { name: "owner", type: "address" },
-            { name: "spender", type: "address" },
-            { name: "value", type: "uint256" },
-            { name: "nonce", type: "uint256" },
-            { name: "deadline", type: "uint256" },
-          ],
-        },
-        primaryType: "Permit" as const,
-        message: { owner: walletAddress, spender: MARKET, value: amount, nonce, deadline },
-      };
-      const signature = external
-        ? await external.signTypedData({ ...typedData, account: walletAddress })
-        : (await signTypedData(typedData)).signature;
-      const { v, r, s } = parseSignature(signature as `0x${string}`);
-      const args = [BigInt(listingId), patchId, amount, deadline, Number(v), r, s] as const;
-
+      // A permit signature where the wallet supports it, otherwise an approve first (see usePermitOrApprove).
+      const permit = await authorize(MARKET, amount);
+      const id = BigInt(listingId);
       // Fail fast with the contract's own reason (e.g. someone just outbid you).
-      await publicClient.simulateContract({
-        address: MARKET, abi: patchedMarketAbi, functionName: "bidWithPermit", args, account: walletAddress,
-      });
+      if (permit) {
+        const args = [id, patchId, amount, permit.deadline, permit.v, permit.r, permit.s] as const;
+        await publicClient.simulateContract({ address: MARKET, abi: patchedMarketAbi, functionName: "bidWithPermit", args, account: walletAddress });
+      } else {
+        await publicClient.simulateContract({ address: MARKET, abi: patchedMarketAbi, functionName: "bid", args: [id, patchId, amount], account: walletAddress });
+      }
+      const data = permit
+        ? encodeFunctionData({ abi: patchedMarketAbi, functionName: "bidWithPermit", args: [id, patchId, amount, permit.deadline, permit.v, permit.r, permit.s] })
+        : encodeFunctionData({ abi: patchedMarketAbi, functionName: "bid", args: [id, patchId, amount] });
 
       setStatus("confirming");
-      const data = encodeFunctionData({ abi: patchedMarketAbi, functionName: "bidWithPermit", args });
       const txHash = external
         ? await external.sendTransaction({ account: walletAddress, chain: CHAIN, to: MARKET, data })
         : (await sendTransaction({ to: MARKET, data, chainId: CHAIN_ID }, { sponsor: GAS_SPONSORED })).hash;
@@ -125,6 +103,8 @@ export function useBid() {
       fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
       return true;
     } catch (err) {
+      // The person sees one plain sentence; the console keeps the real cause (Privy, RPC or contract) for debugging.
+      console.error("Bid failed:", err);
       setError(friendlyError(err));
       setStatus("error");
       return false;

@@ -6,7 +6,7 @@ import { patchAutoBidderAbi } from "@patched/shared";
 import { AUTO_BIDDER, USDC, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { friendlyError } from "@/lib/market/useBid";
-import { usePermitSigner } from "@/lib/market/permit";
+import { usePermitOrApprove } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
 import { useStepUp } from "@/lib/market/stepUp";
 
@@ -28,7 +28,7 @@ const SIGNER_ID = process.env.NEXT_PUBLIC_PRIVY_SIGNER_ID ?? "";
  */
 export function useAutoBid() {
   const { walletAddress, isEmbeddedWallet, getAccessToken, addSigner, removeSigner } = usePatchedAuth();
-  const signPermit = usePermitSigner();
+  const authorize = usePermitOrApprove();
   const send = useTx();
   const stepUp = useStepUp();
   const [busy, setBusy] = useState(false);
@@ -107,7 +107,7 @@ export function useAutoBid() {
       }
 
       const allowance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, AUTO_BIDDER!] });
-      // Enough allowance for a long bidding war already: just set the rule. Otherwise top it up with a permit,
+      // Enough allowance for a long bidding war already: just set the rule. Otherwise top it up with a permit (or an approve, for wallets with code),
       // because every auto-bid uses allowance and outbid refunds don't give it back.
       if (allowance >= max * ALLOWANCE_HEADROOM) {
         await send(AUTO_BIDDER!, encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, max] }));
@@ -115,11 +115,13 @@ export function useAutoBid() {
       }
 
       const value = max * ALLOWANCE_HEADROOM;
-      const { deadline, v, r, s } = await signPermit(AUTO_BIDDER!, value);
-      await send(AUTO_BIDDER!, encodeFunctionData({
-        abi: patchAutoBidderAbi, functionName: "setAutoBidWithPermit",
-        args: [BigInt(listingId), patchId, max, value, deadline, v, r, s],
-      }));
+      const permit = await authorize(AUTO_BIDDER!, value);
+      await send(AUTO_BIDDER!, permit
+        ? encodeFunctionData({
+          abi: patchAutoBidderAbi, functionName: "setAutoBidWithPermit",
+          args: [BigInt(listingId), patchId, max, value, permit.deadline, permit.v, permit.r, permit.s],
+        })
+        : encodeFunctionData({ abi: patchAutoBidderAbi, functionName: "setAutoBid", args: [BigInt(listingId), patchId, max] }));
     });
   }
 

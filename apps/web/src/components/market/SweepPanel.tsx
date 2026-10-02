@@ -12,7 +12,7 @@ import { formatUsdc } from "@/lib/format";
 import { SWEEPER, USDC, publicClient } from "@/lib/config";
 import type { LivePatch } from "@/lib/market/types";
 import { friendlyError } from "@/lib/market/useBid";
-import { usePermitSigner } from "@/lib/market/permit";
+import { usePermitOrApprove } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
 import { useStepUp } from "@/lib/market/stepUp";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -29,11 +29,11 @@ interface Props {
 
 /**
  * Sweep: pick several open patches and bid the minimum on all of them in one signature and one transaction
- * (PatchSweeper.sweepWithPermit), all or nothing.
+ * (PatchSweeper.sweepWithPermit, or an approve then sweep for Privy wallets), all or nothing.
  */
 export function SweepPanel({ listingId, patches, minNext, me }: Props) {
   const { authenticated, login, walletAddress } = usePatchedAuth();
-  const signPermit = usePermitSigner();
+  const authorize = usePermitOrApprove();
   const send = useTx();
   const stepUp = useStepUp();
   const [expanded, setExpanded] = useState(false);
@@ -60,15 +60,21 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
       const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress!] });
       if (balance < total) throw new Error("insufficient USDC");
       await stepUp.ensure(total);
-      const { deadline, v, r, s } = await signPermit(SWEEPER!, total);
+      // A permit where the wallet supports it, otherwise an approve first (Privy wallets, see usePermitOrApprove).
+      const permit = await authorize(SWEEPER!, total);
+      const id = BigInt(listingId);
       // Fail fast with the contract's own reason (e.g. someone just outbid one of the picks).
-      await publicClient.simulateContract({
-        address: SWEEPER!, abi: patchSweeperAbi, functionName: "sweepWithPermit",
-        args: [BigInt(listingId), ids, amounts, deadline, v, r, s], account: walletAddress!,
-      });
-      const data = encodeFunctionData({
-        abi: patchSweeperAbi, functionName: "sweepWithPermit", args: [BigInt(listingId), ids, amounts, deadline, v, r, s],
-      });
+      if (permit) {
+        await publicClient.simulateContract({
+          address: SWEEPER!, abi: patchSweeperAbi, functionName: "sweepWithPermit",
+          args: [id, ids, amounts, permit.deadline, permit.v, permit.r, permit.s], account: walletAddress!,
+        });
+      } else {
+        await publicClient.simulateContract({ address: SWEEPER!, abi: patchSweeperAbi, functionName: "sweep", args: [id, ids, amounts], account: walletAddress! });
+      }
+      const data = permit
+        ? encodeFunctionData({ abi: patchSweeperAbi, functionName: "sweepWithPermit", args: [id, ids, amounts, permit.deadline, permit.v, permit.r, permit.s] })
+        : encodeFunctionData({ abi: patchSweeperAbi, functionName: "sweep", args: [id, ids, amounts] });
       await send(SWEEPER!, data);
       fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
       toast(`You lead ${chosen.length} patches · ${usd(total)} locked in escrow`);
