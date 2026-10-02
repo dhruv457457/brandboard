@@ -19,6 +19,7 @@ import type { ListingCard } from "@/lib/market/server";
 import { cn } from "@/lib/utils";
 import { CHAIN_ID } from "@/lib/config";
 import { FollowButton } from "@/components/ui/FollowButton";
+import { SpottedWall } from "@/components/social/SpottedWall";
 import { supabase } from "@/lib/supabase";
 
 export interface PublicProfile {
@@ -144,8 +145,8 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
       </nav>
 
       <div className="px-4 sm:px-6 pt-6">
-        {current === "listings" && (
-          cards.length === 0 ? (
+        {current === "listings" && (<div className="grid gap-8">
+          {cards.length === 0 ? (
             <Empty text="No listings yet." action={isOwner ? { href: "/studio", label: "Create your first listing" } : undefined} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -161,8 +162,9 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
                 </div>
               ))}
             </div>
-          )
-        )}
+          )}
+          <SpottedWall wallet={p.wallet.toLowerCase()} title={`Spotted wearing ${named ?? "Patched"}`} />
+        </div>)}
 
         {current === "sponsoring" && (
           sponsoring.length === 0 ? (

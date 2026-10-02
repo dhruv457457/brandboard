@@ -11,6 +11,7 @@ import { fromWire, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
 import { cn } from "@/lib/utils";
 import { FollowButton } from "@/components/ui/FollowButton";
+import { SpottedWall } from "@/components/social/SpottedWall";
 import { CHAIN_ID } from "@/lib/config";
 
 export interface EventInfo {
@@ -141,6 +142,12 @@ export function EventView({ event, cards: wire, leaderboards, wall }: { event: E
             )}
           </section>
         )}
+
+        <SpottedWall
+          eventId={event.id}
+          title={`Spotted at ${event.name}`}
+          choices={cards.filter((c) => c.status === 1 || c.status === 2).map((c) => ({ listingId: c.id, label: `${c.creatorLabel}: ${c.title}` }))}
+        />
 
         <div className={cn("grid gap-6 items-start", wall.length > 0 && "lg:grid-cols-[minmax(0,1fr)_300px]")}>
           <section className="grid gap-4 min-w-0">

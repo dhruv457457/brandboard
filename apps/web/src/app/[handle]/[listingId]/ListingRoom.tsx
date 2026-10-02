@@ -30,6 +30,7 @@ import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { ExplorerLink } from "@/components/ui/ExplorerLink";
+import { SpottedWall } from "@/components/social/SpottedWall";
 import { openAddMoney } from "@/components/wallet/AddMoney";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst } from "@/components/market/SpotBubble";
@@ -803,6 +804,11 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           )}
         </motion.section>
       )}
+
+      {/* ── Spotted: photos from people who saw the patches, and a way to post one ── */}
+      <div className="wrap mt-20">
+        <SpottedWall listingId={listing.id} choices={isCreator || status === 0 ? [] : [{ listingId: listing.id, label: creatorLabel }]} />
+      </div>
 
       {/* ── How it works ── */}
       {shown("how") && (

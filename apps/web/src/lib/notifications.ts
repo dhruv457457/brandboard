@@ -12,7 +12,7 @@ export interface NotificationRow {
   id: string;
   kind: string;
   tx_hash?: string | null;
-  payload: { listingId?: string; patchId?: number; amount?: string; refunded?: string; milestone?: number; price?: string; totalEscrow?: string; reason?: string };
+  payload: { listingId?: string; patchId?: number; amount?: string; refunded?: string; milestone?: number; price?: string; totalEscrow?: string; reason?: string; by?: string; photo?: string; caption?: string };
   read_at: string | null;
   created_at: string;
 }
@@ -41,6 +41,7 @@ function message(n: NotificationRow, patch: string, title: string, actor?: strin
     case "paid": return `You got paid ${usd(p.amount)} for ${title}.`;
     case "listing_failed": return `${title} missed a deadline. Your money for ${patch} was refunded.`;
     case "resale_sold": return `Your ${patch} patch sold for ${usd(p.price)}.`;
+    case "spotted": return `${p.by ?? "Someone"} spotted you${title ? ` (${title})` : ""}${p.caption ? `: ${p.caption}` : "."}`;
     case "bid_forwarded": return `Your bid on ${patch} couldn't be placed, so the money went back to your wallet.`;
     default: return "Something happened on one of your patches.";
   }
@@ -54,7 +55,7 @@ export function describe(n: NotificationRow, labels: Labels, actors: Actors = {}
   const text = message(n, patch, l?.title ?? (n.payload.listingId ? `listing #${n.payload.listingId}` : "your listing"), actor?.name);
   const p = n.payload;
   const raw = n.kind === "outbid" ? p.refunded : n.kind === "resale_sold" ? p.price : n.kind === "bidding_closed" ? p.totalEscrow : p.amount;
-  return { text, href: l?.href ?? (n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids"), image: l?.image ?? null, actor, amount: raw ? usd(raw) : null };
+  return { text, href: l?.href ?? (n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids"), image: (n.kind === "spotted" && p.photo ? p.photo : l?.image) ?? null, actor, amount: raw ? usd(raw) : null };
 }
 
 /** The signed-in wallet's latest notifications, updated live, with a way to mark them all read. */

@@ -24,6 +24,7 @@ const KINDS: Record<string, { icon: LucideIcon; tone: string; group: Filter }> =
   auto_bid: { icon: Zap, tone: "bg-[var(--accent-soft)] text-[var(--accent-text)]", group: "bids" },
   auto_bid_paused: { icon: Pause, tone: "bg-[var(--soft)] text-[var(--ink)]", group: "bids" },
   bid_forwarded: { icon: RotateCcw, tone: "bg-[var(--soft)] text-[var(--ink)]", group: "bids" },
+  spotted: { icon: Camera, tone: "bg-[var(--accent-soft)] text-[var(--accent-text)]", group: "listings" },
   won: { icon: Trophy, tone: "bg-[var(--green-soft)] text-[var(--green)]", group: "money" },
   paid: { icon: Wallet, tone: "bg-[var(--green-soft)] text-[var(--green)]", group: "money" },
   resale_sold: { icon: ShoppingBag, tone: "bg-[var(--green-soft)] text-[var(--green)]", group: "money" },
