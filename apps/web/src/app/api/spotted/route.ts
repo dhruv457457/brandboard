@@ -2,21 +2,12 @@ import { CHAIN_ID } from "@/lib/config";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
+import { reactionsFor } from "@/lib/server/reactions";
+import type { SpottedPost } from "@/lib/spotted";
 
 export const runtime = "nodejs";
 
 const PHOTOS = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/proofs/`;
-
-export interface SpottedPost {
-  id: string;
-  photo: string;
-  caption: string | null;
-  createdAt: string;
-  listingId: number | null;
-  eventId: number | null;
-  creator: string | null;
-  author: { name: string; handle: string | null; avatar: string | null; wallet: string | null };
-}
 
 /**
  * Spotted photos, newest first. GET ?eventId=, ?listingId= or ?wallet= (the creator who was spotted); at most 40.
@@ -24,6 +15,7 @@ export interface SpottedPost {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const db = supabaseAdmin();
+  const me = (await getSessionUser(req))?.wallet ?? null;
   let q = db.from("posts")
     .select("id, body, media, created_at, listing_id, event_id, spotted_wallet, author")
     .eq("chain_id", CHAIN_ID).eq("hidden", false).not("spotted_wallet", "is", null)
@@ -44,13 +36,14 @@ export async function GET(req: Request) {
     : { data: [] as { id: string; display_name: string | null; handle: string | null; avatar_url: string | null; wallet: string | null }[] };
   const who = new Map((profiles ?? []).map((p) => [p.id, p]));
 
+  const reactions = await reactionsFor(rows.map((r) => r.id), me);
   const posts: SpottedPost[] = rows.flatMap((r) => {
     const photo = (r.media as { url?: string }[] | null)?.[0]?.url;
     if (!photo) return [];
     const a = who.get(r.author);
     return [{
       id: r.id, photo, caption: r.body === "Spotted" ? null : r.body, createdAt: r.created_at,
-      listingId: r.listing_id, eventId: r.event_id, creator: r.spotted_wallet,
+      listingId: r.listing_id, eventId: r.event_id, creator: r.spotted_wallet, reactions: reactions[r.id],
       author: { name: a?.display_name ?? (a?.handle ? `@${a.handle}` : "Someone"), handle: a?.handle ?? null, avatar: a?.avatar_url ?? null, wallet: a?.wallet ?? null },
     }];
   });

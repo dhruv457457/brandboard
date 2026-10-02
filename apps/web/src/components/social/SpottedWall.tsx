@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, ImagePlus, Loader2, X } from "lucide-react";
+import { Camera, Flame, Heart, ImagePlus, Loader2, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { toast } from "@/components/ui/Toast";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { formatTimeAgo } from "@/lib/format";
-import type { SpottedPost } from "@/app/api/spotted/route";
+import type { SpottedPost } from "@/lib/spotted";
 
 export interface SpotChoice {
   listingId: number;
@@ -32,13 +32,16 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
   const query = eventId ? `eventId=${eventId}` : listingId ? `listingId=${listingId}` : wallet ? `wallet=${wallet}` : "";
   const load = useCallback(async () => {
     if (!query) return;
-    const res = await fetch(`/api/spotted?${query}`).catch(() => null);
+    const res = await authedFetch(`/api/spotted?${query}`).catch(() => null);
     const json = res && res.ok ? ((await res.json()) as { posts: SpottedPost[] }) : null;
     setPosts(json?.posts ?? []);
-  }, [query]);
+  }, [query, authedFetch]);
+  // Load, again once signed in (so your own reactions show), and every 20 s so new photos and cheers arrive.
   useEffect(() => {
     void load();
-  }, [load]);
+    const t = setInterval(load, 20_000);
+    return () => clearInterval(t);
+  }, [load, authenticated]);
 
   async function remove(id: string) {
     const res = await authedFetch(`/api/spotted?id=${id}`, { method: "DELETE" });
@@ -70,11 +73,12 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
               <li key={p.id} className="relative rounded-2xl overflow-hidden border-[1.5px] border-[var(--soft)] bg-[var(--card)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.photo} alt={p.caption ?? "A spotted patch"} loading="lazy" className="w-full aspect-[3/4] object-cover bg-[var(--soft)]" />
-                <div className="p-2.5 grid gap-0.5 text-[13px]">
+                <div className="p-2.5 grid gap-1.5 text-[13px]">
                   {p.caption && <span className="leading-snug">{p.caption}</span>}
                   <span className="text-[var(--muted)] truncate">
                     {p.author.handle ? <Link href={`/${p.author.handle}`} className="font-semibold text-[var(--ink)] no-underline">{p.author.name}</Link> : p.author.name} · {formatTimeAgo(p.createdAt)}
                   </span>
+                  <ReactionBar post={p} onSignIn={login} />
                 </div>
                 {mine && (
                   <button type="button" onClick={() => remove(p.id)} aria-label="Remove this photo"
@@ -180,5 +184,48 @@ function SpotSheet({ open, onClose, choices, onPosted }: { open: boolean; onClos
         </div>
       </form>
     </Sheet>
+  );
+}
+
+const REACTIONS = [
+  { kind: "flame", Icon: Flame, label: "Fire" },
+  { kind: "zap", Icon: Zap, label: "Cheer" },
+  { kind: "heart", Icon: Heart, label: "Love" },
+] as const;
+
+/** Three icon reactions on a photo: tap to add yours, tap again to take it back. Flips at once, rolls back on an error. */
+function ReactionBar({ post, onSignIn }: { post: SpottedPost; onSignIn: () => void }) {
+  const { authenticated } = usePatchedAuth();
+  const authedFetch = useAuthedFetch();
+  const [state, setState] = useState(post.reactions);
+  useEffect(() => setState(post.reactions), [post.reactions]);
+
+  async function toggle(kind: (typeof REACTIONS)[number]["kind"]) {
+    if (!authenticated) return onSignIn();
+    const on = !state.mine.includes(kind);
+    const before = state;
+    setState({
+      counts: { ...state.counts, [kind]: Math.max(0, state.counts[kind] + (on ? 1 : -1)) },
+      mine: on ? [...state.mine, kind] : state.mine.filter((k) => k !== kind),
+    });
+    const res = await authedFetch("/api/reactions", {
+      method: on ? "POST" : "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ postId: post.id, kind }),
+    }).catch(() => null);
+    if (res?.ok) setState((await res.json()) as SpottedPost["reactions"]);
+    else setState(before);
+  }
+
+  return (
+    <div className="flex gap-1.5" role="group" aria-label="Reactions">
+      {REACTIONS.map(({ kind, Icon, label }) => {
+        const on = state.mine.includes(kind);
+        return (
+          <button key={kind} type="button" onClick={() => toggle(kind)} aria-pressed={on} aria-label={`${label}${state.counts[kind] ? `, ${state.counts[kind]}` : ""}`}
+            className={`inline-flex items-center gap-1 h-7 px-2 rounded-full border-[1.5px] text-xs font-semibold ${on ? "bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-text)]" : "border-[var(--soft)] text-[var(--muted)] hover:border-[var(--line)]"}`}>
+            <Icon size={13} /> {state.counts[kind] > 0 && <span className="font-mono">{state.counts[kind]}</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
