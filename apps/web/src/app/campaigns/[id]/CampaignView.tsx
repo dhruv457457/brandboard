@@ -7,6 +7,7 @@ import { encodeFunctionData, erc20Abi } from "viem";
 import { Activity, CalendarClock, CircleDollarSign, ExternalLink, Gavel, Loader2, Pause, Play, ShieldCheck, Square, Wallet } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { Avatar } from "@/components/ui/Avatar";
+import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { toast } from "@/components/ui/Toast";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { useTx } from "@/lib/market/useTx";
@@ -52,6 +53,7 @@ interface ActionRow {
   kind: string;
   text: string;
   amount: number | null;
+  tx_hash: string | null;
   created_at: string;
 }
 
@@ -86,7 +88,7 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
   // The log, live: new actions arrive over Realtime and the balance follows them.
   useEffect(() => {
     const db = supabase();
-    const load = () => db.from("brand_campaign_actions").select("id, kind, text, amount, created_at").eq("campaign_id", c.id)
+    const load = () => db.from("brand_campaign_actions").select("id, kind, text, amount, tx_hash, created_at").eq("campaign_id", c.id)
       .order("created_at", { ascending: false }).limit(40).then(({ data }) => setActions((data ?? []) as ActionRow[]));
     void load();
     loadBalance();
@@ -203,7 +205,8 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
                 {actions.map((a) => (
                   <li key={a.id} className={cn("flex gap-3 px-3 py-2.5 rounded-xl text-[15px]", a.kind === "blocked" && "bg-[var(--accent-soft)]")}>
                     <span className="font-mono text-xs text-[var(--muted)] w-16 flex-none pt-0.5">{mounted ? formatTimeAgo(a.created_at) : ""}</span>
-                    <span>{a.kind === "blocked" && <b>Privy blocked · </b>}{a.text}</span>
+                    <span className="flex-1">{a.kind === "blocked" && <b>Privy blocked · </b>}{a.text}</span>
+                    <ExplorerLink tx={a.tx_hash} />
                   </li>
                 ))}
               </ol>

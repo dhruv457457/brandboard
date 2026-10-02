@@ -29,6 +29,7 @@ import { PATCH_TIERS, patchedMarketAbi } from "@patched/shared";
 import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
+import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst } from "@/components/market/SpotBubble";
 import { ListingTools } from "@/components/market/ListingTools";
@@ -607,7 +608,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                                       {history.slice(0, 6).map((b, i) => (
                                         <li key={b.id} className={cn("flex justify-between gap-2 py-1.5 text-sm border-b border-dashed border-[var(--soft)] last:border-b-0", i > 0 && "text-[var(--muted)]")}>
                                           <span className="truncate">{i === 0 && <Crown size={12} className="inline mr-1 -mt-0.5 text-[var(--accent-text)]" />}{bidderName(b.bidder)}</span>
-                                          <span className="font-mono flex-none">{usd(b.amount)}<span className="text-[var(--muted)]">{mounted ? ` · ${ago(b.time)}` : ""}</span></span>
+                                          <span className="font-mono flex-none inline-flex items-center gap-1">{usd(b.amount)}<span className="text-[var(--muted)]">{mounted ? ` · ${ago(b.time)}` : ""}</span><ExplorerLink tx={b.tx} /></span>
                                         </li>
                                       ))}
                                     </ol>
@@ -637,7 +638,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                   {bids.slice(0, 6).map((b) => (
                     <li key={b.id} className="flex justify-between gap-3 py-2 text-sm border-b border-dashed border-[var(--soft)] last:border-b-0 [animation:feed-in_1.2s] motion-reduce:[animation:none]">
                       <span className="min-w-0 truncate"><b>{bidderName(b.bidder)}</b> bid on {patches.find((p) => p.id === b.patchId)?.label ?? `Spot ${b.patchId + 1}`}</span>
-                      <span className="font-mono flex-none">{usd(b.amount)}<span className="text-[var(--muted)]">{mounted ? ` · ${ago(b.time)}` : ""}</span></span>
+                      <span className="font-mono flex-none inline-flex items-center gap-1">{usd(b.amount)}<span className="text-[var(--muted)]">{mounted ? ` · ${ago(b.time)}` : ""}</span><ExplorerLink tx={b.tx} /></span>
                     </li>
                   ))}
                 </ol>

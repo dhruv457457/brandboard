@@ -31,6 +31,7 @@ export interface LivePatch {
 
 export interface BidEvent {
   id: string; // txHash:logIndex
+  tx: string;
   patchId: number;
   bidder: `0x${string}`;
   amount: bigint;

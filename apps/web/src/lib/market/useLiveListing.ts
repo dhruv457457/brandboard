@@ -52,6 +52,7 @@ export function useLiveListing(initial: ListingView, onBid?: (bid: LiveBid, prev
               const prevLeader = leaders.get(patchId) ?? null;
               const bid: LiveBid = {
                 id: key,
+                tx: log.transactionHash,
                 patchId,
                 bidder: (args.bidder as string).toLowerCase() as `0x${string}`,
                 amount: args.amount as bigint,

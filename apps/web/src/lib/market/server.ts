@@ -107,6 +107,7 @@ export async function fetchListingView(id: number): Promise<ListingView | null> 
 
   const bidEvents: BidEvent[] = (bids.data ?? []).map((b) => ({
     id: `${b.tx_hash}:${b.log_index}`,
+    tx: b.tx_hash,
     patchId: b.patch_id,
     bidder: b.bidder,
     amount: BigInt(b.amount),

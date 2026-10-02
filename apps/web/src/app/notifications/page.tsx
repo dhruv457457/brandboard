@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
+import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { formatTimeAgo } from "@/lib/format";
@@ -145,10 +146,10 @@ export default function NotificationsPage() {
                   const Icon = kind.icon;
                   const unread = !n.read_at;
                   return (
-                    <li key={n.id}>
+                    <li key={n.id} className={cn("flex items-center gap-1 rounded-xl pr-2 hover:bg-[var(--soft)]", unread && "bg-[var(--accent-soft)]")}>
                       <Link
                         href={href}
-                        className={cn("flex items-center gap-3 rounded-xl px-3 py-3 no-underline text-[var(--ink)] hover:bg-[var(--soft)]", unread && "bg-[var(--accent-soft)]")}
+                        className="flex flex-1 min-w-0 items-center gap-3 rounded-xl px-3 py-3 no-underline text-[var(--ink)]"
                       >
                         {/* The event's icon, with the person behind it on top when we know who. */}
                         <span className="relative flex-none">
@@ -170,6 +171,7 @@ export default function NotificationsPage() {
                         ) : null}
                         {unread && <span className="flex-none w-2 h-2 rounded-full bg-[var(--accent)]" aria-label="New" />}
                       </Link>
+                      <ExplorerLink tx={n.tx_hash} />
                     </li>
                   );
                 })}
