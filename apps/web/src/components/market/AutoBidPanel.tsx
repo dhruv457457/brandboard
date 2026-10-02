@@ -122,7 +122,7 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
         <ShieldCheck size={14} className="flex-none mt-px" />
         {auto.mode === "signer"
           ? "Bids come from your own wallet. Patched is added to it as a Privy signer whose policy only allows bids on the spots you pick, never above your maximum. Revoke it any time in Settings."
-          : "Runs on a Privy server wallet that can only call the auto-bid contract. The contract never bids above your maximum, and outbid bids come straight back to you."}
+          : "Runs on a Privy server wallet that can only call the auto-bid contract. The contract never bids above your maximum, and outbid bids come straight back to you. Your maximum is public on-chain, so someone could bid just to push you up toward it: a Patched wallet keeps it private."}
       </p>
     </div>
   );

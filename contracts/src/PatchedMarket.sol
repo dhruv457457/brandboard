@@ -136,6 +136,7 @@ contract PatchedMarket is
     error WrongMilestone();
     error DeadlinePassed();
     error DeadlineNotPassed();
+    error DisputeNotStale();
     error ReviewNotOver();
     error ReviewOver();
     error AlreadyDisputed();
@@ -179,6 +180,8 @@ contract PatchedMarket is
     );
     event PatchBought(uint256 indexed listingId, uint8 indexed patchId, address indexed buyer, uint96 amount);
     event BiddingExtended(uint256 indexed listingId, uint40 newEndsAt);
+    /// @notice Proof deadlines were moved later at close so the first one is MIN_PROOF_WINDOW after it.
+    event DeadlinesShifted(uint256 indexed listingId, uint40 by);
     event Refunded(address indexed to, uint256 amount, bool pushed);
     event Credited(address indexed to, uint256 amount);
     event BidForwarded(
@@ -223,6 +226,14 @@ contract PatchedMarket is
     uint8 public constant MAX_MILESTONES = 8;
     uint8 public constant MAX_PAYEES = 8;
     uint16 internal constant BPS = 10_000;
+    /// @notice After bidding closes the creator always has at least this long to post the first proof, however late
+    ///         bids stretched the auction. Deadlines that fall short are moved later, all by the same amount.
+    uint40 public constant MIN_PROOF_WINDOW = 1 hours;
+    /// @notice A pause stops the calls, not the clock: a proof deadline that falls during a pause, or within this long
+    ///         after it ends, is moved to this long after the unpause.
+    uint40 public constant PAUSE_GRACE = 24 hours;
+    /// @notice A disputed patch nobody resolves can be settled 50/50 by anyone this long after its review window.
+    uint40 public constant DISPUTE_TIMEOUT = 30 days;
 
     IERC20 public usdc;
     IPatchReceipt public receipt;
@@ -259,6 +270,20 @@ contract PatchedMarket is
     /// @notice Once true, the logic can never be upgraded again.
     bool public upgradesFrozen;
     // New state variables go below this line, never above (proxy storage layout).
+
+    /// @notice When the market was last paused and unpaused (0 = never). See PAUSE_GRACE.
+    uint40 public lastPausedAt;
+    uint40 public lastUnpausedAt;
+
+    /// @dev The fee and review window a listing was created under. Admin settings change for new listings only, so a
+    ///      deal in progress is paid out on the terms its creator and brands saw. Listings from before this existed
+    ///      (set == false) use the current settings.
+    struct ListingTerms {
+        bool set;
+        uint16 feeBps;
+        uint32 disputeWindow;
+    }
+    mapping(uint256 => ListingTerms) internal _terms;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -313,6 +338,7 @@ contract PatchedMarket is
         L.milestoneCount = uint8(m);
         L.bond = p.bond;
         L.metadataHash = p.metadataHash;
+        _terms[id] = ListingTerms({set: true, feeBps: feeBps, disputeWindow: disputeWindow});
 
         uint256 sumBps;
         uint40 prev = p.biddingEndsAt;
@@ -372,9 +398,9 @@ contract PatchedMarket is
         if (milestone != L.nextMilestone) revert WrongMilestone();
         Milestone storage ms = _milestones[id][milestone];
         if (ms.status != MilestoneStatus.Open) revert WrongMilestone();
-        if (block.timestamp > L.deadlines[milestone]) revert DeadlinePassed();
+        if (block.timestamp > _deadline(L, milestone)) revert DeadlinePassed();
 
-        uint40 reviewEndsAt = uint40(block.timestamp) + disputeWindow;
+        uint40 reviewEndsAt = uint40(block.timestamp) + _reviewWindow(id);
         ms.status = MilestoneStatus.Submitted;
         ms.reviewEndsAt = reviewEndsAt;
         ms.proofHash = proofHash;
@@ -531,6 +557,16 @@ contract PatchedMarket is
             _send(L.creator, L.bond);
         } else {
             L.status = Status.Delivering;
+            // Late bids can stretch the auction past a deadline that was set when it was scheduled: keep honest
+            // delivery possible by moving every deadline later until the first is MIN_PROOF_WINDOW after the close.
+            uint40 earliest = uint40(block.timestamp) + MIN_PROOF_WINDOW;
+            if (L.deadlines[0] < earliest) {
+                uint40 shift = earliest - L.deadlines[0];
+                for (uint8 k; k < L.milestoneCount; ++k) {
+                    L.deadlines[k] += shift;
+                }
+                emit DeadlinesShifted(id, shift);
+            }
             for (uint8 i; i < n; ++i) {
                 if (mask & _bit(i) != 0) receipt.mint(_patches[id][i].topBidder, tokenIdOf(id, i));
             }
@@ -575,7 +611,7 @@ contract PatchedMarket is
         if (L.status != Status.Delivering) revert NotActive();
         uint8 m = L.nextMilestone;
         if (_milestones[id][m].status != MilestoneStatus.Open) revert WrongMilestone();
-        if (block.timestamp <= L.deadlines[m]) revert DeadlineNotPassed();
+        if (block.timestamp <= _deadline(L, m)) revert DeadlineNotPassed();
 
         L.status = Status.Failed;
         reputation[L.creator].failed += 1;
@@ -657,6 +693,17 @@ contract PatchedMarket is
         nonReentrant
     {
         if (creatorShareBps > BPS) revert InvalidParams();
+        _resolve(id, milestone, patchId, creatorShareBps);
+    }
+
+    /// @notice Disputed money must have a way out even if no admin ever answers: this long after the review window
+    ///         anyone can settle a still-open dispute, half to the creator (minus the fee) and half back to the holder.
+    function settleStale(uint256 id, uint8 milestone, uint8 patchId) external whenNotPaused nonReentrant {
+        if (block.timestamp < _milestones[id][milestone].reviewEndsAt + DISPUTE_TIMEOUT) revert DisputeNotStale();
+        _resolve(id, milestone, patchId, BPS / 2);
+    }
+
+    function _resolve(uint256 id, uint8 milestone, uint8 patchId, uint16 creatorShareBps) internal {
         Listing storage L = _listings[id];
         Milestone storage ms = _milestones[id][milestone];
         uint16 bit = _bit(patchId);
@@ -723,10 +770,12 @@ contract PatchedMarket is
     }
 
     function pause() external onlyRole(PAUSER_ROLE) {
+        lastPausedAt = uint40(block.timestamp);
         _pause();
     }
 
     function unpause() external onlyRole(PAUSER_ROLE) {
+        lastUnpausedAt = uint40(block.timestamp);
         _unpause();
     }
 
@@ -870,9 +919,21 @@ contract PatchedMarket is
         }
     }
 
+    /// @dev Milestone `m`'s proof deadline, moved later when it fell during a pause or within PAUSE_GRACE after one.
+    function _deadline(Listing storage L, uint8 m) internal view returns (uint40 d) {
+        d = L.deadlines[m];
+        if (lastPausedAt != 0 && d >= lastPausedAt && d < lastUnpausedAt + PAUSE_GRACE) d = lastUnpausedAt + PAUSE_GRACE;
+    }
+
+    function _reviewWindow(uint256 id) internal view returns (uint32) {
+        ListingTerms storage t = _terms[id];
+        return t.set ? t.disputeWindow : disputeWindow;
+    }
+
     function _payCreator(uint256 id, uint96 gross) internal returns (uint96 net, uint96 fee) {
         if (gross == 0) return (0, 0);
-        fee = uint96(uint256(gross) * feeBps / BPS);
+        ListingTerms storage t = _terms[id];
+        fee = uint96(uint256(gross) * (t.set ? t.feeBps : feeBps) / BPS);
         net = gross - fee;
         if (fee > 0) usdc.safeTransfer(treasury, fee);
         _distribute(id, net);

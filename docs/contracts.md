@@ -80,9 +80,10 @@ struct ListingParams {
 ### Anyone (usually called by the Privy server-wallet cron)
 | Function | When |
 |---|---|
-| `closeBidding(uint256 listingId)` | status Active and (`now >= biddingEndsAt` or every patch bought). Mints receipts. → Delivering, or Unsold if nothing sold (bond returned). |
+| `closeBidding(uint256 listingId)` | status Active and (`now >= biddingEndsAt` or every patch bought). Mints receipts. → Delivering, or Unsold if nothing sold (bond returned). If the first proof deadline is less than `MIN_PROOF_WINDOW` (1 hour) away, every deadline moves later by the same amount (`DeadlinesShifted`), so late bids can't make honest delivery impossible. |
 | `release(uint256 listingId, uint8 milestone)` | milestone Submitted and `now >= reviewEndsAt`. Pays creator/payees for non-disputed patches minus fee. Last milestone → Completed, bond returned. |
-| `markFailed(uint256 listingId)` | Delivering, current milestone still Open and its deadline passed. Refunds unreleased money + bond to receipt holders. → Failed. |
+| `markFailed(uint256 listingId)` | Delivering, current milestone still Open and its deadline passed. Refunds unreleased money + bond to receipt holders. → Failed. A deadline that fell during a pause, or within `PAUSE_GRACE` (24 hours) after one, counts as 24 hours after the unpause. |
+| `settleStale(uint256 listingId, uint8 milestone, uint8 patchId)` | A disputed patch still unresolved `DISPUTE_TIMEOUT` (30 days) after its review window: split 50/50 (creator's half minus the fee, the rest back to the holder). Reverts `DisputeNotStale` before that. |
 | `withdraw()` | collect `refundable[msg.sender]` (only used if a direct refund transfer failed). |
 
 ### Creator
@@ -153,7 +154,7 @@ event TreasuryUpdated(address treasury);
 
 ## Custom errors (map these to friendly UI messages)
 
-`NotActive`, `BiddingOver`, `BiddingNotOver`, `BadPatch`, `AlreadyBought`, `BidTooLow(uint96 minNext)`, `CreatorCannotBid`, `NotCreator`, `NotHolder`, `WrongMilestone`, `DeadlinePassed`, `DeadlineNotPassed`, `ReviewNotOver`, `ReviewOver`, `AlreadyDisputed`, `NotDisputed`, `InvalidParams`, `OverNewCreatorCap`, `EventInactive`, `NotForSale`, `PriceAboveMax`, `NothingToWithdraw`.
+`DisputeNotStale`, `NotActive`, `BiddingOver`, `BiddingNotOver`, `BadPatch`, `AlreadyBought`, `BidTooLow(uint96 minNext)`, `CreatorCannotBid`, `NotCreator`, `NotHolder`, `WrongMilestone`, `DeadlinePassed`, `DeadlineNotPassed`, `ReviewNotOver`, `ReviewOver`, `AlreadyDisputed`, `NotDisputed`, `InvalidParams`, `OverNewCreatorCap`, `EventInactive`, `NotForSale`, `PriceAboveMax`, `NothingToWithdraw`.
 
 ## PatchAutoBidder (auto-bid)
 
@@ -179,9 +180,19 @@ Bid on several patches of one listing in one transaction, all or nothing. Source
 
 Holds no funds; bids, receipts and refunds belong to the caller. Deployed with `script/DeploySweeper.s.sol`: testnet `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f`, mainnet `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba`.
 
+## Timing and settings (what changes under a running deal)
+
+Found by a mentor review (2026-10-02) and covered by `test/Timeline.t.sol`:
+
+- **Deadlines and the auction clock.** Anti-snipe can stretch an auction up to `maxExtension` past its scheduled end. At close, if the first proof deadline is under `MIN_PROOF_WINDOW` away, all deadlines move later together. A bidder can no longer push the auction past the creator's deadline and then take the bond with `markFailed`.
+- **Pause.** A pause stops the calls, not the clock. `lastPausedAt` / `lastUnpausedAt` record it; a deadline that fell inside a pause (or within `PAUSE_GRACE` after) is treated as `PAUSE_GRACE` after the unpause, for both `submitProof` and `markFailed`. A creator who was already late before the pause is not helped.
+- **Settings.** A listing saves the `feeBps` and `disputeWindow` it was created under (`ListingTerms`), so `setParams` changes apply to new listings only. Listings created before this version have no saved terms and use the current settings, as before. `royaltyBps` (resale) is still read at the time of the sale.
+- **Disputes.** `settleStale` gives disputed money a way out when no admin answers.
+- **Auto-bid.** `PatchAutoBidder` shows each brand's maximum on-chain and lets anyone call `execute`, so a second wallet can bid, trigger the brand's auto-bid, get refunded when outbid, and repeat toward the maximum (shill bidding). The brand's bids stop at its maximum and every shill bid is refunded, but the brand can end up paying close to its maximum for a spot that would have sold for less. The Privy signer auto-bid keeps the maximum off-chain and is the default for Patched wallets; the contract version is only for outside wallets, and the app says so.
+
 ## Upgrades
 
-`PatchedMarket` runs behind an ERC-1967 (UUPS) proxy. The proxy address is the market address everyone uses and it never changes; an upgrade swaps the logic only, so listings, escrowed money and the receipts stay. Only the default admin can call `upgradeToAndCall`, and `freezeUpgrades()` turns upgrades off permanently (do this before real money, or put the admin behind a multisig and timelock). Rules for changing the contract: append new state variables at the end only, never reorder or remove any, keep defaults in `initialize`, and add a test that upgrades and checks the old data.
+`PatchedMarket` runs behind an ERC-1967 (UUPS) proxy. The proxy address is the market address everyone uses and it never changes; an upgrade swaps the logic only, so listings, escrowed money and the receipts stay. Only the default admin can call `upgradeToAndCall`, and `freezeUpgrades()` turns upgrades off permanently (do this before real money, or put the admin behind a multisig and timelock). Rules for changing the contract: append new state variables at the end only, never reorder or remove any, keep defaults in `initialize`, and add a test that upgrades and checks the old data. To upgrade a live market run `script/UpgradeMarket.s.sol` (admin key and `MARKET_ADDRESS`; it checks that the listing count, the escrow and the fee are unchanged afterwards). Run it once without `--broadcast` first, with `--code-size-limit 131072` (the market is over the usual 24 KB), to see it work against the live state.
 
 ## Deployments
 

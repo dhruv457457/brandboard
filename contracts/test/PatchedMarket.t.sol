@@ -469,10 +469,17 @@ contract MilestoneTest is BaseTest {
         market.setParams(500, 500, 500, 5e6, 25e6, 100_000e6, 1 minutes, 1 days, 2 minutes);
         assertEq(market.disputeWindow(), 2 minutes);
 
+        // A listing keeps the review window it was created with: this one still gets 72 hours.
         _submit(id, 0);
+        assertEq(market.getMilestone(id, 0).reviewEndsAt, vm.getBlockTimestamp() + 72 hours);
+
+        // A listing created after the change gets the two-minute review.
+        biddingEnd = uint40(vm.getBlockTimestamp() + 2 days);
+        uint256 demo = _delivering();
+        _submit(demo, 0);
         vm.warp(vm.getBlockTimestamp() + 2 minutes);
-        market.release(id, 0); // a two-minute review, as set
-        assertEq(market.getListing(id).nextMilestone, 1);
+        market.release(demo, 0);
+        assertEq(market.getListing(demo).nextMilestone, 1);
     }
 
     function test_setMinDisputeWindow_onlyDefaultAdmin() public {
