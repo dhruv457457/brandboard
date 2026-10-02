@@ -207,6 +207,8 @@ async function tick(c: CampaignRow) {
       }
       const { hash } = await sendFromServerWallet(c.wallet_id, { to: MARKET, chainId: CHAIN_ID, data },
         { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:${p.listingId}:${p.patchId}:${p.topBid}`, sponsor: SPONSORED, signed: true });
+      // The idempotency key makes a repeated send return the first transaction: that bid is already logged.
+      if (hash && (await db.from("brand_campaign_actions").select("id").eq("campaign_id", c.id).eq("tx_hash", hash).limit(1)).data?.length) continue;
       left -= p.amount;
       await log(c.id, {
         kind: "bid",
@@ -278,7 +280,13 @@ async function pickSpots(c: CampaignRow, balance: bigint): Promise<Pick[]> {
     const base = { listingId: p.listing_id, patchId: p.patch_id, topBid: String(p.top_bid), label: spot?.name ?? p.label, title: meta?.title ?? `listing #${p.listing_id}` };
     const buyNow = BigInt(p.buy_now);
     if (offer && buyNow <= cap && buyNow <= balance) return { ...base, amount: buyNow, buyNow: true, score: -Number(buyNow) - 1e15 };
-    const need = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minNextBid", args: [BigInt(p.listing_id), p.patch_id] }).catch(() => null);
+    // The chain, not the index: right after a bid the index can still show the spot open for a few seconds, and the
+    // campaign would outbid its own brand.
+    const [now, need] = await Promise.all([
+      client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatch", args: [BigInt(p.listing_id), p.patch_id] }).catch(() => null),
+      client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minNextBid", args: [BigInt(p.listing_id), p.patch_id] }).catch(() => null),
+    ]);
+    if (!now || now.bought || now.topBidder.toLowerCase() === c.brand.toLowerCase()) return null;
     if (need === null || need > cap || need > balance) return null;
     return {
       ...base,
