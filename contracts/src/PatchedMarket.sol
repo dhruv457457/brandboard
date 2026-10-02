@@ -240,7 +240,7 @@ contract PatchedMarket is
     address public treasury;
 
     // Defaults are set in `initialize`: a proxy does not run these declarations
-    uint16 public feeBps; // 5% of creator payouts
+    uint16 public feeBps; // of creator payouts: 5% default in initialize, 1% on the live testnet market (setParams)
     uint16 public royaltyBps; // 5% of resales, to the creator
     uint16 public minIncrementBps; // next bid >= top + 5% ...
     uint96 public minIncrement; // ... and >= top + $5

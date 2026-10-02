@@ -48,7 +48,7 @@ A signed-in user can be both creator and brand; the nav shows what applies. Sign
 2. **Moderation** (admin): AI pre-screens the listing text and images (scam/NSFW/mismatch) → admin approves on-chain → *Active*.
 3. **Bidding** (brand): gasless, approve+bid in one click via Privy batching (or USDC permit). Add funds by card or crypto through Privy.
 4. **Close**: after the deadline a Privy server wallet calls `closeBidding` → winners get receipt NFTs → *Delivering*.
-5. **Delivery**: creator submits proof per milestone → 72h dispute window → `release` pays creator (minus 5% fee), split across team payees if set.
+5. **Delivery**: creator submits proof per milestone → 72h dispute window → `release` pays creator (minus the fee, 1% on the live market), split across team payees if set.
 6. **Dispute**: the holder of a patch's receipt can dispute that patch only; AI summarizes both sides and checks the proof photos; admin resolves (pay / refund / split).
 7. **No-show**: missed proof deadline → `markFailed` → unreleased money back to receipt holders + creator bond split among them.
 8. **Resale**: receipt holder lists the patch for resale while the listing is *Delivering*; buyer pays, creator gets 5% royalty.
