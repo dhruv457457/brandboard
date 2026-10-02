@@ -10,6 +10,8 @@ import { formatTimeAgo, formatUsdc } from "@/lib/format";
 import { fromWire, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
 import { cn } from "@/lib/utils";
+import { FollowButton } from "@/components/ui/FollowButton";
+import { CHAIN_ID } from "@/lib/config";
 
 export interface EventInfo {
   id: number;
@@ -79,6 +81,7 @@ export function EventView({ event, cards: wire, leaderboards, wall }: { event: E
         actions={<>
           {event.website && <a href={event.website} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><Globe size={14} /> Website <ExternalLink size={12} /></a>}
           {event.x && <a href={event.x} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg> On X</a>}
+          <FollowButton kind="event" id={`${CHAIN_ID}:${event.id}`} />
           {event.active && !past && <Link href={`/campaigns/new?event=${event.id}`} className="btn-base btn-small"><Megaphone size={14} /> Sponsor everyone here</Link>}
           {event.active && !past && <Link href="/studio" className="btn-base btn-small btn-primary"><Plus size={14} /> Get patched here</Link>}
         </>}

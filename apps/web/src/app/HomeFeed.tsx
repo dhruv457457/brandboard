@@ -18,6 +18,7 @@ import { fromWire, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
 import type { FeedEvent, FeedItem } from "@/lib/market/feed";
 import { cn } from "@/lib/utils";
+import { useAuthedFetch } from "@/lib/authedFetch";
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 const SURFACE_LABEL = { outfit: "Outfit", car: "Vehicle", hoodie: "Team hoodie" } as const;
@@ -35,6 +36,30 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // "Following": only moments from creators and events you follow.
+  const { authenticated } = usePatchedAuth();
+  const authedFetch = useAuthedFetch();
+  const [tab, setTab] = useState<"all" | "following">("all");
+  const [follows, setFollows] = useState<{ profiles: Set<string>; events: Set<number> } | null>(null);
+  useEffect(() => {
+    if (!authenticated) return;
+    let alive = true;
+    authedFetch("/api/follows?mine=1")
+      .then((r) => r.json())
+      .then((j: { profiles: string[]; events: number[] }) => alive && setFollows({ profiles: new Set(j.profiles), events: new Set(j.events) }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [authenticated, authedFetch, tab]);
+  const shown = useMemo(() => {
+    if (tab === "all") return items;
+    return items.filter((it) => {
+      const c = byId.get(it.listingId);
+      return !!c && !!follows && (follows.profiles.has(c.creator.toLowerCase()) || follows.events.has(c.eventId));
+    });
+  }, [tab, items, byId, follows]);
+
   const ending = cards
     .filter((c) => c.status === 1 && c.biddingEndsAt > Date.now())
     .sort((a, b) => a.biddingEndsAt - b.biddingEndsAt)
@@ -51,7 +76,22 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
         <OffersForYou />
         {events.length > 0 && <EventsStrip events={events} />}
 
-        {items.length === 0 ? (
+        <div className="flex gap-2 px-5 py-3 border-b-[1.5px] border-[var(--soft)]" role="tablist" aria-label="Feed">
+          {([["all", "For you"], ["following", "Following"]] as const).map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+              className={cn("h-9 px-4 rounded-full text-sm font-semibold border-[1.5px]", tab === id ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)]" : "border-[var(--soft)] hover:border-[var(--line)]")}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "following" && shown.length === 0 ? (
+          <div className="px-6 py-16 text-center grid gap-3 justify-items-center">
+            <h2 className="text-2xl font-extrabold">{follows && (follows.profiles.size || follows.events.size) ? "Nothing new from who you follow" : "Follow creators and events"}</h2>
+            <p className="text-[var(--muted)] max-w-sm">Press Follow on a creator&apos;s page or an event, and their new listings, bids and proofs show up here.</p>
+            <Link href="/events" className="btn-base btn-primary">Browse events</Link>
+          </div>
+        ) : items.length === 0 ? (
           <div className="px-6 py-16 text-center grid gap-3 justify-items-center">
             <h2 className="text-2xl font-extrabold">Nothing here yet</h2>
             <p className="text-[var(--muted)] max-w-sm">New listings, bids and proofs show up here as they happen.</p>
@@ -59,7 +99,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
           </div>
         ) : (
           <ol className="list-none m-0 p-0">
-            {items.map((it) => {
+            {shown.map((it) => {
               const card = byId.get(it.listingId);
               if (!card) return null;
               return (

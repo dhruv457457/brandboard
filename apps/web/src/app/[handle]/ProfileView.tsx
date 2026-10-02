@@ -18,6 +18,7 @@ import { fromWire, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
 import { cn } from "@/lib/utils";
 import { CHAIN_ID } from "@/lib/config";
+import { FollowButton } from "@/components/ui/FollowButton";
 import { supabase } from "@/lib/supabase";
 
 export interface PublicProfile {
@@ -98,7 +99,7 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
         <div className="flex items-end justify-between gap-3 -mt-12 sm:-mt-14">
           <Avatar src={p.avatarUrl} name={named} wallet={p.wallet} size={112} className="relative z-10 !border-[3px] shadow-[3px_3px_0_var(--shadow)] ring-4 ring-[var(--paper)]" />
           <div className="flex gap-2 pb-1 flex-wrap justify-end">
-            {isOwner && <Link href="/settings" className="btn-base btn-small"><Pencil size={13} /> Edit profile</Link>}
+            {isOwner ? <Link href="/settings" className="btn-base btn-small"><Pencil size={13} /> Edit profile</Link> : <FollowButton kind="profile" id={p.wallet} />}
             <button className="btn-base btn-small" onClick={() => navigator.clipboard.writeText(publicUrl(pageHref)).then(() => toast("Profile link copied.")).catch(() => {})}>
               <Link2 size={13} /> Share
             </button>
