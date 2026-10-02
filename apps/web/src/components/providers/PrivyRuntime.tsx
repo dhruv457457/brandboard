@@ -27,6 +27,15 @@ import { walletClientType, type InjectedWallet } from "@/lib/injectedWallets";
 import { takePendingLogin, type AuthContextValue } from "./PrivyAuthProvider";
 
 /**
+ * Privy's signTypedData sends the typed data as JSON, which can't hold a bigint ("Do not know how to serialize a
+ * BigInt"), so every permit (bids, sweep, auto-bid) failed. uint256 values go as decimal strings, which EIP-712
+ * signs the same way.
+ */
+const jsonSafe = <T,>(v: T): T =>
+  (typeof v === "bigint" ? v.toString() : Array.isArray(v) ? v.map(jsonSafe) : v && typeof v === "object"
+    ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, jsonSafe(x)])) : v) as T;
+
+/**
  * The Privy SDK and every Privy hook the app uses, in one lazily loaded module. Bridge reads the hooks and
  * hands the result up to PrivyAuthProvider's context on every change.
  */
@@ -141,7 +150,7 @@ function Bridge({ onChange }: { onChange: (v: AuthContextValue) => void }) {
       },
       getAccessToken,
       sendTransaction,
-      signTypedData,
+      signTypedData: (data, options) => signTypedData(jsonSafe(data), options),
       exportWallet,
       hasPasskey: (user?.mfaMethods ?? []).includes("passkey"),
       promptMfa,
