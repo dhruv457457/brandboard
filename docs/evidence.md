@@ -50,3 +50,4 @@ Every step of the test cycle in docs/final-plan.md, run on Monad testnet (chain 
 - **T17:** passkey step-up on a big bid (passkeys can't be automated).
 - **T18:** the Add money screen (module M5, not built yet).
 - **The fee is still 5%** on the testnet market (the payouts above show it). Setting it to 1% is one admin call, `setParams`, left for the team to run.
+| T3-live | Patched Test (Privy wallet, live site) | Bid $7 on "Hoodie chest" of listing #6 on monad.patched.world after the deploy: the approve-then-bid fix works in production, and the $5 bid of 0x6aBDd3… was refunded in the same transaction | [0xdf8fb9eb…](https://testnet.monadexplorer.com/tx/0xdf8fb9eb4350a58167145695c961781740b79589f0680fb4994d357e6229915a) | 2026-10-02 14:59 |
