@@ -16,6 +16,23 @@ Not proven: signer auto-bid, campaigns, offers, proof, review and payout have ne
 (TESTING.md §4–7). Traction on testnet: 14 profiles, 3 creators, 4 listings, 27 bids from 7 wallets (mostly seeded
 bots), 0 campaigns, nothing on mainnet.
 
+## Status (2026-10-02)
+
+| Module | State |
+|---|---|
+| M1 On-chain test run | Done: 25 transactions in [evidence.md](evidence.md); found and fixed the Privy-wallet bid bug |
+| M2 Explorer links | Done: bids, Activity rows, campaign actions |
+| M3 1% fee | Not a contract upgrade: `setParams` already sets it. One admin call left to run (see evidence.md) |
+| M4 Aggregations | The shared aggregation does not work (one total per aggregation, not per wallet). Built: one per live campaign, freed at the end, none past 8 live |
+| M5 Add money | Done: sheet with QR, address, steps, faucet, live balance |
+| M6 Token2049 pilot | Events created (Buenos Aires, Monad Open, Token2049 Singapore) and three real-photo listings; the real USDC vs TestUSD decision is open |
+| M7 Follows | Done: follow creators, brands and events; Following feed on Home |
+| M8 Reactions | Done on spotted photos (fire, cheer, love) |
+| M9 Spotted | Done: wall on event, listing and profile; creator notified |
+| M10 UX fixes | Partly: admin status labels, spot placement on the person. Still open: profile reach, listing goal line, event page cards, Automate entry |
+| M11 Metrics | Done: `scripts/metrics.mts` |
+| M12 Verify it yourself | Done: README table |
+
 ## Order of work
 
 | # | Module | Score it moves | Size | Days |
