@@ -45,7 +45,9 @@ export const MAX_AGGREGATION_WINDOW = 72 * 3600;
 
 /**
  * The Privy aggregation for a campaign: the sum of `bidFor.amount` over every bid its wallet signs on our market.
- * Aggregations are counted per wallet, so each campaign wallet has its own running total.
+ * One aggregation keeps ONE running total for every wallet whose policy uses it (checked live: a second wallet on the same
+ * aggregation was refused because the first had used the budget), so each campaign needs its own. Privy allows only 10
+ * per app, so a campaign beyond that has no aggregation and is held to its per-bid cap and the budget in its wallet.
  */
 export function campaignAggregation(c: { chainId: number; market: string; name: string; windowSeconds: number }) {
   return {

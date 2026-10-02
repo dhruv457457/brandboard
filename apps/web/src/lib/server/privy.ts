@@ -1,6 +1,6 @@
 import "server-only";
 import { createPrivateKey, createPublicKey } from "node:crypto";
-import { PrivyClient } from "@privy-io/node";
+import { PrivyClient, generateAuthorizationSignature } from "@privy-io/node";
 
 let client: PrivyClient | null = null;
 
@@ -80,6 +80,24 @@ export async function createAggregation(input: object): Promise<string> {
   const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
   if (!res.ok || !json.id) throw new Error(`Privy aggregation: ${json.error ?? res.status}`);
   return json.id;
+}
+
+/**
+ * Delete a Privy aggregation, which frees one of the app's 10. Privy signs a DELETE as if its body were {}, but the
+ * request itself carries no body. Returns false when Privy refused (the caller keeps the id and may retry later).
+ */
+export async function deleteAggregation(id: string): Promise<boolean> {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
+  const url = `https://api.privy.io/v1/aggregations/${id}`;
+  const signature = generateAuthorizationSignature({
+    authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY!.replace(/^wallet-auth:/, ""),
+    input: { version: 1, method: "DELETE", url, body: {}, headers: { "privy-app-id": appId } },
+  });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "privy-app-id": appId, authorization: `Basic ${Buffer.from(`${appId}:${process.env.PRIVY_APP_SECRET}`).toString("base64")}`, "privy-authorization-signature": signature },
+  });
+  return res.ok || res.status === 404;
 }
 
 /** Did Privy refuse this because of the wallet's policy (not a chain or network problem)? */

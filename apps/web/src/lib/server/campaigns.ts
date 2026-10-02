@@ -5,7 +5,7 @@ import { CHAIN_ID, MARKET, USDC, serverClient } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
 import { formatUsdc } from "@/lib/format";
 import { BID_FOR_ABI, ERC20_SPEND_ABI, campaignAggregation, campaignRules, offerAdvanceRule } from "@/lib/market/campaignPolicy";
-import { budgetCheck, createAggregation, isPolicyViolation, keyOwner, privyServer, sendFromServerWallet } from "./privy";
+import { budgetCheck, createAggregation, deleteAggregation, isPolicyViolation, keyOwner, privyServer, sendFromServerWallet } from "./privy";
 
 export interface CampaignRow {
   id: string;
@@ -47,11 +47,14 @@ export interface OfferTarget {
 }
 
 const SPONSORED = process.env.KEEPER_GAS_SPONSORED !== "false";
+/** Privy allows 10 aggregations per app; a few are kept free for other chains' campaigns and scripts. */
+const MAX_LIVE_AGGREGATIONS = 8;
+
 /** Bids a campaign places per keeper tick, so one tick never spends the whole budget on a single rush. */
 const BIDS_PER_TICK = 3;
 
 /**
- * A new campaign: a Privy aggregation that adds up its bids, one Privy policy written from the brand's settings (per-bid
+ * A new campaign: a Privy aggregation that adds up its bids (while Privy's 10 allow), one Privy policy written from the brand's settings (per-bid
  * cap, end time, and the aggregation kept within the budget), and one Privy server wallet that carries it. All owned by
  * our authorization key. The brand funds the wallet next, in one transfer. With `offer`, it's an offer to one X account:
  * the policy also lets it pay that person's listing stake, and the keeper only bids on their listings.
@@ -62,9 +65,16 @@ export async function createCampaign(input: { brand: string; did: string; eventI
   const o = input.offer;
   // Privy names are short: "Campaign 0xabcd12 e1 c10143", "Offer 0xabcd12 @dhruv c10143".
   const label = o ? `Offer ${input.brand.slice(0, 8)} @${o.handle} c${CHAIN_ID}` : `Campaign ${input.brand.slice(0, 8)} e${input.eventId} c${CHAIN_ID}`;
-  const aggregationId = await createAggregation(campaignAggregation({
-    chainId: CHAIN_ID, market: MARKET, name: `${label} spend`, windowSeconds: input.endsAt - Date.now() / 1000 + 3600,
-  }));
+  // Privy allows 10 aggregations per app and one aggregation keeps one total (it can't be shared between campaigns), so
+  // each live campaign gets its own, freed when the campaign ends. Past MAX_LIVE_AGGREGATIONS a campaign goes without:
+  // its policy still caps every bid and its wallet only ever holds its budget.
+  const { count: live } = await supabaseAdmin().from("brand_campaigns").select("id", { count: "exact", head: true })
+    .not("aggregation_id", "is", null).in("status", ["funding", "active", "ending"]);
+  const aggregationId = (live ?? 0) < MAX_LIVE_AGGREGATIONS
+    ? await createAggregation(campaignAggregation({
+        chainId: CHAIN_ID, market: MARKET, name: `${label} spend`, windowSeconds: input.endsAt - Date.now() / 1000 + 3600,
+      })).catch((err) => { console.warn("campaign without an aggregation:", err instanceof Error ? err.message : err); return undefined; })
+    : undefined;
   const rules = [
     ...campaignRules({
       chainId: CHAIN_ID, market: MARKET, usdc: USDC, brand: input.brand, maxPerSpot: input.maxPerSpot, endsAt: input.endsAt,
@@ -91,7 +101,7 @@ export async function createCampaign(input: { brand: string; did: string; eventI
     wallet_id: wallet.id,
     wallet_address: wallet.address.toLowerCase(),
     policy_id: policy.id,
-    aggregation_id: aggregationId,
+    aggregation_id: aggregationId ?? null,
     ...(o ? {
       kind: "x_offer",
       target_x_id: o.xId,
@@ -169,6 +179,10 @@ async function tick(c: CampaignRow) {
     }
     await db.from("brand_campaigns").update({ status: "ended" }).eq("id", c.id);
     await log(c.id, { kind: "ended", text: "The campaign ended." });
+    // Nothing is checked against it any more: free the slot for the next campaign.
+    if (c.aggregation_id && (await deleteAggregation(c.aggregation_id).catch(() => false))) {
+      await db.from("brand_campaigns").update({ aggregation_id: null }).eq("id", c.id);
+    }
     return;
   }
   if (c.status !== "active" || balance === 0n) return;

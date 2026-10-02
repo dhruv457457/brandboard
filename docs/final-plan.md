@@ -88,6 +88,11 @@ Cut: PatchBonus / X reach bonus (needs a paid X API tier and a new contract), bu
 `PRIVY_CAMPAIGN_AGGREGATION_ID`; every campaign policy keeps its own `aggregation.<id> lte budget` rule. Privy keeps a
 separate total per wallet, so campaigns don't share budgets. A script creates it once. Existing campaigns keep theirs.
 
+**Result (2026-10-02): this does not work.** `scripts/privy-campaign-budget-check.mts` put two wallets on one aggregation and the
+second was refused after the first used the budget: an aggregation keeps one total for every wallet that uses it. Built instead:
+one aggregation per live campaign, deleted when the campaign ends (frees a slot), and past 8 live ones a campaign goes without
+(per-bid cap plus a wallet that only holds its budget).
+
 **Done when:** `scripts/privy-campaign-budget-check.mts` passes with two campaign wallets on the shared aggregation,
 each with its own total.
 
