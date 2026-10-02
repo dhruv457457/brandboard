@@ -2,6 +2,8 @@
 // Models are set by env vars (see .env.example) so they can be swapped without code changes.
 // Server-only: never import this from browser code (it reads OPENROUTER_API_KEY).
 
+import sharp from "sharp";
+
 export type Surface = "outfit" | "car" | "hoodie";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
@@ -89,6 +91,39 @@ export async function makeCanvas(image: string, surface: Surface, idea?: string)
   throw lastError instanceof Error ? lastError : new Error("canvas generation failed");
 }
 
+/**
+ * Where the visible subject of a cutout (non-transparent pixels) sits in the image, as percent boxes, plus the subject
+ * cropped onto white. The vision model places spots far more accurately on a tight crop than on a full-height frame with
+ * the person in a narrow strip. Null when the image has no transparency to measure or the subject already fills it.
+ */
+async function subjectCrop(image: string): Promise<{ x: number; y: number; w: number; h: number; crop: string } | null> {
+  try {
+    const bytes = image.startsWith("data:")
+      ? Buffer.from(image.slice(image.indexOf(",") + 1), "base64")
+      : Buffer.from(await (await fetch(image)).arrayBuffer());
+    const { data, info } = await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const { width: W, height: H } = info;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (data[(y * W + x) * 4 + 3] > 40) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < x0 || y1 < y0) return null;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1;
+    if ((w * h) / (W * H) > 0.8) return null;
+    const png = await sharp(bytes).extract({ left: x0, top: y0, width: w, height: h }).flatten({ background: "#ffffff" }).png().toBuffer();
+    return { x: (x0 / W) * 100, y: (y0 / H) * 100, w: (w / W) * 100, h: (h / H) * 100, crop: `data:image/png;base64,${png.toString("base64")}` };
+  } catch {
+    return null;
+  }
+}
+
 export interface SuggestedPatch {
   name: string;
   x: number;
@@ -102,6 +137,20 @@ export interface SuggestedPatch {
  * Returns [] if the model's answer can't be parsed; callers fall back to the default layout.
  */
 export async function suggestLayout(image: string, surface: Surface, count = 5, view?: string): Promise<SuggestedPatch[]> {
+  // Ask about the subject alone, then map the boxes back onto the full image.
+  const box = await subjectCrop(image);
+  const patches = await suggestOn(box ? box.crop : image, surface, count, view, !!box);
+  if (!box) return patches;
+  return patches.map((p) => ({
+    ...p,
+    x: Math.round((box.x + (p.x * box.w) / 100) * 10) / 10,
+    y: Math.round((box.y + (p.y * box.h) / 100) * 10) / 10,
+    w: Math.round(((p.w * box.w) / 100) * 10) / 10,
+    h: Math.round(((p.h * box.h) / 100) * 10) / 10,
+  }));
+}
+
+async function suggestOn(image: string, surface: Surface, count: number, view: string | undefined, cropped: boolean): Promise<SuggestedPatch[]> {
   const json = await chat({
     model: env("AI_VISION_MODEL", "google/gemini-2.5-flash-lite"),
     temperature: 0.2,
@@ -113,9 +162,10 @@ export async function suggestLayout(image: string, surface: Surface, count = 5, 
           {
             type: "text",
             text:
-              `This is ${view ? `the ${view} view of ` : ""}a white ${surface === "car" ? "car" : surface === "hoodie" ? "hoodie" : "outfit on a person"} on a transparent background. ` +
+              `This is ${view ? `the ${view} view of ` : ""}a white ${surface === "car" ? "car" : surface === "hoodie" ? "hoodie" : "outfit on a person"} ${cropped ? "cropped tightly to its edges" : "on a transparent background"}. ` +
               `Propose ${count} rectangular spots where a sponsor logo patch would be clearly visible and look natural ` +
-              `(flat areas of the surface, not faces, hands, wheels or windows). ` +
+              `(flat areas of the clothing or car body that are really on it, never on the background, faces, hands, shoes, wheels or windows). ` +
+              `Each spot is a compact rectangle, roughly as wide as it is tall (never more than twice as tall as wide), small enough that several fit on the surface. ` +
               `Answer as JSON: {"patches":[{"name":"short spot name","x":0-100,"y":0-100,"w":0-100,"h":0-100}]} ` +
               `where x,y are the top-left corner and w,h the size, all in percent of the image width/height.`,
           },
