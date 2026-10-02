@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Check, Copy, ExternalLink, Gavel, LayoutDashboard, LogOut, Megaphone, Moon, Settings, ShieldHalf, Sun } from "lucide-react";
+import { ExternalLink, Gavel, LayoutDashboard, LogOut, Megaphone, Moon, Plus, Settings, ShieldHalf, Sun } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useBalances } from "@/lib/useBalances";
 import { useIsAdmin } from "@/lib/useIsAdmin";
 import { useProfile } from "@/lib/profile";
 import { useTheme } from "@/lib/theme";
 import { CHAIN, EXPLORER, GAS_SPONSORED, OPEN_ADMIN } from "@/lib/config";
-import { formatShortAddress } from "@/lib/format";
+import { openAddMoney } from "@/components/wallet/AddMoney";
 import { NetworkOptions } from "./NetworkSwitch";
 
 const ROW = "flex items-center gap-3 h-10 px-2.5 rounded-xl text-[15px] font-semibold no-underline text-[var(--ink)] hover:bg-[var(--soft)] w-full text-left";
@@ -25,19 +24,7 @@ export function WalletPanel({ onNavigate }: { onNavigate?: () => void }) {
   const { usdc, mon } = useBalances(walletAddress);
   const isAdmin = useIsAdmin(walletAddress);
   const { theme, toggleTheme } = useTheme();
-  const [copied, setCopied] = useState(false);
   const go = () => onNavigate?.();
-
-  async function copy() {
-    if (!walletAddress) return;
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard blocked: the full address is in Settings */
-    }
-  }
 
   return (
     <div className="grid gap-3">
@@ -51,13 +38,10 @@ export function WalletPanel({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="grid gap-1.5">
-        <button onClick={copy} className="btn-base btn-small btn-primary w-full justify-center">
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? "Address copied" : "Add money"}
+        <button onClick={() => { onNavigate?.(); openAddMoney(); }} className="btn-base btn-small btn-primary w-full justify-center">
+          <Plus size={14} /> Add money
         </button>
-        <p className="text-xs text-[var(--muted)]">
-          {copied ? `Send USDC on ${CHAIN.name} to ${formatShortAddress(walletAddress)} from any wallet or exchange.` : `Copies your address. Send USDC on ${CHAIN.name} to it.`}
-        </p>
+        <p className="text-xs text-[var(--muted)]">{`Your address as a QR code, and how to send USDC on ${CHAIN.name} to it.`}</p>
       </div>
 
       <div className="grid gap-0.5 border-t-[1.5px] border-[var(--soft)] pt-2">

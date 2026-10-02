@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { SurfaceDefs } from "@/components/surface/SurfaceDefs";
 import { Toaster } from "@/components/ui/Toast";
+import { AddMoneyHost } from "@/components/wallet/AddMoney";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -90,6 +91,7 @@ export default function RootLayout({
                 <AppShell>{children}</AppShell>
               </MotionProvider>
               <Toaster />
+              <AddMoneyHost />
             </ProfileProvider>
           </PrivyAuthProvider>
         </ThemeProvider>

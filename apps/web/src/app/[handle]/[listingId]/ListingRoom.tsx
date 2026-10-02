@@ -30,6 +30,7 @@ import { MilestoneList } from "@/components/market/MilestoneList";
 import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { ExplorerLink } from "@/components/ui/ExplorerLink";
+import { openAddMoney } from "@/components/wallet/AddMoney";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst } from "@/components/market/SpotBubble";
 import { ListingTools } from "@/components/market/ListingTools";
@@ -578,7 +579,11 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                                           {txStatus === "signing" ? "Approving USDC…" : txStatus === "confirming" ? "Placing bid…" : parseUsdc(amountText) >= p.buyNow ? `Buy it for ${usd(p.buyNow)}` : `Bid ${amountText ? `$${amountText}` : ""}`}
                                         </Button>
                                       )}
-                                      {error && <p className="text-sm text-[var(--red)]" role="alert">{error}</p>}
+                                      {error && (
+                                        <p className="text-sm text-[var(--red)]" role="alert">
+                                          {error}{/Not enough|needs a little more/i.test(error) && <> <button type="button" className="font-semibold underline" onClick={openAddMoney}>Add money</button></>}
+                                        </p>
+                                      )}
                                       <p className="text-xs text-[var(--muted)] leading-relaxed">
                                         Your USDC goes into escrow, not to the creator. Outbid? It comes back right away.
                                         {GAS_SPONSORED ? " No gas needed." : ""}
