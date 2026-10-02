@@ -49,5 +49,23 @@ Every step of the test cycle in docs/final-plan.md, run on Monad testnet (chain 
 - **T16:** claiming the X offer needs a real sign-in with @dhruvpanch0li (manual).
 - **T17:** passkey step-up on a big bid (passkeys can't be automated).
 - **T18:** the Add money screen (module M5, not built yet).
-- **The fee is still 5%** on the testnet market (the payouts above show it). Setting it to 1% is one admin call, `setParams`, left for the team to run.
+- **The fee is now 1%** (rows U-fee and U-release below). Listings #5 to #8 were created at 5% and keep their payouts at the current setting, as they have no saved terms.
 | T3-live | Patched Test (Privy wallet, live site) | Bid $7 on "Hoodie chest" of listing #6 on monad.patched.world after the deploy: the approve-then-bid fix works in production, and the $5 bid of 0x6aBDd3… was refunded in the same transaction | [0xdf8fb9eb…](https://testnet.monadexplorer.com/tx/0xdf8fb9eb4350a58167145695c961781740b79589f0680fb4994d357e6229915a) | 2026-10-02 14:59 |
+| U1 | Team Patched (creator) | Created listing #9 "Post-upgrade check (1% fee)" with 3 spots and a $1 stake | [0xd2be268b…](https://testnet.monadexplorer.com/tx/0xd2be268bd18b7a28e60cde9c6fd881c62572df36bf9a149b84d4c8192081eae4) | 2026-10-02 19:19 |
+| U2 | Admin | Approved listing #9; bidding is open | [0x8bf51680…](https://testnet.monadexplorer.com/tx/0x8bf51680157ec0382dfec2dd24294c17526519672f39d82f6a76a266a93c7a98) | 2026-10-02 19:19 |
+| U3 | Priya (rival brand) | Bid $2 on "Chest pocket" of listing #9 | [0xb32dc320…](https://testnet.monadexplorer.com/tx/0xb32dc3205b458b4aa8e58db8aef5850670ebe2b0a8f6b22e10d1fce93d93500b) | 2026-10-02 19:20 |
+| U4 | Team Patched (creator) | Submitted proof for milestone 1 of listing #9 (2 photos); review window started | [0x8524c440…](https://testnet.monadexplorer.com/tx/0x8524c440cf10a5c5448452f63ea3281e7587c8d889bc480b78fa8280b3c2786e) | 2026-10-02 19:24 |
+| U6 | Team Patched (creator) | Submitted proof for milestone 2 of listing #9 (2 photos); review window started | [0x47839cbe…](https://testnet.monadexplorer.com/tx/0x47839cbeb55cd0ea3ccddb7c6ffd43e09707f4689799284d9efe14f454f8f2ea) | 2026-10-02 19:28 |
+| U-upgrade | Deployer (market admin) | Upgraded the live testnet market to the hardened code (new implementation 0x4b08D9F1…): same proxy, same listings, same escrow; the deadline, pause, saved-terms and stale-dispute fixes are live | [0x6fccffe0…](https://testnet.monadexplorer.com/tx/0x6fccffe007eec2878e63bcf5cb94a828d36be1065e52d7fb7447800ad4af3596) | 2026-10-02 19:32 |
+| U-fee | Deployer (market admin) | Set the market fee to 1% with setParams; every other setting unchanged | [0xaa3e7573…](https://testnet.monadexplorer.com/tx/0xaa3e7573b6154b08cfdb2e0960b5d302bdb857c7e2a2b8fa3f2a7d1582e892f6) | 2026-10-02 19:32 |
+| U-close | Keeper (Privy server wallet + policy) | Closed listing #9; the first proof deadline was set 6 minutes after the auction ended, so the contract moved both deadlines later by 54.6 minutes (DeadlinesShifted): the creator has an hour to deliver | [0x57ee46b4…](https://testnet.monadexplorer.com/tx/0x57ee46b49e7bf1b542d208810e6d7ff6d9790c2528913a191904e1cb3e1998c2) | 2026-10-02 19:32 |
+| U-release1 | Keeper (Privy server wallet + policy) | Released milestone 1 of listing #9 at the new 1% fee: $0.594 to the creator, $0.006 fee (1% of $0.60) | [0x2075b760…](https://testnet.monadexplorer.com/tx/0x2075b7607dfe9bc8e08183d6011a87609de736428ff16baa010b7b8bb019ea67) | 2026-10-02 19:33 |
+| U-release2 | Keeper (Privy server wallet + policy) | Released the final milestone of listing #9: $1.386 to the creator, $0.014 fee; the listing completed and the stake came back | [0x309ff93f…](https://testnet.monadexplorer.com/tx/0x309ff93f05282a3d02229ab888310bae47281d245dd7448022d4b73c3103273b) | 2026-10-02 19:33 |
+
+## After the contract hardening (2026-10-03)
+
+The U-rows above the table end show the upgrade of the live testnet market after a mentor review (see
+[docs/contracts.md](contracts.md), "Timing and settings") and a short cycle on listing #9 that proves the new code:
+the deadline shift at close (`DeadlinesShifted`, +54.6 minutes) and both payouts at the saved 1% fee. Twelve new
+tests in `contracts/test/Timeline.t.sol` cover the rest (pause grace, fee and review window kept per listing,
+stale-dispute settlement, hand-worked payout recipients).
