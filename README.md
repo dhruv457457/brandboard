@@ -16,7 +16,7 @@ Creators sell ad space on things people look at: their outfit at an event, their
 2. Press **Use the demo account** at the bottom of the sign-in card. One tap signs you in to a shared Privy test account
    with its own embedded wallet: no email, no seed phrase, no extension. (It only appears on test money: testnet, or
    mainnet on TestUSD.)
-3. Open an event, tap a spot and bid. There is no wallet pop-up and no gas prompt: Privy signs the permit and
+3. Open an event, tap a spot and bid. There is no wallet pop-up and no gas prompt: Privy approves and bids for you and
    sponsors the gas. Big bids (over `NEXT_PUBLIC_STEP_UP_USD`, $1,000 by default) ask for a passkey first.
 4. On a spot, turn on **Auto-bid**: Privy adds Patched as a signer limited by a policy, and Settings → Security has a
    one-tap Revoke.
@@ -24,6 +24,27 @@ Creators sell ad space on things people look at: their outfit at an event, their
    policy-limited Privy server wallet. Nobody can review their own listing or settle their own dispute.
 
 Test USDC on testnet: Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+
+## Verify it yourself
+
+One full cycle ran on Monad testnet on 2026-10-02, with the Privy test account as the brand. Every step is on the
+explorer; [docs/evidence.md](docs/evidence.md) has all 25 transactions.
+
+| What | Privy feature | Transaction |
+|---|---|---|
+| A brand bids from a Privy wallet: no prompt, no gas | Embedded wallet, gas sponsorship | [0x77d837d6…](https://testnet.monadexplorer.com/tx/0x77d837d64256a20cb45fe02cbc3e1305ff977e4e87907b705eb884237666e92b) |
+| A rival outbids; the brand is refunded in the same transaction | | [0x419332c5…](https://testnet.monadexplorer.com/tx/0x419332c5a9dde1b0b33bcfe5034208f4d98e9ab46e66077f59e8fb6448268e15) |
+| Auto-bid answers within seconds, from the brand's own wallet | Signer with a policy (key quorum) | [0x28e3a8c5…](https://testnet.monadexplorer.com/tx/0x28e3a8c5a43459d4e7b4b6cea90cc91fd99aed62febdb50f5c56074c5adc58b1) |
+| Two spots in one sweep, all or nothing | Sponsored gas | [0x0584ad7a…](https://testnet.monadexplorer.com/tx/0x0584ad7a9b11e03fbdbd79abef2585ed0aa5260501884665ad0febeb89f8d3a4) |
+| A campaign bids for the brand; Privy refuses the bid that would pass the $10 budget | Server wallet, policy, aggregation | [0x2a5d3397…](https://testnet.monadexplorer.com/tx/0x2a5d3397c267b182a3daef0dce7f854b3713e681ece27e7303b7984a4891e1a3) |
+| A brand offers $5 to an X handle; the money waits in its own wallet | Pregenerated wallets, policy | [0x6172ae36…](https://testnet.monadexplorer.com/tx/0x6172ae361a4dcfb6237339da6148e50a94409519a731297ed7f672d1c54e203f) |
+| A listing approved by a non-admin through open admin | Policy-limited server wallet | [0x11a6f46c…](https://testnet.monadexplorer.com/tx/0x11a6f46c18c70697cd9ee23007ee68471e39eac5b80b729cbd422a7cf30340ac) |
+| The keeper closes bidding 8 seconds after it ends | Keeper server wallet, policy | [0x2d1eb116…](https://testnet.monadexplorer.com/tx/0x2d1eb116841d9ce242685c4d32a4da0bfca97f3bb166e0ce47a807fdd7a34b19) |
+| The holder disputes a proof; an admin splits it | | [0x3260057d…](https://testnet.monadexplorer.com/tx/0x3260057d7cd9f4ac083daddee507d7087855b2aa2e05141c53dc9989a1a41861), [0x6df7fed0…](https://testnet.monadexplorer.com/tx/0x6df7fed00c19f7f0829492eeaa2fd3dde069c79923539222fd4383df3c0ba023) |
+| The last payout: the listing completes and the creator's stake comes back | Keeper server wallet | [0x99a160d6…](https://testnet.monadexplorer.com/tx/0x99a160d6999785850adf73d43818b1323e8d73888b6e506d1e89ef453d03f602) |
+
+Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps) and `apps/web/scripts/browser-steps.mjs`
+(the brand, in a browser, as the Privy test account).
 
 ## Surfaces
 
@@ -55,7 +76,7 @@ Test USDC on testnet: Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e
 - **One-tap bidding.** Tap a spot on the photo and a bubble shows the price, who leads and the last few bids. One button bids the minimum to take the lead. Quick chips add +$5, +$10 or buy it now.
 - **Full bid sheet.** Enter a custom amount or buy the spot outright.
 - **Auto-bid.** "Keep me on top up to $X." When you're outbid, Patched bids the next step for you within seconds, and never above your maximum. It shows "Paused" and tells you what to fix if your wallet runs out of USDC or of spending permission.
-- **Sweep.** Pick several spots and bid on all of them with one signature. Either every bid lands or none do.
+- **Sweep.** Pick several spots and bid on all of them in one tap. Either every bid lands or none do.
 - **Instant refunds.** When you're outbid, your USDC comes straight back in the same transaction.
 - **One-tap rebid.** The outbid toast has a "Bid $X" button that bids the new minimum in one tap.
 - **Verified brand badge.** Link your work email. If its domain matches your website, your bids and patches show "Verified brand".
@@ -124,7 +145,7 @@ Privy does much more than sign-in here. Every row is live in the app and links t
 | Sign-in in our own design | The welcome page signs people in with Privy's headless hooks (`useLoginWithOAuth` for X, `useLoginWithEmail` for a code), and Privy's own window is branded with our logo, colour and copy. | [WelcomeView.tsx](apps/web/src/app/welcome/WelcomeView.tsx), [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx) |
 | Login with X, email or a wallet + embedded wallets | A brand or creator gets a self-custodial wallet in seconds, with no seed phrase and no extension. People who sign in with MetaMask keep using it; the account's wallet is always the one linked first, in the browser and on the server. The X handle becomes the creator's page. | [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx), [api/profile](apps/web/src/app/api/profile/route.ts) |
 | Gas sponsorship | Bids, listings, proofs and disputes cost users no MON on testnet (`sponsor: true`); it's a setting per network. | [useTx.ts](apps/web/src/lib/market/useTx.ts), [useBid.ts](apps/web/src/lib/market/useBid.ts) |
-| Silent typed-data signing | A bid is one USDC permit signature plus one transaction, with no separate approve step. | [useBid.ts](apps/web/src/lib/market/useBid.ts), [permit.ts](apps/web/src/lib/market/permit.ts) |
+| Silent, sponsored bids | A Privy wallet approves the exact amount, then bids: two gas-sponsored transactions with no prompt. A plain outside wallet signs one USDC permit instead. Permits don't work for Privy wallets: gas sponsorship gives them an EIP-7702 delegation, and USDC checks a permit from an address with code through ERC-1271 (found by the on-chain run, see [docs/evidence.md](docs/evidence.md)). Privy's `signTypedData` gets uint256 values as strings, since it sends typed data as JSON. | [useBid.ts](apps/web/src/lib/market/useBid.ts), [permit.ts](apps/web/src/lib/market/permit.ts) |
 | Server wallet + policy (keeper) | A Privy server wallet closes auctions, releases milestone payouts and marks no-shows. Its policy allows only `closeBidding`, `release` and `markFailed` on our market, plus `execute` on the auto-bidder. Anything else is rejected with `policy_violation` (checked by a script). Every send carries an `idempotency_key` keyed to the specific due action (and, for auto-bid, the top bid it's responding to), so a retried keeper tick can't pay or bid twice. | [keeper.ts](apps/web/src/lib/server/keeper.ts), [privy-keeper-add-chain.mjs](apps/web/scripts/privy-keeper-add-chain.mjs), [privy-policy-check.mjs](apps/web/scripts/privy-policy-check.mjs) |
 | Open admin for judges on a policy-limited server wallet | For the hackathon, anyone signed in can approve listings, fast-track milestones, settle disputes and manage events. Those actions are sent by a separate Privy server wallet whose policy allows only those market calls: no pause, fees, treasury, roles or upgrades. Turned off after judging. | [api/admin/act](apps/web/src/app/api/admin/act/route.ts), [privy-open-admin-setup.mjs](apps/web/scripts/privy-open-admin-setup.mjs), [AdminConsole.tsx](apps/web/src/app/admin/AdminConsole.tsx) |
 | Campaign wallets with policies the brand configures | Each campaign gets its own Privy server wallet and its own policy, written from the brand's settings: `bidFor` on our market only for the brand (`bidFor.bidder`), at most the per-spot maximum (`bidFor.amount`), until the end time (`current_unix_timestamp`); `approve` only for the market; `transfer` only back to the brand. The brand sees the same rules in plain words and as JSON. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts), [campaigns.ts](apps/web/src/lib/server/campaigns.ts), [CampaignBuilder.tsx](apps/web/src/app/campaigns/new/CampaignBuilder.tsx) |
@@ -132,7 +153,7 @@ Privy does much more than sign-in here. Every row is live in the app and links t
 | Wallets made ahead of time: Patch anyone on X | A brand offers money to any X handle. The server looks up the numeric X id and calls `privy.users().create({ linked_accounts: [{ type: "twitter_oauth", subject, username }], wallets: [{ chain_type: "ethereum" }] })`, or finds the existing user with `getByTwitterSubject`. When that person first signs in with X, Privy logs them into this user, so the wallet and the offer are already theirs. The offer is a campaign wallet whose policy also allows exactly one kind of transfer to them: their listing stake, to their wallet only. `scripts/privy-x-offer-check.mts` proves it with the app's own code. | [xOffers.ts](apps/web/src/lib/server/xOffers.ts), [xLookup.ts](apps/web/src/lib/server/xLookup.ts), [api/offers](apps/web/src/app/api/offers/route.ts), [OfferView.tsx](apps/web/src/app/offers/[id]/OfferView.tsx) |
 | Signers: auto-bid from the brand's own wallet | "Keep me on top up to $X" on a Patched wallet adds our key quorum as a signer (`useSigners().addSigners` with a policy id). The wallet's Privy policy is rebuilt from the brand's auto-bids: `bid` on those spots only (`bid.id`, `bid.patchId`, `bid.amount` ≤ max) and `approve` of the market up to the largest max. When the brand is outbid, the keeper bids from their wallet within seconds. One-tap revoke in Settings (`removeSigners`). `scripts/privy-signer-check.mts` proves Privy refuses everything else. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts), [autoBidPolicy.ts](apps/web/src/lib/market/autoBidPolicy.ts), [autoBidSigner.ts](apps/web/src/lib/server/autoBidSigner.ts), [api/autobid](apps/web/src/app/api/autobid/route.ts), [keeper.ts](apps/web/src/lib/server/keeper.ts) |
 | Auto-bid for outside wallets on the policy-limited server wallet | MetaMask and other outside wallets can't take a Privy signer, so they use `PatchAutoBidder`: the keeper calls `execute()` and the contract caps every bid at the brand's max. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts), [PatchAutoBidder.sol](contracts/src/PatchAutoBidder.sol) |
-| One signature, sponsored gas: sweep | Our `PatchSweeper` contract places several bids at once; Privy signs the single permit and sponsors the gas, so bidding on many patches is one click. | [SweepPanel.tsx](apps/web/src/components/market/SweepPanel.tsx), [PatchSweeper.sol](contracts/src/PatchSweeper.sol) |
+| One tap, sponsored gas: sweep | Our `PatchSweeper` contract places several bids at once, all or nothing; a Privy wallet approves the total and sweeps with sponsored gas, so bidding on many patches is one click. | [SweepPanel.tsx](apps/web/src/components/market/SweepPanel.tsx), [PatchSweeper.sol](contracts/src/PatchSweeper.sol) |
 | Passkey MFA step-up | Bids, sweeps and auto-bid maximums over a threshold ask for a passkey (Face ID, Touch ID, Windows Hello) first. | [stepUp.ts](apps/web/src/lib/market/stepUp.ts), [AccountMenu.tsx](apps/web/src/components/navigation/AccountMenu.tsx) |
 | Linked accounts: verified brands | A brand links a work email (Privy one-time code). If the domain matches its website, its patches show "Verified brand". This stops impersonation. | [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx), [verify-brand route](apps/web/src/app/api/profile/verify-brand/route.ts) |
 | Linked accounts: X profile data | Signing in with X fills the creator's page from the account Privy links: their X name and full-size picture, plus their follower count (refreshed at most once a day), so brands see real reach. | [auth.ts](apps/web/src/lib/server/auth.ts), [api/profile](apps/web/src/app/api/profile/route.ts) |

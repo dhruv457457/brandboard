@@ -28,7 +28,7 @@ interface Props {
 }
 
 /**
- * Sweep: pick several open patches and bid the minimum on all of them in one signature and one transaction
+ * Sweep: pick several open patches and bid the minimum on all of them in one tap and one sweep transaction
  * (PatchSweeper.sweepWithPermit, or an approve then sweep for Privy wallets), all or nothing.
  */
 export function SweepPanel({ listingId, patches, minNext, me }: Props) {
@@ -102,7 +102,7 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
       </button>
       {expanded && (
       <>
-      <p className="text-sm text-[var(--muted)]">One signature, and all bids land together or none do.</p>
+      <p className="text-sm text-[var(--muted)]">One tap, and all bids land together or none do.</p>
       <div className="grid grid-cols-2 gap-1.5">
         {open.map((p) => {
           const on = picked.includes(p.id);
