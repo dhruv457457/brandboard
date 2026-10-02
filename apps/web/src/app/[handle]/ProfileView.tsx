@@ -63,6 +63,8 @@ type Tab = "listings" | "sponsoring" | "campaigns" | "earnings" | "bids";
  */
 export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: PublicProfile; cards: Wire<ListingCard[]>; sponsoring: SponsoredSpot[] }) {
   const cards = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
+  // A listing taking bids right now: where "Sponsor a spot" goes.
+  const liveCard = cards.find((c) => c.status === 1 && c.biddingEndsAt > Date.now());
   const { walletAddress } = usePatchedAuth();
   const isOwner = walletAddress?.toLowerCase() === p.wallet;
   const [mounted, setMounted] = useState(false);
@@ -100,7 +102,12 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
         <div className="flex items-end justify-between gap-3 -mt-12 sm:-mt-14">
           <Avatar src={p.avatarUrl} name={named} wallet={p.wallet} size={112} className="relative z-10 !border-[3px] shadow-[3px_3px_0_var(--shadow)] ring-4 ring-[var(--paper)]" />
           <div className="flex gap-2 pb-1 flex-wrap justify-end">
-            {isOwner ? <Link href="/settings" className="btn-base btn-small"><Pencil size={13} /> Edit profile</Link> : <FollowButton kind="profile" id={p.wallet} />}
+            {isOwner ? <Link href="/settings" className="btn-base btn-small"><Pencil size={13} /> Edit profile</Link> : (
+              <>
+                <FollowButton kind="profile" id={p.wallet} />
+                {liveCard && <Link href={liveCard.href} className="btn-base btn-small">Sponsor a spot</Link>}
+              </>
+            )}
             <button className="btn-base btn-small" onClick={() => navigator.clipboard.writeText(publicUrl(pageHref)).then(() => toast("Profile link copied.")).catch(() => {})}>
               <Link2 size={13} /> Share
             </button>
@@ -127,10 +134,21 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
           </p>
         )}
         <div className="flex gap-x-5 gap-y-1 flex-wrap mt-3 text-[15px]">
-          <span><b>{p.completed}</b> <span className="text-[var(--muted)]">{p.completed === 1 ? "delivery" : "deliveries"}</span></span>
-          {p.failed > 0 && <span><b>{p.failed}</b> <span className="text-[var(--muted)]">missed</span></span>}
-          <span><b className="font-mono">{formatUsdc(Number(p.earned) / 1e6)}</b> <span className="text-[var(--muted)]">earned</span></span>
-          <span><b>{sponsoring.length}</b> <span className="text-[var(--muted)]">spots sponsored</span></span>
+          {/* A new creator has no record yet: show what they do have (listings and reach), not zeros. */}
+          {p.completed + p.failed === 0 && Number(p.earned) === 0 ? (
+            <>
+              <span><b>{cards.length}</b> <span className="text-[var(--muted)]">{cards.length === 1 ? "listing" : "listings"}</span></span>
+              {sponsoring.length > 0 && <span><b>{sponsoring.length}</b> <span className="text-[var(--muted)]">spots sponsored</span></span>}
+              <Chip variant="orange">New on Patched</Chip>
+            </>
+          ) : (
+            <>
+              <span><b>{p.completed}</b> <span className="text-[var(--muted)]">{p.completed === 1 ? "delivery" : "deliveries"}</span></span>
+              {p.failed > 0 && <span><b>{p.failed}</b> <span className="text-[var(--muted)]">missed</span></span>}
+              <span><b className="font-mono">{formatUsdc(Number(p.earned) / 1e6)}</b> <span className="text-[var(--muted)]">earned</span></span>
+              <span><b>{sponsoring.length}</b> <span className="text-[var(--muted)]">spots sponsored</span></span>
+            </>
+          )}
         </div>
       </div>
 
