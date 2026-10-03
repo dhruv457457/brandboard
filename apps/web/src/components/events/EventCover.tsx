@@ -24,7 +24,7 @@ export function EventCover({
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={banner} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-          {variant === "header" && <span className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />}
+          {variant === "header" && <span className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/10 to-transparent" aria-hidden="true" />}
         </>
       ) : (
         <PatchPattern name={name} seed={seed} small={variant === "thumb"} />

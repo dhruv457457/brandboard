@@ -260,6 +260,33 @@ export async function makeModelShot(opts: { photo: string; style: string; side: 
   ]);
 }
 
+// ─────────────────────────── event covers ───────────────────────────
+
+/**
+ * A wide cover illustration for an event page, in the Patched style: flat, bold outlines, pastel colours, the place itself
+ * and people wearing plain white outfits with colourful sponsor patches. No text and no logos, so nothing in it is
+ * anyone's brand and it never needs a translation. Returned wide (21:9); the caller crops it to the 3:1 cover box.
+ */
+export async function makeEventCover(scene: string, mood = "bright daytime"): Promise<{ image: string; model: string }> {
+  return imageCall(
+    [
+      {
+        type: "text",
+        text:
+          "Create a wide flat vector-style illustration banner, like a modern editorial poster. Bold clean black outlines, " +
+          "simple shapes, hard offset shadows, soft paper-cream background tones with a palette of mint green, lilac, butter " +
+          "yellow, sky blue and pink, and one hot orange (#FF5A1F) accent. " +
+          `Scene: ${scene.replace(/[^\w\s,.'()&-]/g, "").slice(0, 300)}. Mood: ${mood.replace(/[^\w\s,.'-]/g, "").slice(0, 60)}. ` +
+          "In the foreground, a small group of friendly stylised people stand side by side wearing plain white outfits (a jacket, " +
+          "a hoodie, a dress), and each outfit carries two or three rounded-square colourful patches with dashed stitched borders " +
+          "(the patches are blank: no letters, no logos). Keep the middle and the left generous and uncluttered for overlaid " +
+          "text. Absolutely no text, letters, numbers, logos or watermarks anywhere. Wide 21:9 composition. Return only the image.",
+      },
+    ],
+    "21:9",
+  );
+}
+
 // ─────────────────────────── cars: one photo → every side ───────────────────────────
 
 export const CAR_VIEWS = {

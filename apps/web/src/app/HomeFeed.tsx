@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { OffersForYou } from "@/components/market/OffersForYou";
+import { EventCover } from "@/components/events/EventCover";
 import type { PatchData } from "@/components/surface/Patch";
 import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
@@ -213,13 +214,14 @@ function EventsStrip({ events }: { events: FeedEvent[] }) {
         <Link href="/events" className="text-sm font-semibold no-underline text-[var(--accent-text)] hover:underline">All events</Link>
       </div>
       <div className="flex gap-3 overflow-x-auto px-4 sm:px-5 pb-1 snap-x">
-        {events.map((e, i) => (
+        {events.map((e) => (
           <Link key={e.id} href={e.href} className="snap-start flex-none w-[240px] rounded-2xl border-2 border-[var(--line)] overflow-hidden no-underline text-[var(--ink)] bg-[var(--card)] hover:-translate-y-0.5 transition-transform">
-            <span className="block h-[92px] relative" style={{ background: e.banner ? `center/cover url(${e.banner})` : `var(--${PASTELS[i % PASTELS.length]})` }}>
+            {/* The event's cover, or the designed patch pattern in its own pastels when it has none yet. */}
+            <EventCover name={e.name} banner={e.banner} seed={e.id} variant="card" className="!border-b-0 !aspect-[2.6/1]">
               <span className="absolute left-2.5 bottom-2 inline-flex items-center gap-1.5 rounded-full bg-[#0B0B0C]/80 text-[#FAFAF7] px-2.5 py-1 text-[11px] font-semibold">
                 <CalendarDays size={12} /> {mounted ? eventWhen(e) : "Upcoming"}
               </span>
-            </span>
+            </EventCover>
             <span className="grid gap-0.5 p-3">
               <b className="truncate">{e.name}</b>
               <span className="text-[13px] text-[var(--muted)] flex items-center gap-2">
