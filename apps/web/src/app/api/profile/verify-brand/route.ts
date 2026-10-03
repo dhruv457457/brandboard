@@ -1,4 +1,5 @@
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { demoRefusal, isDemoAccount } from "@/lib/server/demoAccount";
 import { supabaseAdmin } from "@/lib/supabase";
 import { matchingDomain, websiteDomain } from "@/lib/brandDomain";
 
@@ -7,10 +8,12 @@ export const runtime = "nodejs";
 /**
  * Verify the signed-in brand: one of their Privy-verified emails (email login/link, or Google) must be on the
  * same domain as their brand website. Emails come from Privy's API on the server, never from the client.
+ * Not on the shared demo account: its email isn't anyone's work email.
  */
 export async function POST(req: Request) {
   const user = await getSessionUser(req, { fresh: true });
   if (!user) return unauthorized();
+  if (isDemoAccount(user)) return demoRefusal();
   const db = supabaseAdmin();
   const { data: profile } = await db.from("profiles").select("brand_website").eq("privy_did", user.did).maybeSingle();
   const site = websiteDomain(profile?.brand_website);

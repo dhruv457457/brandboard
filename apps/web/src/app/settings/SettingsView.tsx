@@ -15,6 +15,7 @@ import { BrandVerify } from "@/components/market/BrandVerify";
 import { NetworkOptions } from "@/components/navigation/NetworkSwitch";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
+import { useIsDemoAccount } from "@/lib/demoAccount";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
@@ -203,7 +204,11 @@ function BrandSettings() {
 function SecuritySettings() {
   const { walletAddress, isEmbeddedWallet, exportWallet, logout } = usePatchedAuth();
   const stepUp = useStepUp();
+  // The shared demo account keeps no passkey and no export: one judge's passkey would block every judge after them,
+  // and an exported key could empty the wallet everyone uses.
+  const demo = useIsDemoAccount();
   const [copied, setCopied] = useState(false);
+  const big = `$${STEP_UP_USD.toLocaleString("en-US")}`;
 
   return (
     <div className="grid gap-4">
@@ -232,12 +237,13 @@ function SecuritySettings() {
             <b className="block">Passkey</b>
             <span className="text-sm text-[var(--muted)]">
               {stepUp.hasPasskey
-                ? `On. Bids and sweeps of $${STEP_UP_USD.toLocaleString("en-US")} or more ask for Face ID, Touch ID or Windows Hello first.`
-                : `Needed for bids of $${STEP_UP_USD.toLocaleString("en-US")} or more, so a stolen session can't move big money.`}
+                ? "On. Privy asks for Face ID, Touch ID or Windows Hello before your wallet signs, then remembers it for a short while."
+                : `Needed for moves of ${big} or more, so a stolen session can't move big money. Once it's on, Privy asks for it before your wallet signs, then remembers it for a short while.`}
             </span>
           </span>
         </span>
-        {!stepUp.hasPasskey && <Button size="small" variant="primary" onClick={stepUp.setUpPasskey}>Set up passkey</Button>}
+        {!stepUp.hasPasskey && demo === false && <Button size="small" variant="primary" onClick={stepUp.setUpPasskey}>Set up passkey</Button>}
+        {!stepUp.hasPasskey && demo && <span className="text-sm text-[var(--muted)]">Not on the shared demo account.</span>}
       </Card>
 
       {isEmbeddedWallet && walletAddress && (
@@ -249,7 +255,8 @@ function SecuritySettings() {
               <span className="text-sm text-[var(--muted)]">Export the private key to MetaMask or any wallet. Patched never sees it.</span>
             </span>
           </span>
-          <Button size="small" onClick={() => exportWallet({ address: walletAddress }).catch(() => {})}>Export key</Button>
+          {demo === false && <Button size="small" onClick={() => exportWallet({ address: walletAddress }).catch(() => {})}>Export key</Button>}
+          {demo && <span className="text-sm text-[var(--muted)]">Not on the shared demo account.</span>}
         </Card>
       )}
 

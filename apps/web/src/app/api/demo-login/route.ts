@@ -1,5 +1,5 @@
-import { PLAY_MONEY } from "@/lib/config";
 import { allowRate } from "@/lib/server/rateLimit";
+import { demoLogin } from "@/lib/server/demoAccount";
 
 export const runtime = "nodejs";
 
@@ -11,8 +11,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!allowRate(`demo-login:${ip}`, 20, 60_000)) return Response.json({ enabled: false }, { status: 429 });
-  const email = process.env.DEMO_LOGIN_EMAIL ?? process.env.E2E_TEST_EMAIL;
-  const code = process.env.DEMO_LOGIN_CODE ?? process.env.E2E_TEST_CODE;
-  if (!PLAY_MONEY || process.env.DEMO_LOGIN === "off" || !email || !code) return Response.json({ enabled: false });
-  return Response.json({ enabled: true, email, code }, { headers: { "cache-control": "no-store" } });
+  const demo = demoLogin();
+  if (!demo) return Response.json({ enabled: false });
+  return Response.json({ enabled: true, ...demo }, { headers: { "cache-control": "no-store" } });
 }

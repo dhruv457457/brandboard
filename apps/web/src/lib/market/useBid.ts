@@ -22,7 +22,9 @@ export function friendlyError(err: unknown): string {
   }
   const msg = err instanceof Error ? err.message : String(err);
   if (err instanceof Error && err.name === "PasskeyRequired")
-    return `Moves of $${STEP_UP_USD.toLocaleString("en-US")} or more need a passkey. Set one up in your account menu, then try again.`;
+    return "demo" in err && err.demo
+      ? `Moves of $${STEP_UP_USD.toLocaleString("en-US")} or more aren't available on the shared demo account. Sign in with your own email or X for those.`
+      : `Moves of $${STEP_UP_USD.toLocaleString("en-US")} or more need a passkey. Turn one on in Settings, under Security, then try again.`;
   if (/wallet not connected/i.test(msg)) return "Your wallet isn't connected in this browser. Open MetaMask (or your wallet), connect it to Patched, then try again.";
   if (/mfa/i.test(msg)) return "The passkey check didn't go through. Try again.";
   if (/rejected|denied|cancel/i.test(msg)) return "You cancelled the signature.";

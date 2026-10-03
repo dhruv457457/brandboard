@@ -9,6 +9,7 @@ import { StoryPanel } from "@/components/brand/StoryPanel";
 import { PrivyLogo } from "@/components/brand/PartnerLogos";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
+import { loadDemoLogin, useIsDemoAccount, type DemoLogin } from "@/lib/demoAccount";
 import { useInjectedWallets, type InjectedWallet } from "@/lib/injectedWallets";
 import { handleProblem } from "@/lib/handles";
 import { STEP_UP_USD } from "@/lib/market/stepUp";
@@ -116,15 +117,10 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
   const [signingKind, setSigningKind] = useState<"own" | "fresh" | null>(null);
   const wallets = useInjectedWallets();
   // The shared demo account (a Privy test account), offered only where the site runs on play money.
-  const [demo, setDemo] = useState<{ email: string; code: string } | null>(null);
+  const [demo, setDemo] = useState<DemoLogin | null>(null);
   useEffect(() => {
     let live = true;
-    fetch("/api/demo-login")
-      .then((r) => r.json())
-      .then((j: { enabled?: boolean; email?: string; code?: string }) => {
-        if (live && j.enabled && j.email && j.code) setDemo({ email: j.email, code: j.code });
-      })
-      .catch(() => {});
+    void loadDemoLogin().then((d) => live && setDemo(d));
     return () => {
       live = false;
     };
@@ -387,6 +383,8 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
 /** How bidding works, stated as promises the app actually keeps. */
 function BiddingStep({ onDone }: { onDone: () => void }) {
   const { hasPasskey, enrollPasskey, isEmbeddedWallet } = usePatchedAuth();
+  // No passkey on the shared demo account: it would lock every judge after this one out of bidding.
+  const demo = useIsDemoAccount();
   const points = [
     { icon: Zap, text: "No wallet pop-up on each bid: your Privy wallet signs it." },
     ...(GAS_SPONSORED ? [{ icon: Check, text: "Patched pays the network fee." }] : []),
@@ -411,16 +409,18 @@ function BiddingStep({ onDone }: { onDone: () => void }) {
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--soft)] p-4">
         <Fingerprint size={26} className="flex-none" />
         <span className="flex-1 text-sm leading-snug">
-          Bids of ${STEP_UP_USD.toLocaleString("en-US")} or more ask for your passkey (Face ID or fingerprint), so nobody else can spend.
+          Moves of ${STEP_UP_USD.toLocaleString("en-US")} or more need a passkey (Face ID or fingerprint). Once it&apos;s on, Privy asks for it
+          before your wallet signs, then remembers it for a short while.
+          {demo && <span className="block mt-1 text-[var(--muted)]">Not on the shared demo account.</span>}
         </span>
         {hasPasskey ? (
           <span className="inline-flex items-center gap-1 text-sm font-bold text-[var(--green)] flex-none"><Check size={15} /> Passkey on</span>
-        ) : (
+        ) : demo === false ? (
           <button onClick={enrollPasskey} className="btn-base btn-small flex-none">Set up</button>
-        )}
+        ) : null}
       </div>
       <button onClick={onDone} className="btn-base btn-primary h-12 justify-center text-base">Start</button>
-      <p className="text-xs text-center text-[var(--muted)]">Wallet by Privy. You can export it any time in Settings.</p>
+      <p className="text-xs text-center text-[var(--muted)]">{demo ? "Wallet by Privy." : "Wallet by Privy. You can export it any time in Settings."}</p>
     </div>
   );
 }

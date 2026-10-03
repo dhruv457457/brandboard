@@ -8,6 +8,7 @@ import { useProfile } from "@/lib/profile";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { websiteDomain } from "@/lib/brandDomain";
+import { useIsDemoAccount } from "@/lib/demoAccount";
 
 /**
  * "Verified brand" through Privy: link a work email (Privy sends a one-time code), and if its domain matches
@@ -22,6 +23,9 @@ export function BrandVerify() {
   const { user, linkEmail, updateEmail: changeEmail } = usePatchedAuth();
   // Privy allows one email per account: with one linked, it has to be changed rather than added.
   const linked = user?.email ?? null;
+  // The shared demo account signs in with its email, so changing it would lock everyone else out; the server also
+  // refuses to verify a brand on it.
+  const demo = useIsDemoAccount();
 
   async function verify(): Promise<{ needsEmail?: boolean }> {
     setBusy(true);
@@ -76,14 +80,18 @@ export function BrandVerify() {
         </p>
       )}
       {error && <p className="text-xs text-[var(--red)]" role="alert">{error}</p>}
-      <div className="flex gap-2 flex-wrap">
-        <Button size="small" disabled={!site || busy} onClick={async () => { const r = await verify(); if (r.needsEmail) addOrChangeEmail(); }}>
-          <BadgeCheck size={14} /> {busy ? "Checking…" : "Verify brand"}
-        </Button>
-        <Button size="small" variant="ghost" disabled={!site || busy} onClick={addOrChangeEmail}>
-          <Mail size={14} /> {linked ? "Change email" : "Link a work email"}
-        </Button>
-      </div>
+      {demo ? (
+        <p className="text-xs text-[var(--muted)]">Not on the shared demo account.</p>
+      ) : demo === false ? (
+        <div className="flex gap-2 flex-wrap">
+          <Button size="small" disabled={!site || busy} onClick={async () => { const r = await verify(); if (r.needsEmail) addOrChangeEmail(); }}>
+            <BadgeCheck size={14} /> {busy ? "Checking…" : "Verify brand"}
+          </Button>
+          <Button size="small" variant="ghost" disabled={!site || busy} onClick={addOrChangeEmail}>
+            <Mail size={14} /> {linked ? "Change email" : "Link a work email"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
