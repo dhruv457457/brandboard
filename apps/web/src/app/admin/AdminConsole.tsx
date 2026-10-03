@@ -181,16 +181,21 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
             {pending.map((c) => (
               <div key={c.id} className="grid gap-2.5">
                 <ListingCardView card={c} mounted />
-                <div className="flex gap-2">
-                  <Button variant="primary" size="small" disabled={!!busy}
-                    onClick={() => run(`a${c.id}`, `Listing #${c.id} is live.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "approveListing", args: [BigInt(c.id)] }))}>
-                    {busy === `a${c.id}` ? "Approving…" : "Approve"}
-                  </Button>
-                  <Button variant="ghost" size="small" disabled={!!busy}
-                    onClick={() => run(`r${c.id}`, `Listing #${c.id} rejected. The bond went back to the creator.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "rejectListing", args: [BigInt(c.id), 1] }))}>
-                    {busy === `r${c.id}` ? "Rejecting…" : "Reject"}
-                  </Button>
-                </div>
+                {/* Open admin never reviews your own listing (the server refuses it too). */}
+                {!isAdmin && c.creator.toLowerCase() === walletAddress?.toLowerCase() ? (
+                  <p className="text-sm muted">Your listing. Another person has to approve it.</p>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="primary" size="small" disabled={!!busy}
+                      onClick={() => run(`a${c.id}`, `Listing #${c.id} is live.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "approveListing", args: [BigInt(c.id)] }))}>
+                      {busy === `a${c.id}` ? "Approving…" : "Approve"}
+                    </Button>
+                    <Button variant="ghost" size="small" disabled={!!busy}
+                      onClick={() => run(`r${c.id}`, `Listing #${c.id} rejected. The bond went back to the creator.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "rejectListing", args: [BigInt(c.id), 1] }))}>
+                      {busy === `r${c.id}` ? "Rejecting…" : "Reject"}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
