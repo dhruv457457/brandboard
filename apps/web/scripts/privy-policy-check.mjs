@@ -80,6 +80,11 @@ for (const a of attempts) {
       caip2: `eip155:${chainId}`,
       params: { transaction: { to: a.to, data: a.data, chain_id: chainId } },
       sponsor: true,
+      // Signed the way the keeper signs (unless its wallet is app-controlled), so a refusal comes from the policy
+      // and not from a missing authorization signature.
+      ...(process.env.KEEPER_USES_AUTH_KEY === "false"
+        ? {}
+        : { authorization_context: { authorization_private_keys: [process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY] } }),
     });
     console.log(`UNEXPECTED: ${a.name} was allowed`, res.transaction_id ?? res.hash);
     process.exitCode = 1;
