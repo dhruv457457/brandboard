@@ -30,6 +30,7 @@ export interface CampaignRow {
   advance: number | string | null;
   advanced_at: string | null;
   claimed_at: string | null;
+  created_at: string;
 }
 
 /** The person an offer is for, as stored on the campaign row. */
@@ -52,6 +53,12 @@ const MAX_LIVE_AGGREGATIONS = 8;
 
 /** Bids a campaign places per keeper tick, so one tick never spends the whole budget on a single rush. */
 const BIDS_PER_TICK = 3;
+
+/** A campaign (or offer) nobody funds closes after this long, so it stops holding one of Privy's aggregations. */
+const UNFUNDED_FOR_MS = 24 * 3600_000;
+
+/** Closed campaigns whose wallets are still watched for money that arrives late (their end time is at most this old). */
+const LATE_MONEY_MS = 7 * 24 * 3600_000;
 
 /**
  * A new campaign: a Privy aggregation that adds up its bids (while Privy's 10 allow), one Privy policy written from the brand's settings (per-bid
@@ -135,12 +142,14 @@ let running: Promise<void> | null = null;
 
 /**
  * One pass over every running campaign: wait for funding, approve the market once, bid on the best open spots at
- * the event within the rules, and when time is up send what's left back to the brand. Concurrent callers share a run.
+ * the event within the rules, and when time is up send what's left back to the brand. Then send back any money that
+ * reached a recently closed campaign. Concurrent callers share a run.
  */
 export function runCampaigns(): Promise<void> {
   if (!process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY) return Promise.resolve();
   running ??= (async () => {
-    const { data } = await supabaseAdmin().from("brand_campaigns").select("*")
+    const db = supabaseAdmin();
+    const { data } = await db.from("brand_campaigns").select("*")
       .eq("chain_id", CHAIN_ID).in("status", ["funding", "active", "ending"]).limit(50);
     for (const c of (data ?? []) as CampaignRow[]) {
       try {
@@ -149,6 +158,16 @@ export function runCampaigns(): Promise<void> {
         console.error("campaign tick failed", c.id, err);
       }
     }
+    const [{ data: closed }, { data: stuck }] = await Promise.all([
+      db.from("brand_campaigns").select("*").eq("chain_id", CHAIN_ID).eq("status", "ended")
+        .gt("ends_at", new Date(Date.now() - LATE_MONEY_MS).toISOString()).order("ends_at", { ascending: false }).limit(20),
+      // Closed, but Privy refused to delete the aggregation at the time: try again, or it keeps one of the 10.
+      db.from("brand_campaigns").select("id, aggregation_id").eq("chain_id", CHAIN_ID).eq("status", "ended").not("aggregation_id", "is", null).limit(10),
+    ]);
+    await Promise.all([
+      ...((closed ?? []) as CampaignRow[]).map((c) => returnLateMoney(c).catch((err) => console.error("late return failed", c.id, err))),
+      ...((stuck ?? []) as CampaignSlot[]).map((c) => freeAggregation(c)),
+    ]);
   })().finally(() => {
     running = null;
   });
@@ -162,28 +181,31 @@ async function tick(c: CampaignRow) {
   const balance = await client.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [wallet] });
   const db = supabaseAdmin();
 
-  if (c.status === "funding") {
-    if (balance === 0n) return;
-    await db.from("brand_campaigns").update({ status: "active" }).eq("id", c.id);
-    await log(c.id, { kind: "funded", text: `Funded with ${formatUsdc(Number(balance) / 1e6)}. Bidding starts now.`, amount: balance });
-    c.status = "active";
-  }
-
-  // Time's up (or the brand ended it): send the rest back.
-  if (c.status === "ending" || Date.now() > new Date(c.ends_at).getTime()) {
+  // Checked before waiting for funds, so a campaign or offer nobody funds still ends: by its end time, or a day after
+  // it was made. Either way it frees its Privy aggregation for the next campaign.
+  const unfunded = c.status === "funding" && balance === 0n;
+  const over = c.status === "ending" || Date.now() > new Date(c.ends_at).getTime();
+  if (over || (unfunded && Date.now() - new Date(c.created_at).getTime() > UNFUNDED_FOR_MS)) {
+    // Time's up (or the brand ended it): send the rest back.
     if (balance > 0n) {
       const data = encodeFunctionData({ abi: ERC20_SPEND_ABI, functionName: "transfer", args: [brand, balance] });
       const { hash } = await sendFromServerWallet(c.wallet_id, { to: USDC, chainId: CHAIN_ID, data },
         { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:return:${balance}`, sponsor: SPONSORED, signed: true });
       await log(c.id, { kind: "returned", text: `Sent the unspent ${formatUsdc(Number(balance) / 1e6)} back to your wallet.`, amount: balance, tx_hash: hash });
+      // Mined before the campaign shows as ended, so the late-money check doesn't take this balance for new money.
+      if (hash) await client.waitForTransactionReceipt({ hash, timeout: 30_000 }).catch(() => {});
     }
     await db.from("brand_campaigns").update({ status: "ended" }).eq("id", c.id);
-    await log(c.id, { kind: "ended", text: "The campaign ended." });
-    // Nothing is checked against it any more: free the slot for the next campaign.
-    if (c.aggregation_id && (await deleteAggregation(c.aggregation_id).catch(() => false))) {
-      await db.from("brand_campaigns").update({ aggregation_id: null }).eq("id", c.id);
-    }
+    await log(c.id, { kind: "ended", text: unfunded ? `Nobody funded this ${c.kind === "x_offer" ? "offer" : "campaign"}, so it closed.` : "The campaign ended." });
+    await freeAggregation(c);
     return;
+  }
+
+  if (c.status === "funding") {
+    if (balance === 0n) return;
+    await db.from("brand_campaigns").update({ status: "active" }).eq("id", c.id);
+    await log(c.id, { kind: "funded", text: `Funded with ${formatUsdc(Number(balance) / 1e6)}. Bidding starts now.`, amount: balance });
+    c.status = "active";
   }
   if (c.status !== "active" || balance === 0n) return;
 
@@ -253,6 +275,31 @@ async function tick(c: CampaignRow) {
       }
     }
   }
+}
+
+type CampaignSlot = { id: string; aggregation_id: string | null };
+
+/** Nothing is checked against a closed campaign's aggregation any more: delete it to free the slot for the next one. */
+async function freeAggregation(c: CampaignSlot) {
+  if (c.aggregation_id && (await deleteAggregation(c.aggregation_id).catch(() => false))) {
+    await supabaseAdmin().from("brand_campaigns").update({ aggregation_id: null }).eq("id", c.id);
+  }
+}
+
+/**
+ * Money that reaches a campaign wallet after the campaign closed (say, Fund pressed on a page opened before the day was
+ * up) goes straight back to the brand. The wallet's policy allows that transfer, to the brand only, at any time.
+ */
+async function returnLateMoney(c: CampaignRow) {
+  const client = serverClient();
+  const balance = await client.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [c.wallet_address as `0x${string}`] });
+  if (balance === 0n) return;
+  const data = encodeFunctionData({ abi: ERC20_SPEND_ABI, functionName: "transfer", args: [c.brand as `0x${string}`, balance] });
+  // Keyed by the hour too, so the same amount arriving again later is still sent back.
+  const { hash } = await sendFromServerWallet(c.wallet_id, { to: USDC, chainId: CHAIN_ID, data },
+    { idempotencyKey: `patched:${CHAIN_ID}:campaign:${c.id}:late:${balance}:${Math.floor(Date.now() / 3600_000)}`, sponsor: SPONSORED, signed: true });
+  if (!hash || (await client.waitForTransactionReceipt({ hash, timeout: 30_000 })).status !== "success") return;
+  await log(c.id, { kind: "returned", text: `${formatUsdc(Number(balance) / 1e6)} arrived after it closed. Sent it back to your wallet.`, amount: balance, tx_hash: hash });
 }
 
 /** Time Privy needs to add a checked bid to an aggregation's running total (measured: 3 s was enough, 0 s was not). */
