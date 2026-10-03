@@ -24,7 +24,7 @@ export interface SpotChoice {
 export function SpottedWall({ eventId, listingId, wallet, choices = [], title = "Spotted" }: {
   eventId?: number; listingId?: number; wallet?: string; choices?: SpotChoice[]; title?: string;
 }) {
-  const { authenticated, login, walletAddress } = usePatchedAuth();
+  const { authenticated, login, walletAddress, ready } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const [posts, setPosts] = useState<SpottedPost[] | null>(null);
   const [open, setOpen] = useState(false);
@@ -38,10 +38,11 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
   }, [query, authedFetch]);
   // Load, again once signed in (so your own reactions show), and every 20 s so new photos and cheers arrive.
   useEffect(() => {
+    if (!ready) return; // wait for the sign-in to settle, so the first request already knows who is asking
     void load();
     const t = setInterval(load, 20_000);
     return () => clearInterval(t);
-  }, [load, authenticated]);
+  }, [load, authenticated, ready]);
 
   async function remove(id: string) {
     const res = await authedFetch(`/api/spotted?id=${id}`, { method: "DELETE" });

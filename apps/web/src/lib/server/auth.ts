@@ -1,5 +1,6 @@
 import "server-only";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
 const jwks = createRemoteJWKSet(new URL(process.env.PRIVY_JWKS_URL ?? `https://auth.privy.io/api/v1/apps/${appId}/jwks.json`));
@@ -45,17 +46,51 @@ export async function getSessionUser(req: Request, opts: { fresh?: boolean } = {
     return null;
   }
 
-  // Privy's user lookup is a network round trip on every signed-in request; reuse it for a minute per user.
+  // Privy's user lookup is a network round trip (about a second): reuse it for a few minutes per user, and let requests
+  // that arrive together (a page makes several at once) share one lookup instead of each making their own.
   // fresh: skip the cache (e.g. right after linking an email, to verify a brand).
   const hit = opts.fresh ? undefined : userCache.get(did);
-  if (hit && hit.at > Date.now() - 60_000) return hit.user;
-  const user = await lookupUser(did);
-  if (user.wallet !== null || user.xHandle !== null) userCache.set(did, { at: Date.now(), user });
-  if (userCache.size > 500) userCache.delete(userCache.keys().next().value!);
-  return user;
+  if (hit && hit.at > Date.now() - USER_TTL_MS) return hit.user;
+  const pending = !opts.fresh ? lookups.get(did) : undefined;
+  if (pending) return pending;
+  const run = lookupUser(did)
+    .then((user) => {
+      if (user.wallet !== null || user.xHandle !== null) userCache.set(did, { at: Date.now(), user });
+      if (userCache.size > 500) userCache.delete(userCache.keys().next().value!);
+      return user;
+    })
+    .finally(() => lookups.delete(did));
+  lookups.set(did, run);
+  return run;
 }
 
+const USER_TTL_MS = 5 * 60_000;
 const userCache = new Map<string, { at: number; user: SessionUser }>();
+const lookups = new Map<string, Promise<SessionUser>>();
+
+/**
+ * Who is asking, cheaply: the token is verified here and the wallet comes from the person's own profile row (which we
+ * saved from Privy when they signed in), so there is no Privy round trip. Good for reads that are personalised (which
+ * reactions are mine) and for light actions on your own account (follow, react, post a photo). Anything that moves
+ * money, reads private data or needs the verified emails and linked accounts uses getSessionUser.
+ * `wallet` is null when there is no profile row yet.
+ */
+export async function getSessionLite(req: Request): Promise<{ did: string; wallet: string | null } | null> {
+  const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, jwks, { issuer: "privy.io", audience: appId });
+    const did = payload.sub as string;
+    const { data } = await supabaseAdmin().from("profiles").select("wallet").eq("privy_did", did).maybeSingle();
+    return { did, wallet: data?.wallet?.toLowerCase() ?? null };
+  } catch {
+    return null;
+  }
+}
+
+export async function getSessionWallet(req: Request): Promise<string | null> {
+  return (await getSessionLite(req))?.wallet ?? null;
+}
 
 async function lookupUser(did: string): Promise<SessionUser> {
   const res = await fetch(`https://auth.privy.io/api/v1/users/${encodeURIComponent(did)}`, {
@@ -92,7 +127,7 @@ export function forgetUser(did: string) {
 }
 
 /** 401. Pass the looked-up user (when there is one) so a signed-in account whose wallet isn't ready gets an honest message. */
-export function unauthorized(user?: SessionUser | null) {
+export function unauthorized(user?: { wallet?: string | null } | null) {
   const walletPending = !!user && !user.wallet;
   return Response.json({ error: walletPending ? "Your wallet is still being set up. Try again in a few seconds." : "Sign in first." }, { status: 401 });
 }

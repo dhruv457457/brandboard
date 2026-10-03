@@ -16,12 +16,12 @@ interface Offer {
 
 /** Open offers made to the signed-in person's X account ("Patch anyone on X"), at the top of their home. */
 export function OffersForYou() {
-  const { authenticated } = usePatchedAuth();
+  const { authenticated, ready } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const [offers, setOffers] = useState<Offer[]>([]);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!ready || !authenticated) return;
     let alive = true;
     authedFetch("/api/offers")
       .then((r) => (r.ok ? r.json() : { received: [] }))
@@ -30,7 +30,7 @@ export function OffersForYou() {
     return () => {
       alive = false;
     };
-  }, [authenticated, authedFetch]);
+  }, [ready, authenticated, authedFetch]);
 
   if (!offers.length) return null;
   return (

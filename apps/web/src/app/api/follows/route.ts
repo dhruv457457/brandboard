@@ -1,5 +1,5 @@
 import { CHAIN_ID } from "@/lib/config";
-import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { getSessionLite, getSessionWallet, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -34,8 +34,7 @@ async function status(kind: Kind, id: string, me: string | null) {
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const user = await getSessionUser(req);
-  const me = user?.wallet ?? null;
+  const me = await getSessionWallet(req);
   if (url.searchParams.get("mine")) {
     if (!me) return Response.json({ profiles: [], events: [] });
     const { data } = await supabaseAdmin().from("follows").select("target_kind, target_id").eq("follower", me).limit(500);
@@ -52,7 +51,7 @@ export async function GET(req: Request) {
 }
 
 async function change(req: Request, follow: boolean) {
-  const user = await getSessionUser(req);
+  const user = await getSessionLite(req);
   if (!user?.wallet) return unauthorized(user);
   const body = (await req.json().catch(() => null)) as { kind?: Kind; id?: string } | null;
   const kind = body?.kind;

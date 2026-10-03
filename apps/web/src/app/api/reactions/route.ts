@@ -1,4 +1,4 @@
-import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { getSessionLite, getSessionWallet, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { KINDS, reactionsFor, type Kind } from "@/lib/server/reactions";
@@ -8,12 +8,12 @@ export const runtime = "nodejs";
 /** GET ?ids=a,b,c gives each post's counts and which reactions the signed-in person has used (up to 40 posts). */
 export async function GET(req: Request) {
   const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 40);
-  const me = (await getSessionUser(req))?.wallet ?? null;
+  const me = await getSessionWallet(req);
   return Response.json(await reactionsFor(ids, me), { headers: { "cache-control": "no-store" } });
 }
 
 async function change(req: Request, on: boolean) {
-  const user = await getSessionUser(req);
+  const user = await getSessionLite(req);
   if (!user?.wallet) return unauthorized(user);
   const body = (await req.json().catch(() => null)) as { postId?: string; kind?: Kind } | null;
   const postId = String(body?.postId ?? "");

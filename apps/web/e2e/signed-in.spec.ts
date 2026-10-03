@@ -35,7 +35,7 @@ test.describe("signed in", () => {
     } else {
       await page.getByRole("button", { name: "Your wallet and account" }).click();
     }
-    await expect(page.getByText("Balance")).toBeVisible();
+    await expect(page.getByText("Balance", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Add money" }).first()).toBeVisible();
     expect(errors).toEqual([]);
   });

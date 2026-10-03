@@ -30,25 +30,61 @@ interface ProfileContext {
 const Ctx = createContext<ProfileContext>({ profile: null, save: async () => "Not signed in", reload: () => {} });
 export const useProfile = () => useContext(Ctx);
 
+const KEY = "patched.profile";
+const remembered = (wallet?: string | null): Profile | null => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as { wallet: string; profile: Profile } | null;
+    return raw && wallet && raw.wallet === wallet.toLowerCase() ? raw.profile : null;
+  } catch {
+    return null;
+  }
+};
+const remember = (wallet: string | null | undefined, profile: Profile) => {
+  try {
+    if (wallet) localStorage.setItem(KEY, JSON.stringify({ wallet: wallet.toLowerCase(), profile }));
+  } catch {
+    /* storage blocked: the profile just loads the normal way */
+  }
+};
+const forget = () => {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
 /** Loads (and on first sign-in creates) the signed-in user's profile. */
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const { authenticated, walletAddress } = usePatchedAuth();
+  const { authenticated, walletAddress, ready } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!authenticated) return setProfile(null);
+    if (!authenticated) {
+      // Only a real sign-out forgets the profile: while Privy restores the session it also says "not signed in".
+      if (ready) forget();
+      return setProfile(null);
+    }
+    // Show the last profile we saw for this wallet straight away (the call below takes a second or more, and the
+    // sidebar and avatars wait on it), then replace it with the fresh one.
+    const cached = remembered(walletAddress);
+    if (cached) setProfile((cur) => cur ?? cached);
     let alive = true;
     authedFetch("/api/profile")
       .then((r) => (r.ok ? r.json() : null))
-      .then((p) => alive && setProfile(p))
+      .then((p) => {
+        if (!alive || !p) return;
+        setProfile(p);
+        remember(walletAddress, p);
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, walletAddress, tick]);
+  }, [authenticated, walletAddress, tick, ready]);
 
   const save = useCallback(
     async (patch: Record<string, string | null>) => {
@@ -60,9 +96,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       const json = await res.json();
       if (!res.ok) return (json.error as string) ?? "Couldn't save.";
       setProfile(json);
+      remember(walletAddress, json);
       return null;
     },
-    [authedFetch],
+    [authedFetch, walletAddress],
   );
 
   return <Ctx.Provider value={{ profile, save, reload: () => setTick((t) => t + 1) }}>{children}</Ctx.Provider>;

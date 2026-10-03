@@ -39,12 +39,12 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
   useEffect(() => setMounted(true), []);
 
   // "Following": only moments from creators and events you follow.
-  const { authenticated } = usePatchedAuth();
+  const { authenticated, ready } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const [tab, setTab] = useState<"all" | "following">("all");
   const [follows, setFollows] = useState<{ profiles: Set<string>; events: Set<number> } | null>(null);
   useEffect(() => {
-    if (!authenticated) return;
+    if (!ready || !authenticated) return;
     let alive = true;
     authedFetch("/api/follows?mine=1")
       .then((r) => r.json())
@@ -53,11 +53,11 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     return () => {
       alive = false;
     };
-  }, [authenticated, authedFetch, tab]);
+  }, [ready, authenticated, authedFetch, tab]);
   const [reactions, setReactions] = useState<Record<string, SpottedPost["reactions"]>>({});
   const spottedIds = useMemo(() => items.flatMap((i) => (i.kind === "spotted" ? [i.postId] : [])), [items]);
   useEffect(() => {
-    if (!spottedIds.length) return;
+    if (!ready || !spottedIds.length) return;
     let alive = true;
     authedFetch(`/api/reactions?ids=${spottedIds.join(",")}`)
       .then((r) => r.json())
@@ -66,7 +66,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     return () => {
       alive = false;
     };
-  }, [spottedIds, authenticated, authedFetch]);
+  }, [ready, spottedIds, authenticated, authedFetch]);
   const shown = useMemo(() => {
     if (tab === "all") return items;
     return items.filter((it) => {

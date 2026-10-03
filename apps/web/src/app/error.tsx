@@ -4,11 +4,14 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { isStaleBuildError, reloadOnce, reportCrash } from "@/lib/recover";
 
 /** Shown when a page throws: say what happened and offer a retry, never a blank screen. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportCrash(error);
+    if (isStaleBuildError(error)) reloadOnce();
   }, [error]);
 
   return (

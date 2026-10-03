@@ -1,5 +1,5 @@
 import { CHAIN_ID } from "@/lib/config";
-import { getSessionUser, unauthorized } from "@/lib/server/auth";
+import { getSessionLite, getSessionWallet, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { reactionsFor } from "@/lib/server/reactions";
@@ -15,7 +15,7 @@ const PHOTOS = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const db = supabaseAdmin();
-  const me = (await getSessionUser(req))?.wallet ?? null;
+  const mePromise = getSessionWallet(req); // runs while the queries below do
   let q = db.from("posts")
     .select("id, body, media, created_at, listing_id, event_id, spotted_wallet, author")
     .eq("chain_id", CHAIN_ID).eq("hidden", false).not("spotted_wallet", "is", null)
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     : { data: [] as { id: string; display_name: string | null; handle: string | null; avatar_url: string | null; wallet: string | null }[] };
   const who = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  const reactions = await reactionsFor(rows.map((r) => r.id), me);
+  const reactions = await reactionsFor(rows.map((r) => r.id), await mePromise);
   const posts: SpottedPost[] = rows.flatMap((r) => {
     const photo = (r.media as { url?: string }[] | null)?.[0]?.url;
     if (!photo) return [];
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
 
 /** Post a spotted photo. Body: { listingId, photo (an uploaded proofs image), caption? }. */
 export async function POST(req: Request) {
-  const user = await getSessionUser(req);
+  const user = await getSessionLite(req);
   if (!user?.wallet) return unauthorized(user);
   const body = (await req.json().catch(() => null)) as { listingId?: number; photo?: string; caption?: string } | null;
   const listingId = Number(body?.listingId);
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
 /** Hide a spotted post: its author, or the creator it shows. DELETE ?id= */
 export async function DELETE(req: Request) {
-  const user = await getSessionUser(req);
+  const user = await getSessionLite(req);
   if (!user?.wallet) return unauthorized(user);
   const id = new URL(req.url).searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ error: "No such post." }, { status: 400 });
