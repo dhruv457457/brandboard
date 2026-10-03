@@ -76,7 +76,7 @@ export async function createCampaign(input: { brand: string; did: string; eventI
   // each live campaign gets its own, freed when the campaign ends. Past MAX_LIVE_AGGREGATIONS a campaign goes without:
   // its policy still caps every bid and its wallet only ever holds its budget.
   const { count: live } = await supabaseAdmin().from("brand_campaigns").select("id", { count: "exact", head: true })
-    .not("aggregation_id", "is", null).in("status", ["funding", "active", "ending"]);
+    .not("aggregation_id", "is", null).in("status", ["funding", "active", "paused", "ending"]);
   const aggregationId = (live ?? 0) < MAX_LIVE_AGGREGATIONS
     ? await createAggregation(campaignAggregation({
         chainId: CHAIN_ID, market: MARKET, name: `${label} spend`, windowSeconds: input.endsAt - Date.now() / 1000 + 3600,
@@ -149,8 +149,9 @@ export function runCampaigns(): Promise<void> {
   if (!process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY) return Promise.resolve();
   running ??= (async () => {
     const db = supabaseAdmin();
+    // Paused ones too: a paused campaign places no bids, but past its end it still sends the money back and closes.
     const { data } = await db.from("brand_campaigns").select("*")
-      .eq("chain_id", CHAIN_ID).in("status", ["funding", "active", "ending"]).limit(50);
+      .eq("chain_id", CHAIN_ID).in("status", ["funding", "active", "paused", "ending"]).limit(50);
     for (const c of (data ?? []) as CampaignRow[]) {
       try {
         await tick(c);
@@ -175,6 +176,8 @@ export function runCampaigns(): Promise<void> {
 }
 
 async function tick(c: CampaignRow) {
+  // Paused and not over yet: nothing to do until the brand resumes it.
+  if (c.status === "paused" && Date.now() <= new Date(c.ends_at).getTime()) return;
   const client = serverClient();
   const wallet = c.wallet_address as `0x${string}`;
   const brand = c.brand as `0x${string}`;
