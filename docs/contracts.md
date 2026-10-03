@@ -178,7 +178,7 @@ Bid on several patches of one listing in one transaction, all or nothing. Source
 | `sweep(listingId, patchIds[], amounts[])` | Pulls the total, bids each amount through `market.bidFor` for the caller, reverts `BidNotPlaced(patchId)` if any bid doesn't land. Emits `Swept`. |
 | `sweepWithPermit(..., deadline, v, r, s)` | Same with a USDC permit for the total: one signature + one tx. |
 
-Holds no funds; bids, receipts and refunds belong to the caller. Deployed with `script/DeploySweeper.s.sol`: testnet `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f`, mainnet `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba`.
+Holds no funds; bids, receipts and refunds belong to the caller. Deployed with `script/DeploySweeper.s.sol`: testnet `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` (v3; v2 was `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f`), mainnet `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba`.
 
 ## Timing and settings (what changes under a running deal)
 
@@ -196,9 +196,9 @@ Found by a mentor review (2026-10-02) and covered by `test/Timeline.t.sol`:
 
 ## Deployments
 
-Addresses live in `packages/shared/src/addresses.ts` (`DEPLOYMENTS[chainId]`). All verified on Sourcify (exact match).
+Addresses live in `packages/shared/src/addresses.ts` (`DEPLOYMENTS[chainId]`). The mainnet contracts and the v2 testnet market are verified on Monad's Sourcify (exact match); the v3 testnet contracts (the proxy, its implementation, the receipt, the auto-bidder and the sweeper) are not verified yet.
 
-PatchAutoBidder: testnet `0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA` (block 65221700), mainnet `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` (block 107531645, for the TestUSD market). Deployed with `script/DeployAutoBidder.s.sol`.
+PatchAutoBidder: testnet `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` (v3, block 66627730; v2 was `0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA`), mainnet `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` (block 107531645, for the TestUSD market). Deployed with `script/DeployAutoBidder.s.sol`.
 
 | Network | PatchedMarket | PatchReceipt | Deploy block | Notes |
 |---|---|---|---|---|

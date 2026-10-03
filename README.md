@@ -178,13 +178,14 @@ Not used, and why:
 
 | Contract | Monad testnet | Monad mainnet (TestUSD run) |
 |---|---|---|
-| PatchedMarket | `0xd3808dE425493934f036f8E77ef5a4de332e9552` | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
-| PatchReceipt (NFT) | `0x598Ea7C3Cf739Dbea1B809d5Cd0174818b680a8f` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
-| PatchAutoBidder | `0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA` | `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` |
-| PatchSweeper | `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f` | `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba` |
+| PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (upgradeable proxy) | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
+| PatchReceipt (NFT) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
+| PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` |
+| PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba` |
 | TestUSD (faucet token) | – | `0xB0fabbBc9a26dC78b200a36b2344cAc2518D0e3f` |
 
-All verified on Sourcify. Testnet uses Monad's native USDC. Details: [docs/contracts.md](docs/contracts.md).
+The mainnet contracts are verified on Monad's Sourcify; the testnet ones are not yet. Testnet uses Monad's native USDC.
+The earlier testnet market (v2, not upgradeable) was `0xd3808dE425493934f036f8E77ef5a4de332e9552`. Details: [docs/contracts.md](docs/contracts.md).
 
 ## Tech stack
 
