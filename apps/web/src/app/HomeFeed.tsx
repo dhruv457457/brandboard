@@ -19,6 +19,8 @@ import type { ListingCard } from "@/lib/market/server";
 import type { FeedEvent, FeedItem } from "@/lib/market/feed";
 import { cn } from "@/lib/utils";
 import { useAuthedFetch } from "@/lib/authedFetch";
+import { ReactionBar } from "@/components/social/SpottedWall";
+import type { SpottedPost } from "@/lib/spotted";
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 const SURFACE_LABEL = { outfit: "Outfit", car: "Vehicle", hoodie: "Team hoodie" } as const;
@@ -52,6 +54,19 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
       alive = false;
     };
   }, [authenticated, authedFetch, tab]);
+  const [reactions, setReactions] = useState<Record<string, SpottedPost["reactions"]>>({});
+  const spottedIds = useMemo(() => items.flatMap((i) => (i.kind === "spotted" ? [i.postId] : [])), [items]);
+  useEffect(() => {
+    if (!spottedIds.length) return;
+    let alive = true;
+    authedFetch(`/api/reactions?ids=${spottedIds.join(",")}`)
+      .then((r) => r.json())
+      .then((j) => alive && setReactions(j))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [spottedIds, authenticated, authedFetch]);
   const shown = useMemo(() => {
     if (tab === "all") return items;
     return items.filter((it) => {
@@ -107,6 +122,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
                   {it.kind === "listing" && <ListingPost card={card} time={it.time} mounted={mounted} />}
                   {it.kind === "bid" && <BidPost item={it} card={card} mounted={mounted} />}
                   {it.kind === "proof" && <ProofPost item={it} card={card} mounted={mounted} />}
+                  {it.kind === "spotted" && <SpottedPostCard item={it} card={card} mounted={mounted} reactions={reactions[it.postId]} />}
                 </li>
               );
             })}
@@ -315,6 +331,32 @@ function BidPost({ item, card, mounted }: { item: Extract<FeedItem, { kind: "bid
               <Zap size={14} /> Outbid
             </Link>
           )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** Someone spotted a patch in the wild: their photo, who they saw, and a way to cheer. */
+function SpottedPostCard({ item, card, mounted, reactions }: { item: Extract<FeedItem, { kind: "spotted" }>; card: ListingCard; mounted: boolean; reactions?: SpottedPost["reactions"] }) {
+  const { login } = usePatchedAuth();
+  return (
+    <article className="flex gap-3 px-4 sm:px-5 py-4 hover:bg-[var(--soft)]/40">
+      <Avatar src={card.creatorAvatar} name={card.creatorLabel} wallet={card.creator} size={44} />
+      <div className="flex-1 min-w-0 grid gap-2.5">
+        <p className="text-[15px] leading-snug">
+          <b>{item.by}</b> <span className="text-[var(--muted)]">spotted</span> <b>{card.creatorLabel}</b>
+          {card.eventName && <span className="text-[var(--muted)]"> at {card.eventName}</span>}
+          <span className="text-[var(--muted)]"> · {mounted ? formatTimeAgo(item.time) : ""}</span>
+        </p>
+        {item.caption && <p className="text-[15px]">{item.caption}</p>}
+        <Link href={card.href} className="block rounded-2xl overflow-hidden border-2 border-[var(--line)] bg-[var(--soft)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.photo} alt={item.caption ?? `${card.creatorLabel}, spotted`} loading="lazy" className="w-full max-h-[420px] object-cover" />
+        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          <ReactionBar postId={item.postId} initial={reactions} onSignIn={login} />
+          <Link href={card.href} className="btn-base btn-small ml-auto">See their spots</Link>
         </div>
       </div>
     </article>

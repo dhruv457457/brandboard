@@ -78,7 +78,7 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
                   <span className="text-[var(--muted)] truncate">
                     {p.author.handle ? <Link href={`/${p.author.handle}`} className="font-semibold text-[var(--ink)] no-underline">{p.author.name}</Link> : p.author.name} · {formatTimeAgo(p.createdAt)}
                   </span>
-                  <ReactionBar post={p} onSignIn={login} />
+                  <ReactionBar postId={p.id} initial={p.reactions} onSignIn={login} />
                 </div>
                 {mine && (
                   <button type="button" onClick={() => remove(p.id)} aria-label="Remove this photo"
@@ -194,11 +194,13 @@ const REACTIONS = [
 ] as const;
 
 /** Three icon reactions on a photo: tap to add yours, tap again to take it back. Flips at once, rolls back on an error. */
-function ReactionBar({ post, onSignIn }: { post: SpottedPost; onSignIn: () => void }) {
+export function ReactionBar({ postId, initial, onSignIn }: { postId: string; initial?: SpottedPost["reactions"]; onSignIn: () => void }) {
   const { authenticated } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
-  const [state, setState] = useState(post.reactions);
-  useEffect(() => setState(post.reactions), [post.reactions]);
+  const [state, setState] = useState<SpottedPost["reactions"]>(initial ?? { counts: { flame: 0, zap: 0, heart: 0 }, mine: [] });
+  useEffect(() => {
+    if (initial) setState(initial);
+  }, [initial]);
 
   async function toggle(kind: (typeof REACTIONS)[number]["kind"]) {
     if (!authenticated) return onSignIn();
@@ -209,7 +211,7 @@ function ReactionBar({ post, onSignIn }: { post: SpottedPost; onSignIn: () => vo
       mine: on ? [...state.mine, kind] : state.mine.filter((k) => k !== kind),
     });
     const res = await authedFetch("/api/reactions", {
-      method: on ? "POST" : "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ postId: post.id, kind }),
+      method: on ? "POST" : "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ postId, kind }),
     }).catch(() => null);
     if (res?.ok) setState((await res.json()) as SpottedPost["reactions"]);
     else setState(before);

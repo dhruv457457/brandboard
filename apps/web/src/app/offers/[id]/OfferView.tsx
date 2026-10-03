@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData, erc20Abi } from "viem";
-import { CalendarClock, Check, Copy, ExternalLink, Gift, Loader2, ShieldCheck } from "lucide-react";
+import { CalendarClock, Check, ChevronDown, Copy, ExternalLink, Gift, Loader2, ShieldCheck } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
@@ -172,16 +172,16 @@ export function OfferView({ offer: o }: { offer: OfferInfo }) {
         )}
       </div>
 
-      <div className="rounded-3xl bg-[#0B0B0C] text-[#FAFAF7] p-5 sm:p-6 grid gap-3">
-        <div className="flex items-center gap-3">
-          <span className="w-9 h-9 rounded-xl bg-[var(--accent)] grid place-items-center flex-none"><ShieldCheck size={19} className="text-[#0B0B0C]" /></span>
-          <span className="grid">
-            <b className="text-[17px]">Privy guards this offer</b>
-            <span className="text-[13px] text-[#A8A69E]">
-              {o.pregenerated ? `Privy made @${o.handle}'s wallet when the offer was made. ` : ""}The money sits in its own Privy wallet with its own policy.
-            </span>
-          </span>
-        </div>
+      {/* The rules are there for anyone who wants them, but closed by default: most people only need the offer above. */}
+      <details className="group rounded-2xl bg-[#0B0B0C] text-[#FAFAF7] px-4 py-3 sm:px-5 grid gap-3">
+        <summary className="flex items-center gap-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <span className="w-7 h-7 rounded-lg bg-[var(--accent)] grid place-items-center flex-none"><ShieldCheck size={15} className="text-[#0B0B0C]" /></span>
+          <b className="text-[15px] flex-1">How this money is protected</b>
+          <ChevronDown size={16} className="text-[#A8A69E] transition-transform group-open:rotate-180" />
+        </summary>
+        <p className="text-[13px] text-[#A8A69E]">
+          {o.pregenerated ? `Privy made @${o.handle}'s wallet when the offer was made. ` : ""}The money sits in its own Privy wallet with its own policy, so nobody has to trust us with it.
+        </p>
         <ul className="grid gap-2 text-sm text-[#C9C7BF] list-none p-0 m-0">
           <li>It only bids for {brand}, only on @{o.handle}&apos;s spots, and never more than ${o.amount} in total. Privy adds up every bid it signs.</li>
           {o.advance > 0 && <li>It may send @{o.handle} their {o.advance} USDC listing stake, to their wallet only.</li>}
@@ -190,7 +190,7 @@ export function OfferView({ offer: o }: { offer: OfferInfo }) {
         <a href={`${EXPLORER}/address/${o.walletAddress}`} target="_blank" rel="noopener noreferrer" className="text-[13px] text-[#A8A69E] hover:text-white inline-flex items-center gap-1">
           Offer wallet {formatShortAddress(o.walletAddress)} <ExternalLink size={12} />
         </a>
-      </div>
+      </details>
 
       {o.actions.length > 0 && (
         <section className="grid gap-2">

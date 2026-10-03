@@ -5,6 +5,13 @@ import { KINDS, reactionsFor, type Kind } from "@/lib/server/reactions";
 
 export const runtime = "nodejs";
 
+/** GET ?ids=a,b,c gives each post's counts and which reactions the signed-in person has used (up to 40 posts). */
+export async function GET(req: Request) {
+  const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 40);
+  const me = (await getSessionUser(req))?.wallet ?? null;
+  return Response.json(await reactionsFor(ids, me), { headers: { "cache-control": "no-store" } });
+}
+
 async function change(req: Request, on: boolean) {
   const user = await getSessionUser(req);
   if (!user?.wallet) return unauthorized(user);
