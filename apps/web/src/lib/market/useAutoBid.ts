@@ -21,7 +21,8 @@ const SIGNER_ID = process.env.NEXT_PUBLIC_PRIVY_SIGNER_ID ?? "";
  * Auto-bid ("keep me on top up to $X"), two ways:
  * - "signer" (Patched wallets): Patched's key quorum is added to the brand's own wallet as a Privy signer, limited by
  *   a Privy policy that only allows bids on the spots the brand chose, up to each maximum. The keeper then bids from
- *   the brand's wallet within seconds of an outbid. Revoked in one tap from Settings.
+ *   the brand's wallet within seconds of an outbid. A new spot or a higher maximum needs the wallet to approve a new
+ *   policy; lowering or turning one off doesn't. Revoked in one tap from Settings.
  * - "contract" (outside wallets such as MetaMask, which can't take a Privy signer): PatchAutoBidder. Turning it on is
  *   one permit signature plus one transaction; the keeper, a Privy server wallet whose policy only allows
  *   PatchAutoBidder.execute, answers every outbid.
@@ -97,11 +98,20 @@ export function useAutoBid() {
         const r = await api<{ signerId: string; policyId: string; signer: "ok" | "missing" | "other-policy" }>("POST", {
           action: "set", listingId, patchId, max: max.toString(),
         });
+        // A new spot or a higher maximum always comes back with a new policy: the brand's wallet puts our signer on it
+        // (Privy asks for the passkey here when one is on), and only then does the raise count.
         if (r.signer !== "ok") {
           // A signer from an older policy must come off first: a signer's policy can't be swapped in place.
           if (r.signer === "other-policy") await removeSigner();
-          await addSigner(r.signerId, r.policyId);
-          await api("POST", { action: "confirm" });
+          try {
+            await addSigner(r.signerId, r.policyId);
+          } catch (err) {
+            // Our signer already came off for the swap, so the auto-bids that were on are stopped too: say so.
+            if (r.signer !== "other-policy") throw err;
+            console.error("addSigner failed after removeSigner:", err);
+            throw new Error("Auto-bid didn't change, and Patched is off your wallet until you approve it. Try again.");
+          }
+          await api("POST", { action: "confirm", policyId: r.policyId });
         }
         return;
       }
