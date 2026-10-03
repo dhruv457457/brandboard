@@ -122,10 +122,17 @@ We studied 24 ETHGlobal projects that won a Privy prize. For each, we read the s
 - One-signature permit bids.
 - A policy-limited keeper server wallet.
 - Auto-bid (`PatchAutoBidder`) and sweep (`PatchSweeper`).
-- Passkey MFA step-up for large bids.
+- Passkey MFA step-up for large bids (once a passkey is on, Privy asks for it before every wallet signature).
 - Verified brands through a linked work email.
 - `useExportWallet`.
 - A "How Patched uses Privy" README table.
+
+**Fixed after a Privy audit (2026-10-04):**
+- Passkey copy: once a passkey is on, Privy asks for it before every embedded-wallet signature and remembers it for the verification window set in the dashboard, so "small bids stay one tap" was false for those users. The app and README now say so.
+- The shared demo account can't add a passkey, export its key or change its email in the app, and the server refuses to switch its wallet or verify a brand on it. Big moves there say they need your own account.
+- Signers: the server only narrows the policy on the brand's wallet. A new spot or a higher maximum gets a new policy that counts only after the wallet swaps our signer onto it (`removeSigners`, `addSigners`) and Privy shows exactly that policy (migration 0024).
+- Campaigns and offers nobody funds close after a day and free their aggregation; paused campaigns past their end send the money back; money that arrives after a campaign closed goes back to the brand.
+- Open admin can't approve or reject your own listing.
 
 **Gaps and incorrect assumptions:**
 

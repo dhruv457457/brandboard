@@ -151,8 +151,8 @@ export function campaignRulesInWords(c: { maxPerSpot: number; budget: number; en
       ? {
           title: `${budget} in total`,
           body: whole
-            ? `Privy keeps the running total and approves each bid only while it stays within ${budget}. The wallet also only ever holds your budget.`
-            : `Privy keeps the running total and approves bids only while they stay within ${budget} over 72 hours. The wallet also only ever holds your budget.`,
+            ? `Before each bid is sent, Privy checks it against the campaign's running total and refuses one that would pass ${budget}. The wallet also only ever holds your budget.`
+            : `Before each bid is sent, Privy checks it against the running total over the last 72 hours and refuses one that would pass ${budget}. The wallet also only ever holds your budget.`,
         }
       : { title: `${budget} in total`, body: "The campaign wallet only ever holds your budget, so it can't spend more." },
     { title: `Stops ${end}`, body: "Checked against Privy's clock, not ours. What's left comes back to you." },
