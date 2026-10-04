@@ -13,6 +13,7 @@ import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData, PatchHandle } from "@/components/surface/Patch";
 import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
+import { TokenCard } from "@/components/nft/TokenCard";
 import { Seg } from "@/components/ui/Seg";
 import { toast } from "@/components/ui/Toast";
 import { formatCountdown, formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
@@ -187,7 +188,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     if (bought) patchRefs.current[p.id]?.stamp();
     setBurst({ x: p.x + p.w / 2, y: p.y + p.h / 2, n: Date.now() });
     setTimeout(() => setBurst(null), 1000);
-    toast(bought ? `${p.label} is yours. Receipt NFT comes when bidding closes.` : `You lead ${p.label} · ${usd(amount)} locked in escrow`);
+    toast(bought ? `${p.label} is yours. Your patch NFT is minted when bidding closes.` : `You lead ${p.label} · ${usd(amount)} locked in escrow`);
   }
 
   /**
@@ -703,6 +704,15 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               );
             }}
           />
+          {delivery.receipts.length > 0 && (
+            <div className="grid gap-3 mt-8">
+              <h3 className="font-extrabold text-2xl">Patch NFTs</h3>
+              <p className="text-sm text-[var(--muted)] max-w-[70ch]">One per patch, held by the winning brand. Each updates as the creator proves a step: printed, seen, delivered.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {delivery.receipts.map((r) => <TokenCard key={r.patchId} tokenId={String((BigInt(listing.id) << 8n) | BigInt(r.patchId))} />)}
+              </div>
+            </div>
+          )}
         </motion.section>
       )}
 

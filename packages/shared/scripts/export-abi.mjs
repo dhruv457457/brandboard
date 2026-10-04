@@ -8,6 +8,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const contracts = [
   ["patchedMarketAbi", "PatchedMarket.sol/PatchedMarket.json"],
   ["patchReceiptAbi", "PatchReceipt.sol/PatchReceipt.json"],
+  ["patchRendererAbi", "PatchRenderer.sol/PatchRenderer.json"],
   ["testUsdAbi", "TestUSD.sol/TestUSD.json"],
   ["patchAutoBidderAbi", "PatchAutoBidder.sol/PatchAutoBidder.json"],
   ["patchSweeperAbi", "PatchSweeper.sol/PatchSweeper.json"],

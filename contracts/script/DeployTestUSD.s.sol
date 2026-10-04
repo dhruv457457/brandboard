@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PatchedMarket} from "../src/PatchedMarket.sol";
 import {PatchReceipt} from "../src/PatchReceipt.sol";
+import {PatchRenderer} from "../src/PatchRenderer.sol";
 import {TestUSD} from "../src/TestUSD.sol";
 import {IPatchReceipt} from "../src/interfaces/IPatchReceipt.sol";
 import {MarketFactory} from "./MarketFactory.sol";
@@ -22,7 +23,8 @@ contract DeployTestUSD is Script {
 
         vm.startBroadcast(pk);
         token = new TestUSD();
-        receipt = new PatchReceipt();
+        receipt = new PatchReceipt(deployer);
+        receipt.setRenderer(new PatchRenderer(deployer, vm.envOr("SITE_PATCH_URL", string(""))));
         (market,) = MarketFactory.deploy(IERC20(address(token)), IPatchReceipt(address(receipt)), deployer, deployer);
         receipt.setMarket(market);
         // fee 5%, royalty 5%, step +5% or +$1, bond $1, new-creator cap $1000, 5 min anti-snipe,

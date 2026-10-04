@@ -9,7 +9,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {IPatchReceipt} from "./interfaces/IPatchReceipt.sol";
+import {IPatchReceipt, IPatchReceiptV2} from "./interfaces/IPatchReceipt.sol";
 
 /// @title PatchedMarket
 /// @notice Creators list patches (logo spots) on an outfit, car or team hoodie. Every patch is an
@@ -122,6 +122,36 @@ contract PatchedMarket is
         bytes32 metadataHash;
     }
 
+    /// @notice Where a patch NFT is in its life. Derived from the listing, never stored.
+    uint8 public constant STAGE_WON = 0; // bidding closed, no proof yet
+    uint8 public constant STAGE_PRINTED = 1; // the first proof is in
+    uint8 public constant STAGE_SEEN = 2; // later proofs are in
+    uint8 public constant STAGE_DELIVERED = 3; // listing completed
+    uint8 public constant STAGE_REFUNDED = 4; // the creator failed and the holder was refunded
+    uint8 public constant STAGE_DISPUTED = 5; // the holder's dispute is still open
+
+    /// @notice Everything a receipt NFT needs to draw itself and describe itself.
+    struct TokenView {
+        uint256 listingId;
+        uint8 patchId;
+        Surface surface;
+        uint8 stage;
+        uint8 proofsDone;
+        uint8 milestoneCount;
+        uint32 sponsorNo;
+        uint96 amount;
+        uint40 printedAt;
+        uint40 seenAt;
+        address winner;
+        address creator;
+        bytes32 brand;
+        bytes32 creatorName;
+        bytes32 label;
+        bytes32 eventName;
+        string proofURI;
+        string coverURI;
+    }
+
     // ─────────────────────────────── Errors ───────────────────────────────
 
     error NotActive();
@@ -213,6 +243,8 @@ contract PatchedMarket is
     );
 
     event BrandNameSet(address indexed account, bytes32 name);
+    /// @notice Listings from `firstListing` on mint on `receipt`; earlier ones stay on `legacyReceipt`.
+    event ReceiptSet(address receipt, address legacyReceipt, uint256 firstListing);
     event Withdrawn(address indexed account, uint256 amount);
     event ParamsUpdated();
     event TreasuryUpdated(address treasury);
@@ -284,6 +316,21 @@ contract PatchedMarket is
         uint32 disputeWindow;
     }
     mapping(uint256 => ListingTerms) internal _terms;
+
+    /// @notice The receipt contract used before `setReceipt`, and the first listing id that uses the new one. Listings
+    ///         below it keep their NFTs where they are, so an upgrade never strands a token.
+    IPatchReceipt public legacyReceipt;
+    uint256 public legacyBelowListing;
+
+    /// @dev The proof link and the cover image link (usually ipfs://) the creator posted with each milestone.
+    mapping(uint256 => mapping(uint8 => string)) internal _proofURI;
+    mapping(uint256 => mapping(uint8 => string)) internal _proofCover;
+    /// @notice When each milestone's proof was posted. Stamps on the NFT show this date.
+    mapping(uint256 => mapping(uint8 => uint40)) public proofAt;
+    /// @notice How many patches this creator has sold across all listings: the next sponsor gets this plus one.
+    mapping(address => uint32) public creatorSponsorCount;
+    /// @notice "Sponsor No. N of the creator" for each minted token.
+    mapping(uint256 => uint32) public sponsorNo;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -392,6 +439,27 @@ contract PatchedMarket is
         external
         whenNotPaused
     {
+        _submitProof(id, milestone, proofHash, proofURI, "");
+    }
+
+    /// @notice Same, with a cover image link (the proof photo on IPFS) that the NFT shows as its latest picture.
+    function submitProof(
+        uint256 id,
+        uint8 milestone,
+        bytes32 proofHash,
+        string calldata proofURI,
+        string calldata coverURI
+    ) external whenNotPaused {
+        _submitProof(id, milestone, proofHash, proofURI, coverURI);
+    }
+
+    function _submitProof(
+        uint256 id,
+        uint8 milestone,
+        bytes32 proofHash,
+        string calldata proofURI,
+        string memory coverURI
+    ) internal {
         Listing storage L = _listings[id];
         if (msg.sender != L.creator) revert NotCreator();
         if (L.status != Status.Delivering) revert NotActive();
@@ -404,7 +472,11 @@ contract PatchedMarket is
         ms.status = MilestoneStatus.Submitted;
         ms.reviewEndsAt = reviewEndsAt;
         ms.proofHash = proofHash;
+        proofAt[id][milestone] = uint40(block.timestamp);
+        _proofURI[id][milestone] = proofURI;
+        if (bytes(coverURI).length != 0) _proofCover[id][milestone] = coverURI;
         emit ProofSubmitted(id, milestone, proofHash, proofURI, reviewEndsAt);
+        _refresh(id);
     }
 
     // ─────────────────────────────── Brand ───────────────────────────────
@@ -455,11 +527,12 @@ contract PatchedMarket is
         if (block.timestamp >= ms.reviewEndsAt) revert ReviewOver();
         uint16 bit = _bit(patchId);
         if (patchId >= L.patchCount || L.soldMask & bit == 0) revert BadPatch();
-        if (receipt.ownerOf(tokenIdOf(id, patchId)) != msg.sender) revert NotHolder();
+        if (_receiptFor(id).ownerOf(tokenIdOf(id, patchId)) != msg.sender) revert NotHolder();
         if (ms.disputedMask & bit != 0) revert AlreadyDisputed();
         if (ms.approvedMask & bit != 0) revert AlreadyApproved();
         ms.disputedMask |= bit;
         emit Disputed(id, milestone, patchId, msg.sender, reasonURI);
+        _refresh(id);
     }
 
     /// @notice The holder of a patch receipt accepts the proof for their patch. Once every sold patch has either
@@ -473,7 +546,7 @@ contract PatchedMarket is
         if (block.timestamp >= ms.reviewEndsAt) revert ReviewOver();
         uint16 bit = _bit(patchId);
         if (patchId >= L.patchCount || L.soldMask & bit == 0) revert BadPatch();
-        if (receipt.ownerOf(tokenIdOf(id, patchId)) != msg.sender) revert NotHolder();
+        if (_receiptFor(id).ownerOf(tokenIdOf(id, patchId)) != msg.sender) revert NotHolder();
         if (ms.disputedMask & bit != 0) revert AlreadyDisputed();
         if (ms.approvedMask & bit != 0) revert AlreadyApproved();
         ms.approvedMask |= bit;
@@ -491,14 +564,15 @@ contract PatchedMarket is
     function listForResale(uint256 tokenId, uint96 price) external whenNotPaused {
         (uint256 id,) = listingOf(tokenId);
         if (_listings[id].status != Status.Delivering) revert NotActive();
-        if (receipt.ownerOf(tokenId) != msg.sender) revert NotHolder();
+        if (_receiptFor(id).ownerOf(tokenId) != msg.sender) revert NotHolder();
         if (price == 0) revert InvalidParams();
         resalePrice[tokenId] = price;
         emit ResaleListed(tokenId, msg.sender, price);
     }
 
     function cancelResale(uint256 tokenId) external {
-        if (receipt.ownerOf(tokenId) != msg.sender) revert NotHolder();
+        (uint256 id,) = listingOf(tokenId);
+        if (_receiptFor(id).ownerOf(tokenId) != msg.sender) revert NotHolder();
         delete resalePrice[tokenId];
         emit ResaleCancelled(tokenId);
     }
@@ -510,14 +584,15 @@ contract PatchedMarket is
         if (price > maxPrice) revert PriceAboveMax();
         (uint256 id,) = listingOf(tokenId);
         if (_listings[id].status != Status.Delivering) revert NotActive();
-        address seller = receipt.ownerOf(tokenId);
+        IPatchReceipt rc = _receiptFor(id);
+        address seller = rc.ownerOf(tokenId);
         if (seller == msg.sender) revert InvalidParams();
 
         delete resalePrice[tokenId];
         uint96 royalty = uint96(uint256(price) * royaltyBps / BPS);
 
         usdc.safeTransferFrom(msg.sender, address(this), price);
-        receipt.marketTransfer(seller, msg.sender, tokenId);
+        rc.marketTransfer(seller, msg.sender, tokenId);
         _send(seller, price - royalty);
         if (royalty > 0) _distribute(id, royalty);
         emit ResaleBought(tokenId, seller, msg.sender, price, royalty);
@@ -567,9 +642,15 @@ contract PatchedMarket is
                 }
                 emit DeadlinesShifted(id, shift);
             }
+            IPatchReceipt rc = _receiptFor(id);
+            uint32 count = creatorSponsorCount[L.creator];
             for (uint8 i; i < n; ++i) {
-                if (mask & _bit(i) != 0) receipt.mint(_patches[id][i].topBidder, tokenIdOf(id, i));
+                if (mask & _bit(i) == 0) continue;
+                uint256 tokenId = tokenIdOf(id, i);
+                sponsorNo[tokenId] = ++count;
+                rc.mint(_patches[id][i].topBidder, tokenId);
             }
+            creatorSponsorCount[L.creator] = count;
         }
         emit BiddingClosed(id, total, mask);
     }
@@ -602,6 +683,7 @@ contract PatchedMarket is
             _send(L.creator, L.bond);
             emit ListingCompleted(id, L.bond);
         }
+        _refresh(id);
     }
 
     /// @notice The creator missed a proof deadline. Everything not yet released, plus the bond, goes to
@@ -615,6 +697,7 @@ contract PatchedMarket is
 
         L.status = Status.Failed;
         reputation[L.creator].failed += 1;
+        IPatchReceipt rc = _receiptFor(id);
 
         uint96 refunded;
         uint64 bondLeft = L.bond;
@@ -628,9 +711,10 @@ contract PatchedMarket is
             uint64 bondShare = mask == 0 ? bondLeft : uint64(uint256(L.bond) * win / L.totalEscrow);
             bondLeft -= bondShare;
             refunded += remaining;
-            _send(receipt.ownerOf(tokenIdOf(id, i)), uint256(remaining) + bondShare);
+            _send(rc.ownerOf(tokenIdOf(id, i)), uint256(remaining) + bondShare);
         }
         emit ListingFailed(id, m, refunded, L.bond);
+        _refresh(id);
     }
 
     /// @notice Collect money that could not be pushed directly (e.g. the transfer to you failed).
@@ -714,8 +798,9 @@ contract PatchedMarket is
         uint96 toCreator = uint96(uint256(amount) * creatorShareBps / BPS);
         uint96 toHolder = amount - toCreator;
         if (toCreator > 0) _payCreator(id, toCreator);
-        if (toHolder > 0) _send(receipt.ownerOf(tokenIdOf(id, patchId)), toHolder);
+        if (toHolder > 0) _send(_receiptFor(id).ownerOf(tokenIdOf(id, patchId)), toHolder);
         emit DisputeResolved(id, milestone, patchId, toCreator, toHolder);
+        _refresh(id);
     }
 
     function setParams(
@@ -761,6 +846,19 @@ contract PatchedMarket is
 
     function _authorizeUpgrade(address) internal view override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (upgradesFrozen) revert UpgradesAreFrozen();
+    }
+
+    /// @notice Point new listings at a new receipt contract (once). Listings that already exist keep the receipt they
+    ///         were created under, so no token is ever stranded. A fresh deployment starts on the new receipt directly
+    ///         and never calls this.
+    function setReceipt(IPatchReceipt next) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (address(next) == address(0) || address(next) == address(receipt) || address(legacyReceipt) != address(0)) {
+            revert InvalidParams();
+        }
+        legacyReceipt = receipt;
+        legacyBelowListing = nextListingId;
+        receipt = next;
+        emit ReceiptSet(address(next), address(legacyReceipt), nextListingId);
     }
 
     function setTreasury(address treasury_) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -812,6 +910,68 @@ contract PatchedMarket is
         return min > P.buyNow ? P.buyNow : min;
     }
 
+    /// @notice The receipt contract that holds (or will hold) listing `id`'s tokens.
+    function receiptFor(uint256 id) external view returns (address) {
+        return address(_receiptFor(id));
+    }
+
+    function proofURIOf(uint256 id, uint8 milestone) external view returns (string memory) {
+        return _proofURI[id][milestone];
+    }
+
+    function proofCoverOf(uint256 id, uint8 milestone) external view returns (string memory) {
+        return _proofCover[id][milestone];
+    }
+
+    /// @notice Everything the NFT needs to draw itself: stage, sponsor number, names, amounts and the latest proof.
+    function tokenView(uint256 tokenId) external view returns (TokenView memory v) {
+        (uint256 id, uint8 patchId) = listingOf(tokenId);
+        Listing storage L = _listings[id];
+        Patch storage P = _patches[id][patchId];
+        v.listingId = id;
+        v.patchId = patchId;
+        v.surface = L.surface;
+        v.milestoneCount = L.milestoneCount;
+        v.sponsorNo = sponsorNo[tokenId];
+        v.amount = P.topBid;
+        v.winner = P.topBidder;
+        v.creator = L.creator;
+        v.brand = brandName[P.topBidder];
+        v.creatorName = brandName[L.creator];
+        v.label = P.label;
+        v.eventName = events[L.eventId].name;
+
+        uint16 bit = _bit(patchId);
+        bool disputeOpen;
+        uint8 proofs;
+        for (uint8 m; m < L.milestoneCount; ++m) {
+            Milestone storage ms = _milestones[id][m];
+            if (ms.status != MilestoneStatus.Open) ++proofs;
+            if (ms.disputedMask & bit != 0 && ms.resolvedMask & bit == 0) disputeOpen = true;
+        }
+        v.proofsDone = proofs;
+
+        Status st = L.status;
+        if (st == Status.Failed) v.stage = STAGE_REFUNDED;
+        else if (disputeOpen) v.stage = STAGE_DISPUTED;
+        else if (st == Status.Completed) v.stage = STAGE_DELIVERED;
+        else if (proofs == 0) v.stage = STAGE_WON;
+        else if (proofs == 1) v.stage = STAGE_PRINTED;
+        else v.stage = STAGE_SEEN;
+
+        if (proofs > 0) {
+            v.printedAt = proofAt[id][0];
+            v.proofURI = _proofURI[id][proofs - 1];
+            for (uint8 m = proofs; m > 0; --m) {
+                if (bytes(_proofCover[id][m - 1]).length != 0) {
+                    v.coverURI = _proofCover[id][m - 1];
+                    break;
+                }
+            }
+        }
+        if (proofs > 1) v.seenAt = proofAt[id][proofs - 1];
+    }
+
     function tokenIdOf(uint256 id, uint8 patchId) public pure returns (uint256) {
         return (id << 8) | patchId;
     }
@@ -833,6 +993,17 @@ contract PatchedMarket is
     }
 
     // ─────────────────────────────── Internal ───────────────────────────────
+
+    function _receiptFor(uint256 id) internal view returns (IPatchReceipt) {
+        return id < legacyBelowListing ? legacyReceipt : receipt;
+    }
+
+    /// @dev Tell the receipt this listing's tokens changed so marketplaces redraw them (ERC-4906). Listings on the
+    ///      legacy receipt have nothing to refresh, and a failed call must never block money moving.
+    function _refresh(uint256 id) internal {
+        if (id < legacyBelowListing) return;
+        try IPatchReceiptV2(address(receipt)).refresh(id) {} catch {}
+    }
 
     /// @dev Checks a bid without changing state. `err` is the custom-error selector, or 0 if the bid is valid.
     function _checkBid(uint256 id, uint8 patchId, address bidder, uint96 amount)

@@ -26,10 +26,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   const wallet = (profile?.wallet ?? (isAddress(handle) ? handle : null)) as `0x${string}` | null;
   if (!wallet) notFound();
 
-  const [cards, rep, sponsoring] = await Promise.all([
+  const [cards, rep, sponsoring, tokens] = await Promise.all([
     fetchListingCards({ creator: wallet, statuses: [1, 2, 3, 4] }),
     serverClient().readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "reputation", args: [wallet] }),
     fetchSponsoring(wallet.toLowerCase()),
+    fetchTokens(wallet.toLowerCase()),
   ]);
   const [completed, failed, earned] = rep;
 
@@ -50,7 +51,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
     brandLogo: profile?.brand_logo_url ?? null,
     brandVerified: profile?.brand_verified_domain ?? null,
   };
-  return <ProfileView profile={view} cards={toWire(cards)} sponsoring={sponsoring} />;
+  return <ProfileView profile={view} cards={toWire(cards)} sponsoring={sponsoring} heldTokens={tokens.held} sponsorTokens={tokens.sponsors} />;
 }
 
 /** Spots this wallet holds as a brand: won (it has the receipt) or leading a live auction. Public chain data. */
@@ -87,4 +88,21 @@ async function fetchSponsoring(wallet: string): Promise<SponsoredSpot[]> {
       state: won.has(k) ? ("won" as const) : new Date(card.bidding_ends_at).getTime() < Date.now() ? ("winning" as const) : ("leading" as const),
     }];
   });
+}
+
+/**
+ * The patch NFTs on this page: the ones the wallet holds (its Collection) and, if it sells ad space, the ones brands won
+ * on its listings (its Sponsors wall, oldest first so the first sponsor leads).
+ */
+async function fetchTokens(wallet: string): Promise<{ held: string[]; sponsors: string[] }> {
+  const db = supabase();
+  const [{ data: held }, { data: mine }] = await Promise.all([
+    db.from("receipts").select("token_id").eq("chain_id", CHAIN_ID).eq("owner", wallet).order("listing_id", { ascending: false }).limit(48),
+    db.from("listings").select("listing_id").eq("chain_id", CHAIN_ID).eq("creator", wallet).limit(100),
+  ]);
+  const ids = (mine ?? []).map((l) => l.listing_id);
+  const { data: sold } = ids.length
+    ? await db.from("receipts").select("token_id").eq("chain_id", CHAIN_ID).in("listing_id", ids).order("listing_id", { ascending: true }).order("patch_id", { ascending: true }).limit(48)
+    : { data: [] as { token_id: string }[] };
+  return { held: (held ?? []).map((r) => String(r.token_id)), sponsors: (sold ?? []).map((r) => String(r.token_id)) };
 }

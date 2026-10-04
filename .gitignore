@@ -161,3 +161,6 @@ contracts/broadcast/*/31337/
 apps/web/e2e/results/
 apps/web/e2e/report/
 apps/web/e2e/screens/
+
+# Sample NFT cards written by contracts/test/PreviewArt.t.sol
+contracts/out-art/

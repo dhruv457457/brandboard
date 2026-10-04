@@ -423,7 +423,7 @@ const ESCROW = [
   { icon: Lock, big: null, title: "Bid locked", body: "The brand's USDC goes into the contract. Outbid? It goes straight back in the same transaction." },
   { icon: Camera, big: "40%", title: "Print proof", body: "The creator uploads the printed patches and a ticket. The first payout unlocks." },
   { icon: BadgeCheck, big: "60%", title: "Show-up proof", body: "Venue photos, or weekly photos for a car. The brand gets 72 hours to dispute." },
-  { icon: Receipt, big: null, title: "Onchain receipt", body: "The brand keeps a receipt NFT for its patch. The creator earns reputation." },
+  { icon: Receipt, big: null, title: "A living NFT", body: "The brand holds a patch NFT that changes as the creator delivers: printed, seen, delivered. Miss a deadline and it is unpicked." },
 ];
 
 function Escrow() {

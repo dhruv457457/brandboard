@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { CHAIN_ID } from "@/lib/config";
 import { FollowButton } from "@/components/ui/FollowButton";
 import { SpottedWall } from "@/components/social/SpottedWall";
+import { TokenCard } from "@/components/nft/TokenCard";
 import { supabase } from "@/lib/supabase";
 
 export interface PublicProfile {
@@ -55,13 +56,13 @@ export interface SponsoredSpot {
   state: "won" | "winning" | "leading";
 }
 
-type Tab = "listings" | "sponsoring" | "campaigns" | "earnings" | "bids";
+type Tab = "listings" | "sponsoring" | "sponsors" | "campaigns" | "earnings" | "bids";
 
 /**
  * One page per person: what they sell (Listings), what they sponsor (Sponsoring), and, for the owner only, their
  * private Earnings and Bids. There is no separate dashboard to find.
  */
-export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: PublicProfile; cards: Wire<ListingCard[]>; sponsoring: SponsoredSpot[] }) {
+export function ProfileView({ profile: p, cards: wire, sponsoring, heldTokens, sponsorTokens }: { profile: PublicProfile; cards: Wire<ListingCard[]>; sponsoring: SponsoredSpot[]; heldTokens: string[]; sponsorTokens: string[] }) {
   const cards = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
   // A listing taking bids right now: where "Sponsor a spot" goes.
   const liveCard = cards.find((c) => c.status === 1 && c.biddingEndsAt > Date.now());
@@ -84,7 +85,8 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
   const pageHref = `/${p.handle ?? p.wallet}`;
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "listings", label: "Listings", count: cards.length },
-    { id: "sponsoring", label: "Sponsoring", count: sponsoring.length },
+    { id: "sponsoring", label: "Collection", count: heldTokens.length + sponsoring.filter((s) => s.state !== "won").length },
+    ...(sponsorTokens.length > 0 ? [{ id: "sponsors" as const, label: "Sponsors", count: sponsorTokens.length }] : []),
     ...(isOwner ? [{ id: "campaigns" as const, label: "Campaigns" }, { id: "earnings" as const, label: "Earnings" }, { id: "bids" as const, label: "Bids" }] : []),
   ];
   const current = !isOwner && (tab === "earnings" || tab === "bids" || tab === "campaigns") ? "listings" : tab;
@@ -184,13 +186,33 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
           <SpottedWall wallet={p.wallet.toLowerCase()} title={`Spotted wearing ${named ?? "Patched"}`} />
         </div>)}
 
+        {current === "sponsors" && (
+          <div className="grid gap-4">
+            <p className="text-sm text-[var(--muted)] max-w-[60ch]">Every brand that won a patch on {named ?? "this page"}, first sponsor first. Each card is a living NFT that updates as the creator delivers.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+              {sponsorTokens.map((id) => <TokenCard key={id} tokenId={id} />)}
+            </div>
+          </div>
+        )}
+
+        {current === "sponsoring" && heldTokens.length > 0 && (
+          <div className="grid gap-4 mb-8">
+            <p className="text-sm text-[var(--muted)] max-w-[60ch]">{isOwner ? "Your patch NFTs." : "Patch NFTs held."} They update as the creator proves each step.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+              {heldTokens.map((id) => <TokenCard key={id} tokenId={id} />)}
+            </div>
+          </div>
+        )}
+
         {current === "sponsoring" && (
-          sponsoring.length === 0 ? (
-            <Empty text={isOwner ? "You haven't sponsored anything yet. Bid on a spot and it shows up here." : "No sponsored spots yet."}
-              action={isOwner ? { href: "/explore", label: "Find spots" } : undefined} />
+          sponsoring.filter((s) => s.state !== "won").length === 0 ? (
+            heldTokens.length > 0 ? null : (
+              <Empty text={isOwner ? "You haven't sponsored anything yet. Bid on a spot and it shows up here." : "No sponsored spots yet."}
+                action={isOwner ? { href: "/explore", label: "Find spots" } : undefined} />
+            )
           ) : (
             <ul className="grid gap-2 list-none m-0 p-0">
-              {sponsoring.map((s) => (
+              {sponsoring.filter((s) => s.state !== "won").map((s) => (
                 <li key={`${s.listingId}:${s.patchId}`}>
                   <Link href={s.href} className="flex items-center gap-3 rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] px-4 py-3 no-underline text-[var(--ink)] hover:border-[var(--line)]">
                     <span className={cn("w-10 h-10 rounded-xl grid place-items-center flex-none border-[1.5px] border-[var(--line)]", s.state === "won" ? "bg-[var(--p1)]" : "bg-[var(--p3)]")}>
@@ -219,7 +241,7 @@ export function ProfileView({ profile: p, cards: wire, sponsoring }: { profile: 
   );
 }
 
-const TABS: Tab[] = ["listings", "sponsoring", "campaigns", "earnings", "bids"];
+const TABS: Tab[] = ["listings", "sponsoring", "sponsors", "campaigns", "earnings", "bids"];
 const CAMPAIGN_STATUS: Record<string, string> = { funding: "Waiting for funds", active: "Live", paused: "Paused", ending: "Ending", ended: "Ended" };
 
 interface CampaignRowLite { id: string; event_id: number; budget: number; max_per_spot: number; status: string; ends_at: string; kind: string; target_x_handle: string | null }

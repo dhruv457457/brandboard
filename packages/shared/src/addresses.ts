@@ -13,6 +13,8 @@ export interface PatchedDeployment {
   sweeper?: Address;
   /** True once this market has `approveProof` and `minDisputeWindow` (brands can accept a proof early). */
   approvals?: boolean;
+  /** True once this market is upgraded to the Living Patch (`submitProof` with a cover image, `tokenView`, `receiptFor`). */
+  livingPatch?: boolean;
   /** True when `usdc` is the TestUSD faucet token rather than real USDC. */
   testToken?: boolean;
 }

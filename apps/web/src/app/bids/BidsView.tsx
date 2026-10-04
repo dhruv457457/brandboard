@@ -5,35 +5,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { BadgeCheck, Copy, Droplet, ExternalLink, Gavel, Settings, Tag } from "lucide-react";
-import { patchedMarketAbi, patchReceiptAbi, testUsdAbi } from "@patched/shared";
+import { patchedMarketAbi, testUsdAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { toast } from "@/components/ui/Toast";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
-import { CHAIN_ID, EXPLORER, MARKET, RECEIPT, TEST_TOKEN, USDC, publicClient } from "@/lib/config";
+import { CHAIN_ID, EXPLORER, MARKET, TEST_TOKEN, USDC, publicClient } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { TokenCard } from "@/components/nft/TokenCard";
 
 const usd = (v: number | string | bigint) => formatUsdc(Number(v) / 1e6);
 const INPUT = "border-2 border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--paper)]";
-
-/** Receipt art is drawn on-chain (one RPC call each), so keep what we fetched for this session. */
-const receiptArt = new Map<string, string | null>();
-async function receiptImage(tokenId: string): Promise<string | null> {
-  if (receiptArt.has(tokenId)) return receiptArt.get(tokenId)!;
-  let image: string | null = null;
-  try {
-    const uri = await publicClient.readContract({ address: RECEIPT, abi: patchReceiptAbi, functionName: "tokenURI", args: [BigInt(tokenId)] });
-    image = JSON.parse(atob(uri.replace("data:application/json;base64,", ""))).image ?? null;
-  } catch { /* token art unavailable */ }
-  receiptArt.set(tokenId, image);
-  return image;
-}
 
 interface Row {
   listing_id: number;
@@ -55,7 +43,6 @@ interface ReceiptRow {
   label: string;
   title: string;
   href: string;
-  image: string | null;
 }
 
 export function BidsView({ embedded = false }: { embedded?: boolean }) {
@@ -123,21 +110,17 @@ export function BidsView({ embedded = false }: { embedded?: boolean }) {
       return { id: `${b.tx_hash}:${b.log_index}`, label: i.label, title: i.title, amount: b.amount, time: b.block_time };
     }));
 
-    // Show the rows now; each receipt's on-chain art fills in as it arrives.
+    // Each card draws itself from the token's on-chain state.
     const toRow = (r: { token_id: string; listing_id: number; patch_id: number; owner: string; resale_price: number | null }): ReceiptRow => {
       const i = info(r.listing_id, r.patch_id);
       const token_id = String(r.token_id);
-      return { ...r, token_id, label: i.label, title: i.title, href: i.href, image: receiptArt.get(token_id) ?? null };
+      return { ...r, token_id, label: i.label, title: i.title, href: i.href };
     };
     const own = (myReceipts ?? []).map(toRow);
     const sale = (forSale ?? []).map(toRow);
     setMine(own);
     setMarket(sale);
     setLoading(false);
-    const withArt = (set: typeof setMine) => (row: ReceiptRow) =>
-      receiptImage(row.token_id).then((image) => image && set((rs) => rs.map((x) => (x.token_id === row.token_id ? { ...x, image } : x))));
-    own.filter((r) => !r.image).forEach(withArt(setMine));
-    sale.filter((r) => !r.image).forEach(withArt(setMarket));
   }, [me]);
 
   // Load straight away; catch the indexer up alongside and reload only if it found new events.
@@ -250,16 +233,15 @@ export function BidsView({ embedded = false }: { embedded?: boolean }) {
           </section>
 
           <section className="grid gap-3">
-            <h2 className="font-extrabold text-2xl">Patches you won</h2>
-            {!loading && mine.length === 0 && <Card className="p-6"><p className="muted">Won patches show up here with their receipt NFT when bidding closes.</p></Card>}
+            <h2 className="font-extrabold text-2xl">Your patch NFTs</h2>
+            {!loading && mine.length === 0 && <Card className="p-6"><p className="muted">Won patches show up here as living NFTs when bidding closes. They update as the creator proves each step.</p></Card>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {mine.map((r) => (
                 <Card key={r.token_id} className="p-4 grid gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {r.image ? <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" /> : <Skeleton className="aspect-square" />}
+                  <TokenCard tokenId={r.token_id} />
                   <div>
                     <b>{r.label}</b>
-                    <p className="text-sm muted">{r.title} · receipt #{r.listing_id}-{r.patch_id}</p>
+                    <p className="text-sm muted">{r.title} · <Link href={`/patch/${r.token_id}`} className="underline">patch #{r.listing_id}-{r.patch_id}</Link></p>
                   </div>
                   {r.resale_price ? (
                     <div className="flex justify-between items-center gap-2">
@@ -294,8 +276,7 @@ export function BidsView({ embedded = false }: { embedded?: boolean }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {market.map((r) => (
                   <Card key={r.token_id} className="p-4 grid gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {r.image ? <img src={r.image} alt={`Receipt for ${r.label}`} className="w-full rounded-xl border-2 border-[var(--line)]" /> : <Skeleton className="aspect-square" />}
+                    <TokenCard tokenId={r.token_id} />
                     <div><b>{r.label}</b><p className="text-sm muted">{r.title} · held by {formatShortAddress(r.owner)}</p></div>
                     <Button variant="primary" disabled={!!busy}
                       onClick={() => run(`b${r.token_id}`, `You bought ${r.label}.`, [

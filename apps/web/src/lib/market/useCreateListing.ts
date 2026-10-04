@@ -8,6 +8,7 @@ import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { friendlyError } from "./useBid";
 import { useTx } from "./useTx";
+import { useEnsureOnchainName } from "@/lib/market/useOnchainName";
 
 export type CreateStep = "idle" | "saving" | "approving" | "creating" | "done" | "error";
 
@@ -27,6 +28,7 @@ export function useCreateListing() {
   const { walletAddress } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const send = useTx();
+  const ensureName = useEnsureOnchainName();
   const [step, setStep] = useState<CreateStep>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +57,8 @@ export function useCreateListing() {
       }
 
       setStep((stage = "creating"));
+      // The creator's name on every sponsor's patch NFT ("Sponsor No.1 of @you"). Silent; never blocks the listing.
+      await ensureName("creator");
       const params = {
         surface: input.surfaceIndex,
         eventId: input.eventId,

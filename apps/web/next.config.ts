@@ -14,7 +14,7 @@ if (existsSync(rootEnv)) {
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@patched/shared", "@patched/indexer", "@patched/ai"],
-  serverExternalPackages: ["postgres"],
+  serverExternalPackages: ["postgres", "@resvg/resvg-js"],
   reactStrictMode: true,
   // The dev-tools badge sits on top of the phone tab bar's Home tab. Error overlays still appear without it.
   devIndicators: false,

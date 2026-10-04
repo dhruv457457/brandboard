@@ -44,7 +44,7 @@ contract TestUSDTest is Test {
 
     /// The market's bidWithPermit path works with this token's permit.
     function test_permitWorksWithMarket() public {
-        PatchReceipt receipt = new PatchReceipt();
+        PatchReceipt receipt = new PatchReceipt(address(this));
         (PatchedMarket market,) = MarketFactory.deploy(IERC20(address(token)), IPatchReceipt(address(receipt)), address(this), address(this));
         receipt.setMarket(market);
 

@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/Toast";
 import { MilestoneList } from "@/components/market/MilestoneList";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
-import { EXPLORER, MARKET } from "@/lib/config";
+import { DEPLOYMENT, EXPLORER, MARKET } from "@/lib/config";
 import { formatCountdown, formatShortAddress, formatUsdc } from "@/lib/format";
 import { fromWire, type ListingView, type Wire } from "@/lib/market/types";
 import type { DeliveryView, MilestoneView } from "@/lib/market/server";
@@ -88,11 +88,14 @@ export function CreatorDashboard({ listing: lw, delivery: dw }: { listing: Wire<
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ listingId: listing.id, milestone: m.idx, files, note, ...(xUrl.trim() ? { xUrl: xUrl.trim() } : {}) }),
       });
-      const json = (await res.json()) as { proofHash?: `0x${string}`; proofURI?: string; error?: string };
+      const json = (await res.json()) as { proofHash?: `0x${string}`; proofURI?: string; coverURI?: string; error?: string };
       if (!res.ok || !json.proofHash) throw new Error(json.error ?? "Couldn't save your proof.");
       setBusy(null);
       const ok = await tx("proof", "Proof submitted. You are paid when every brand approves, or when the review window ends.", encodeFunctionData({
-        abi: patchedMarketAbi, functionName: "submitProof", args: [BigInt(listing.id), m.idx, json.proofHash, json.proofURI!],
+        abi: patchedMarketAbi, functionName: "submitProof",
+        args: json.coverURI && DEPLOYMENT.livingPatch
+          ? [BigInt(listing.id), m.idx, json.proofHash, json.proofURI!, json.coverURI]
+          : [BigInt(listing.id), m.idx, json.proofHash, json.proofURI!],
       }));
       if (ok) {
         setFiles([]);

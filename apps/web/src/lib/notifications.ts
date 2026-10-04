@@ -31,7 +31,7 @@ function message(n: NotificationRow, patch: string, title: string, actor?: strin
     case "new_bid": return `${actor ? `${actor} bid` : "New bid of"} ${usd(p.amount)} on ${patch} (${title}).`;
     case "auto_bid": return `Auto-bid kept you on top of ${patch} at ${usd(p.amount)}.`;
     case "auto_bid_paused": return `Auto-bid on ${patch} is paused: ${p.reason === "allowance" ? "top up its spending permission" : "add funds to your wallet"} to keep bidding.`;
-    case "won": return `You won ${patch} on ${title}. Your receipt NFT is in your wallet.`;
+    case "won": return `You won ${patch} on ${title}. Your patch NFT is live and updates as the creator delivers.`;
     case "listing_live": return `${title} is live. Share it so brands start bidding.`;
     case "listing_rejected": return `${title} wasn't approved. Your bond was returned.`;
     case "bidding_closed": return `Bidding closed on ${title} with ${usd(p.totalEscrow)} in escrow. Time to print.`;
@@ -55,7 +55,9 @@ export function describe(n: NotificationRow, labels: Labels, actors: Actors = {}
   const text = message(n, patch, l?.title ?? (n.payload.listingId ? `listing #${n.payload.listingId}` : "your listing"), actor?.name);
   const p = n.payload;
   const raw = n.kind === "outbid" ? p.refunded : n.kind === "resale_sold" ? p.price : n.kind === "bidding_closed" ? p.totalEscrow : p.amount;
-  return { text, href: l?.href ?? (n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids"), image: (n.kind === "spotted" && p.photo ? p.photo : l?.image) ?? null, actor, amount: raw ? usd(raw) : null };
+  // Winning, and a refund after a miss, are about the patch NFT: open its page. Everything else opens the listing.
+  const nft = (n.kind === "won" || n.kind === "listing_failed") && p.listingId && p.patchId !== undefined ? `/patch/${(BigInt(p.listingId) << 8n) | BigInt(p.patchId)}` : null;
+  return { text, href: nft ?? l?.href ?? (n.payload.listingId ? `/listing/${n.payload.listingId}` : "/bids"), image: (n.kind === "spotted" && p.photo ? p.photo : l?.image) ?? null, actor, amount: raw ? usd(raw) : null };
 }
 
 /** The signed-in wallet's latest notifications, updated live, with a way to mark them all read. */

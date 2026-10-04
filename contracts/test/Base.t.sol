@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PatchedMarket} from "../src/PatchedMarket.sol";
 import {PatchReceipt} from "../src/PatchReceipt.sol";
+import {PatchRenderer} from "../src/PatchRenderer.sol";
 import {IPatchReceipt} from "../src/interfaces/IPatchReceipt.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MarketFactory} from "../script/MarketFactory.sol";
@@ -12,6 +13,7 @@ import {MarketFactory} from "../script/MarketFactory.sol";
 abstract contract BaseTest is Test {
     MockUSDC internal usdc;
     PatchReceipt internal receipt;
+    PatchRenderer internal renderer;
     PatchedMarket internal market;
 
     address internal admin = makeAddr("admin");
@@ -29,7 +31,9 @@ abstract contract BaseTest is Test {
     function setUp() public virtual {
         vm.warp(1_800_000_000);
         usdc = new MockUSDC();
-        receipt = new PatchReceipt();
+        receipt = new PatchReceipt(address(this));
+        renderer = new PatchRenderer(address(this), "https://monad.patched.world/patch/");
+        receipt.setRenderer(renderer);
         (market,) = MarketFactory.deploy(IERC20(address(usdc)), IPatchReceipt(address(receipt)), admin, treasury);
         receipt.setMarket(market);
         biddingEnd = uint40(block.timestamp + 2 days);

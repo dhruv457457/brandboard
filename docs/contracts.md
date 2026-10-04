@@ -2,10 +2,11 @@
 
 Status: **Implemented and tested** (56 tests incl. fuzzing and a solvency invariant). ABIs are exported to `@patched/shared` (`patchedMarketAbi`, `patchReceiptAbi`). If the API has to change, this file changes first and the change is announced in `docs/requests.md`.
 
-Two contracts:
+Three contracts:
 
 - `PatchedMarket` — holds all USDC: events, listings, per-patch auctions, escrow, milestones, disputes, bonds, resale, reputation.
-- `PatchReceipt` — ERC-721, one token per won patch. Only the market can mint or move tokens (so resale royalties are enforced). `tokenURI` is fully on-chain SVG.
+- `PatchReceipt` — the Living Patch: ERC-721, one token per won patch. Only the market can mint or move tokens (so resale royalties are enforced). ERC-2981 royalties, ERC-4906 refresh events and ERC-7572 `contractURI`. The picture is drawn on-chain and changes as the creator proves each step. See [The Living Patch](#the-living-patch).
+- `PatchRenderer` — draws a receipt token's metadata and SVG from the market's state. Swappable by the receipt's owner (`setRenderer`), so the art can be fixed without touching a token.
 
 All amounts are USDC with **6 decimals** (`uint96` / `uint64`). All times are unix seconds (`uint40`).
 
@@ -91,12 +92,13 @@ struct ListingParams {
 |---|---|
 | `createListing(ListingParams p) returns (uint256 listingId)` | pulls `bond` USDC (approve first or batch). Status Pending. New creators (0 completed) are capped: sum of buyNows <= `newCreatorCap`. |
 | `cancelListing(uint256 listingId)` | Pending, or Active with no bids. Bond returned. |
-| `submitProof(uint256 listingId, uint8 milestone, bytes32 proofHash, string proofURI)` | only `milestone == nextMilestone`, before its deadline. Starts the 72h window. |
+| `submitProof(uint256 listingId, uint8 milestone, bytes32 proofHash, string proofURI)` | only `milestone == nextMilestone`, before its deadline. Starts the 72h window. Stores `proofURI` and the time (`proofURIOf`, `proofAt`) and redraws the listing's NFTs. |
+| `submitProof(uint256 listingId, uint8 milestone, bytes32 proofHash, string proofURI, string coverURI)` | Same, with a cover image link (the proof photo on IPFS). `proofURI` is `ipfs://<proof record>` and `proofHash` is `keccak256` of that record's exact bytes, so anyone can fetch it and check. |
 
 ### Brand
 | Function | Notes |
 |---|---|
-| `setBrandName(bytes32 name)` | shown on receipts |
+| `setBrandName(bytes32 name)` | the name drawn on this wallet's patch NFTs (as sponsor or, for a creator, as "Sponsor of @name"). Without one the NFT shows a short address, never a placeholder. The app writes it for Patched wallets before their first bid or listing. |
 | `bid(uint256 listingId, uint8 patchId, uint96 amount)` | needs USDC allowance (batch approve+bid with Privy). `amount >= buyNow` buys the patch at `buyNow`. |
 | `bidWithPermit(uint256 listingId, uint8 patchId, uint96 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` | EIP-2612 permit + bid in one tx |
 | `bidFor(address bidder, uint256 listingId, uint8 patchId, uint96 amount)` | **Bid on someone's behalf** (e.g. a relayer or a cross-chain intermediary). The caller pays; the bid, receipt and refunds belong to `bidder`. If the bid is invalid when funds arrive (outbid meanwhile, bidding over, patch bought) the whole amount is forwarded to `bidder` instead of reverting (`BidForwarded` event). Anything above buy-now is forwarded too. |
@@ -106,10 +108,12 @@ struct ListingParams {
 | `buyResale(uint256 tokenId, uint96 maxPrice)` | pays seller, 5% royalty to creator/payees, moves the receipt |
 
 ### Admin (`ADMIN_ROLE`)
-`createEvent(bytes32 name, uint40 startsAt, uint40 endsAt) returns (uint32)`, `setEventActive(uint32, bool)`, `approveListing(uint256)`, `rejectListing(uint256, uint8 reasonCode)`, `fastTrack(uint256, uint8 milestone)`, `resolveDispute(uint256 listingId, uint8 milestone, uint8 patchId, uint16 creatorShareBps)`, `setParams(...)` (the review window may not go below `minDisputeWindow`, default 1 hour), `setMinDisputeWindow(uint32)` (default admin only; a demo deployment lowers it to a minute), `setTreasury(address)`, `pause()`, `unpause()`.
+`createEvent(bytes32 name, uint40 startsAt, uint40 endsAt) returns (uint32)`, `setEventActive(uint32, bool)`, `approveListing(uint256)`, `rejectListing(uint256, uint8 reasonCode)`, `fastTrack(uint256, uint8 milestone)`, `resolveDispute(uint256 listingId, uint8 milestone, uint8 patchId, uint16 creatorShareBps)`, `setParams(...)` (the review window may not go below `minDisputeWindow`, default 1 hour), `setMinDisputeWindow(uint32)` (default admin only; a demo deployment lowers it to a minute), `setTreasury(address)`, `pause()`, `unpause()`. Default admin only: `setReceipt(IPatchReceipt)` (once; see Upgrades).
 
 ### Views
 `getListing(id)`, `getPatch(id, patchId)`, `getPatches(id) returns (Patch[])`, `getMilestone(id, m)`, `getPayees(id) returns (address[], uint16[])`, `minNextBid(id, patchId) returns (uint96)`, `tokenIdOf(id, patchId) pure returns (uint256)` (= `id << 8 | patchId`), `listingOf(tokenId) pure`, `resalePrice(tokenId)`, `refundable(address)`, `reputation(address) returns (uint32 completed, uint32 failed, uint128 earned)`, `brandName(address)`, `events(uint32)`, `nextListingId()`, `feeBps()`, `royaltyBps()`.
+
+Living Patch views: `tokenView(tokenId) returns (TokenView)` (stage, sponsor number, names, amount, newest proof and cover: everything the NFT draws), `receiptFor(listingId) returns (address)` (which receipt contract holds that listing's tokens), `proofURIOf(listingId, m)`, `proofCoverOf(listingId, m)`, `proofAt(listingId, m)`, `sponsorNo(tokenId)`, `creatorSponsorCount(creator)`, `legacyReceipt()`, `legacyBelowListing()`.
 
 ## Events (the indexer and live UI use these)
 
@@ -190,7 +194,30 @@ Found by a mentor review (2026-10-02) and covered by `test/Timeline.t.sol`:
 - **Disputes.** `settleStale` gives disputed money a way out when no admin answers.
 - **Auto-bid.** `PatchAutoBidder` shows each brand's maximum on-chain and lets anyone call `execute`, so a second wallet can bid, trigger the brand's auto-bid, get refunded when outbid, and repeat toward the maximum (shill bidding). The brand's bids stop at its maximum and every shill bid is refunded, but the brand can end up paying close to its maximum for a spot that would have sold for less. The Privy signer auto-bid keeps the maximum off-chain and is the default for Patched wallets; the contract version is only for outside wallets, and the app says so.
 
+## The Living Patch
+
+Each patch NFT is an embroidered patch sewn onto the creator's fabric (denim for an outfit, racing paint for a car, fleece for a hoodie), with a woven label that carries the facts. The design lives in `docs/nft-design/mockups-v2.html`; `PatchRenderer.sol` draws it on-chain and `apps/web/src/lib/patchCard.ts` draws the identical card on the website (system fonts and no photo on-chain, web fonts and the real proof photo on the site).
+
+**Stage** is derived from the listing, never stored (`tokenView().stage`):
+
+| Stage | When | The card |
+|---|---|---|
+| Won | bidding closed, no proof yet | the patch on the fabric |
+| Printed | the first proof is in | the patch moves aside and gets a PRINTED date stamp |
+| Seen n/m | each later proof | a SEEN stamp and a progress pill |
+| Delivered | the listing completed | a DELIVERED stamp |
+| Refunded | the creator missed a deadline | the fabric goes grey and the patch is unpicked: only the stitch holes remain |
+| Disputed | the holder's dispute is still open | hazard tape across the patch |
+
+Look of the patch: five shapes by `patchId % 5`; thread by winning bid (Cotton under $100, Silk $100 to $999, Gold from $1,000); the brand name shrinks to fit. The header reads `No.NNN`, the sponsor number among everything the creator has sold, and "FIRST SPONSOR OF @creator" for number 1. Every change calls `PatchReceipt.refresh(listingId)`, which emits ERC-4906 `BatchMetadataUpdate` so marketplaces redraw.
+
+`tokenURI` returns JSON with the SVG as `image`, traits (Stage, Sponsor #, Proofs, Creator, Brand, Surface, Patch, Event when there is one, Winning bid, Thread, Shape, Fabric, Listing), and `proof` / `proof_image` links to the newest proof when there is one. A proof link posted by a creator is stripped to safe characters before it goes into the JSON. The photo is not inside the on-chain SVG (marketplaces block external images in SVG); it shows on the website's card and share picture.
+
+Transfers stay market-only at all times. Resale is only possible while the listing is Delivering.
+
 ## Upgrades
+
+**Moving a live market to the Living Patch.** `PatchReceipt` is not upgradeable, so the new receipt is a new contract. `script/UpgradeReceipt.s.sol` upgrades the market logic, deploys the renderer and the new receipt, wires them together and calls `setReceipt`. Listings created before that keep their tokens on the old receipt (`legacyReceipt`, ids below `legacyBelowListing`), and every market function looks the right receipt up by listing id, so no token is stranded. `setReceipt` works once. A fresh deployment (`Deploy.s.sol`) starts on the new receipt directly. Env: `DEPLOYER_PRIVATE_KEY`, `MARKET_ADDRESS`, `SITE_PATCH_URL` (where the website shows a token, for `external_url`). Run it without `--broadcast` first; the market is over the usual 24 KB, so pass `--code-size-limit 131072`.
 
 `PatchedMarket` runs behind an ERC-1967 (UUPS) proxy. The proxy address is the market address everyone uses and it never changes; an upgrade swaps the logic only, so listings, escrowed money and the receipts stay. Only the default admin can call `upgradeToAndCall`, and `freezeUpgrades()` turns upgrades off permanently (do this before real money, or put the admin behind a multisig and timelock). Rules for changing the contract: append new state variables at the end only, never reorder or remove any, keep defaults in `initialize`, and add a test that upgrades and checks the old data. To upgrade a live market run `script/UpgradeMarket.s.sol` (admin key and `MARKET_ADDRESS`; it checks that the listing count, the escrow and the fee are unchanged afterwards). Run it once without `--broadcast` first, with `--code-size-limit 131072` (the market is over the usual 24 KB), to see it work against the live state.
 

@@ -13,7 +13,7 @@ export function isHome(path: string) {
 }
 
 export function isListingPage(path: string) {
-  // /e/<number> is an event page (an event with no slug yet), not creator "e"'s listing: it keeps the app frame.
+  // /e/<number> is an event page (an event with no slug yet), not creator "e"'s listing, and /patch/<token> is a patch NFT: both keep the app frame.
   return (/^\/[^/]+\/\d+\/?$/.test(path) && !/^\/(studio|share|e)\//.test(path)) || /^\/\d+\/?$/.test(path);
 }
 
@@ -22,7 +22,7 @@ export function isListingPage(path: string) {
  * event pages. These are what people share, so they never send a visitor off to sign in first.
  */
 export function isPublicPage(path: string) {
-  if (isListingPage(path) || path.startsWith("/e/")) return true;
+  if (isListingPage(path) || path.startsWith("/e/") || path.startsWith("/patch/")) return true;
   const m = path.match(/^\/([^/]+)\/?$/);
   return !!m && !RESERVED_HANDLES.has(m[1].toLowerCase());
 }

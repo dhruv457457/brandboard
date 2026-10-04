@@ -175,7 +175,7 @@ contract SolvencyInvariantTest is StdInvariant, Test {
     function setUp() public {
         vm.warp(1_800_000_000);
         usdc = new MockUSDC();
-        PatchReceipt receipt = new PatchReceipt();
+        PatchReceipt receipt = new PatchReceipt(address(this));
         (market,) = MarketFactory.deploy(IERC20(address(usdc)), IPatchReceipt(address(receipt)), admin, treasury);
         receipt.setMarket(market);
         vm.prank(admin);

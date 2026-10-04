@@ -102,7 +102,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **No-shows are refunded.** If a creator misses a proof deadline, the unpaid escrow and the creator's stake go to the patch holders.
 - **Creator record.** On-chain delivered and missed counts plus total earned, shown on every listing next to the stake and the payout plan.
 - **Safe onboarding.** New creators have a spending cap until their first delivery, and listings are approved by an admin before bidding opens.
-- **Receipt NFTs.** Winning a spot mints a receipt NFT whose image is drawn on-chain as SVG. The receipt *is* the spot: its holder gets refunds and dispute rights.
+- **Living patch NFTs.** Winning a spot mints an NFT drawn on-chain as an embroidered patch with a woven label. It updates itself as the creator proves each step (won, printed, seen, delivered), is unpicked if the creator fails, and shows hazard tape while a dispute is open. It *is* the spot: its holder gets refunds and dispute rights. Each one has a public page at `/patch/<token>` with a timeline and a check that hashes the proof from IPFS and compares it with the hash on-chain.
 - **Resale.** A receipt can be listed, bought or delisted on Patched, with a 5% royalty to the creator. Receipts can't move outside the market, so the royalty always applies.
 - **Fallback payouts.** If a payment to a wallet ever fails, the money waits in the contract and the owner withdraws it. The market can be paused in an emergency.
 
@@ -171,7 +171,8 @@ Not used, and why:
 | Contract | What it does |
 |---|---|
 | `PatchedMarket` | Listings, per-patch auctions with anti-snipe, permit bids, escrow, milestones, proofs, disputes, no-show refunds, creator stakes and records, events, resale with royalties |
-| `PatchReceipt` | The receipt NFT for each won patch, with its image drawn on-chain and ERC-2981 royalties. It only moves through the market. |
+| `PatchReceipt` | The Living Patch NFT for each won patch, with ERC-2981 royalties and ERC-4906 refresh events. It only moves through the market. |
+| `PatchRenderer` | Draws each NFT's SVG and metadata from the market's state. Swappable, so the art can be fixed without touching a token. |
 | `PatchAutoBidder` | Holds each brand's auto-bid maximum and bids for them. It never goes above the maximum. |
 | `PatchSweeper` | Bids on several patches in one transaction, all or nothing |
 | `TestUSD` | A USDC-style test token with permit and a daily faucet, for the mainnet test run |

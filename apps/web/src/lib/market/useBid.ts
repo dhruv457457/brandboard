@@ -7,6 +7,7 @@ import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN 
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 import { usePermitOrApprove } from "@/lib/market/permit";
+import { useEnsureOnchainName } from "@/lib/market/useOnchainName";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
 
@@ -50,6 +51,7 @@ export function useBid() {
   const { walletAddress, wallet, isEmbeddedWallet, authenticated, login, sendTransaction } = usePatchedAuth();
   const authorize = usePermitOrApprove();
   const stepUp = useStepUp();
+  const ensureName = useEnsureOnchainName();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hash, setHash] = useState<`0x${string}` | null>(null);
@@ -77,6 +79,9 @@ export function useBid() {
         await wallet.switchChain(CHAIN_ID);
         external = createWalletClient({ account: walletAddress, chain: CHAIN, transport: custom(await wallet.getEthereumProvider()) });
       }
+
+      // So the patch NFT says the brand's name, not an address. Silent, and it never blocks the bid.
+      await ensureName("brand");
 
       // A permit signature where the wallet supports it, otherwise an approve first (see usePermitOrApprove).
       const permit = await authorize(MARKET, amount);
