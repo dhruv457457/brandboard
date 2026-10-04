@@ -69,3 +69,10 @@ The U-rows above the table end show the upgrade of the live testnet market after
 the deadline shift at close (`DeadlinesShifted`, +54.6 minutes) and both payouts at the saved 1% fee. Twelve new
 tests in `contracts/test/Timeline.t.sol` cover the rest (pause grace, fee and review window kept per listing,
 stale-dispute settlement, hand-worked payout recipients).
+
+## Renderer swap (2026-10-04)
+
+| Step | Actor | What happened | Transaction | When (UTC) |
+|---|---|---|---|---|
+| R1 | Deployer (receipt owner) | Deployed a fixed PatchRenderer (`0x59171aEA…6F7fe`): the creator's name keeps its own case in the description and traits | [0xec85ee44…e628](https://testnet.monadexplorer.com/tx/0xec85ee448372257c400de7521e66bd4113897655c089f0ba1c4b2d14ee57e628) | 2026-10-04 |
+| R2 | Deployer (receipt owner) | Pointed the Living Patch receipt at it with `setRenderer`; token 2816 now reads "backed mira-demo" | [0x86c3cb7c…291c](https://testnet.monadexplorer.com/tx/0x86c3cb7c14720067eb72b9cf535ede13656cee102f67679a8468ae1afe47291c) | 2026-10-04 |

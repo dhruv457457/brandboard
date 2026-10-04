@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, Droplets } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -10,6 +10,7 @@ import { CHAIN, EXPLORER, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
 import { useBalances } from "@/lib/useBalances";
 
 const EVENT = "patched:add-money";
+export const CIRCLE_FAUCET = "https://faucet.circle.com";
 
 /** Open the Add money sheet from anywhere (the wallet panel, a "not enough USDC" error). */
 export function openAddMoney() {
@@ -59,9 +60,32 @@ export function AddMoneyHost() {
     }
   }
 
+  // Circle's faucet can't be pre-filled, so copy the address first and open the faucet; the person pastes it there.
+  async function openFaucet() {
+    await copy();
+    window.open(CIRCLE_FAUCET, "_blank", "noopener,noreferrer");
+  }
+
+  const faucet = PLAY_MONEY && !TEST_TOKEN;
+
   return (
     <Sheet open={open} onClose={() => setOpen(false)} title="Add money" description={`Send ${money} on ${CHAIN.name} to your Patched wallet.`}>
       <div className="grid gap-5">
+        {faucet && (
+          <div className="rounded-2xl border-[1.5px] border-[var(--accent)] bg-[var(--accent-soft)] p-4 grid gap-3">
+            <span className="flex items-center gap-2 font-extrabold"><Droplets size={18} /> Get free test USDC in a minute</span>
+            <ol className="grid gap-1.5 text-[15px] list-decimal pl-5 m-0">
+              <li>Tap the button. It copies your address and opens Circle&apos;s faucet.</li>
+              <li>On the faucet pick <b>{CHAIN.name}</b>, keep <b>USDC</b>, and paste your address.</li>
+              <li>Send it. Your balance here updates by itself, usually within seconds.</li>
+            </ol>
+            <Button variant="primary" onClick={openFaucet} className="justify-center">
+              {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Address copied, opening faucet" : "Copy address and open Circle faucet"}
+            </Button>
+            <p className="text-xs text-[var(--muted)]">The faucet gives a small amount of play money, enough for several bids. It has no value outside this test network.</p>
+          </div>
+        )}
+
         <div className="flex items-center gap-4">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -91,12 +115,8 @@ export function AddMoneyHost() {
           <li>This screen shows the money the moment it arrives, usually within seconds.</li>
         </ol>
 
-        {PLAY_MONEY && (
-          <p className="rounded-xl bg-[var(--accent-soft)] p-3 text-sm">
-            {TEST_TOKEN
-              ? <>Test run: get free test USD from the faucet on <b>My bids</b>.</>
-              : <>Test network: get free test USDC from <a className="font-semibold underline" href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer">Circle&apos;s faucet</a>, and choose {CHAIN.name}.</>}
-          </p>
+        {PLAY_MONEY && TEST_TOKEN && (
+          <p className="rounded-xl bg-[var(--accent-soft)] p-3 text-sm">Test run: get free test USD from the faucet on <b>My bids</b>.</p>
         )}
         <p className="text-xs text-[var(--muted)]">Only send {money} on {CHAIN.name}. Other tokens or networks can&apos;t be recovered.</p>
       </div>
