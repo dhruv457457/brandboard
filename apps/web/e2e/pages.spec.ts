@@ -7,7 +7,7 @@ import { expectClean, openAndMeasure, snap, watchErrors } from "./helpers";
  * listing, an event, a share kit) are found from the live data.
  */
 
-const STATIC = ["/", "/welcome", "/explore", "/events", "/studio", "/campaigns/new", "/notifications", "/settings", "/dashboard", "/bids", "/admin"];
+const STATIC = ["/", "/welcome", "/explore", "/events", "/studio", "/campaigns/new", "/automate", "/notifications", "/settings", "/dashboard", "/bids", "/admin"];
 
 async function discover(request: APIRequestContext) {
   const html = await (await request.get("/explore")).text();

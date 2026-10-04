@@ -29,7 +29,7 @@ bots), 0 campaigns, nothing on mainnet.
 | M7 Follows | Done: follow creators, brands and events; Following feed on Home |
 | M8 Reactions | Done on spotted photos (fire, cheer, love) |
 | M9 Spotted | Done: wall on event, listing and profile; creator notified |
-| M10 UX fixes | Partly: admin status labels, spot placement on the person. Still open: profile reach, listing goal line, event page cards, Automate entry |
+| M10 UX fixes | Done: admin status labels, spot placement, profile listings, goal line, event stat cards, and an Automate page (`/automate`, in the wallet menu) for auto-bid, campaigns and offers |
 | M11 Metrics | Done: `scripts/metrics.mts` |
 | M12 Verify it yourself | Done: README table |
 
