@@ -1,6 +1,6 @@
 # How Patched uses Privy: the full table
 
-The short version is in the [README](../README.md#privy-beyond-login). This is the long one: every row is live in the app and links to its code.
+The short version is in the [README](../README.md#the-eight-ways-we-use-privy). This is the long one: every row is live in the app and links to its code.
 
 | Privy feature | What it does in Patched | Code |
 |---|---|---|

@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="https://monad.patched.world"><b>Live on Monad testnet</b></a> ·
+  <a href="https://monad.patched.world"><b>Try it live</b></a> ·
+  <a href="https://x.com/Patched_world">@Patched_world</a> ·
   <a href="docs/contracts.md">Contracts</a> ·
-  <a href="docs/SPEC.md">Spec</a> ·
   <a href="docs/privy.md">Privy in detail</a> ·
   <a href="docs/evidence.md">On-chain evidence</a>
 </p>
@@ -18,30 +18,172 @@
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-0B0B0C?style=flat-square">
 </p>
 
-## What it is
+## It started with one outfit
 
-**Patched** lets creators sell ad space on things people look at: an outfit at an event, a car for a few weeks, a team's hoodie at a hackathon. A creator uploads a photo, AI turns it into a clean canvas, and they mark **patches** (logo spots) on it. Brands **bid in USDC** for each patch in its own live auction. The money waits in an on-chain escrow on Monad and is paid out in steps, only after the creator posts proof that they showed up.
+Before Token2049, a popular creator, [vanshu.eth](https://token2049.vanshu.fun/), posted her event outfit and offered brands the logo spots on it. People loved the idea. Then the hard part began:
 
-| Creator | Brand | The contract |
-|---|---|---|
-| Photographs the outfit, car or hoodie and draws the patches. | Bids on a spot. Outbid? The money comes straight back. | Holds the money. Pays the creator step by step as proof arrives, refunds the brand if they never show. |
-| Posts proof: print photos, venue photos, an X post. | Holds a patch NFT that updates as the creator delivers. | Gives every brand 72 hours to dispute a proof for its own patch. |
+- **Her payments got rejected.** Brands paying from abroad hit international transaction rejections at Razorpay.
+- **She had to run a whole website** just to show the spots and take orders.
+- **Every price was fixed.** A brand ready to pay more had no way to outbid anyone. The spot went to whoever came first, not to whoever wanted it most.
 
-## Try it in a minute
+She isn't the only one. Anyone people look at has ad space, and the same three problems. So we built **Patched**.
 
-1. Open [monad.patched.world](https://monad.patched.world) and press **Sign in**.
-2. Press **Use the demo account** at the bottom of the sign-in card. One tap signs you in to a shared Privy test account
-   with its own embedded wallet: no email, no seed phrase, no extension. (It only appears on test money: testnet, or
-   mainnet on TestUSD.)
-3. Open an event, tap a spot and bid. There is no wallet pop-up and no gas prompt: Privy approves and bids for you and
-   sponsors the gas. Big bids (`NEXT_PUBLIC_STEP_UP_USD`, $1,000 by default, or more) need a passkey. The shared demo
-   account can't add one, since it would lock out the next person, so sign in with your own email or X to try that.
-4. On a spot, turn on **Auto-bid**: Privy adds Patched as a signer limited by a policy, and Settings → Security has a
-   one-tap Revoke.
-5. **Admin** (wallet menu → Admin) lets anyone approve listings and create events during judging, through a
-   policy-limited Privy server wallet. Nobody can review their own listing or settle their own dispute.
+You upload a photo of your outfit, your car or your team's hoodie, and mark the spots where a logo can go. **Brands bid on each spot in a live auction, in USDC.** The money waits in escrow on Monad and comes to you once you post proof that you showed up. You also get your own site at `yourname.monad.patched.world`, so there is nothing to build. We take 1%.
 
-Test USDC on testnet: Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+| Her problem | What Patched does |
+|---|---|
+| Payments rejected | USDC, straight to a wallet. No bank, no card, no international transaction. |
+| A whole website to run | Your own page at `yourname.monad.patched.world`, made for you. |
+| Fixed prices, first come first served | Every spot is its own live auction, with a floor, a buy-now price and anti-snipe. |
+| Brands paying before you deliver | Escrow. You are paid in steps, only after you post proof. If you don't show up, the brand is refunded. |
+
+### Try it in a minute
+
+1. Open [monad.patched.world](https://monad.patched.world), press **Sign in**, then **Use the demo account**. One tap signs you in as a brand with its own wallet, on test money only: no email, no seed phrase, no extension.
+2. Open an event, tap a spot and bid. There is no wallet pop-up and no gas prompt. If someone outbids you, your USDC comes back in the same transaction.
+3. On a spot, turn on **Auto-bid**. Settings → Security shows exactly what Patched may do, with a one-tap Revoke.
+4. **Admin** (wallet menu) lets you approve listings during judging. Nobody can review their own listing or settle their own dispute.
+
+The demo account can't add a passkey (it would lock out the next person); sign in with your own email or X to try that. Test USDC on testnet comes from Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+
+## Why Privy
+
+A brand's marketing lead and a creator with an X following have one thing in common: neither wants a seed phrase. They want to sign in with X or email and tap **Bid**.
+
+Privy let us keep everything crypto does well (instant payouts, escrow anyone can check, no bank in the middle) and hide the rest. **Every wallet, signature and payment on Patched goes through it**, and every key we own sits behind a Privy policy.
+
+<p align="center">
+  <img src="docs/images/who-signs-what.png" alt="Who can sign what: the user's Privy wallet, and Patched's keeper, campaign, offer and admin wallets, each with its own policy" width="100%">
+</p>
+
+## The eight ways we use Privy
+
+Each one follows the same shape: the problem, the Privy piece that solved it, what you feel, and the proof on the explorer. The full table, with every limit we hit, is in [docs/privy.md](docs/privy.md).
+
+### 1. Sign in like you already do
+
+**The problem:** our users live on X and email, not in browser extensions.
+**The Privy piece:** embedded wallets, behind a sign-in card we designed ourselves with Privy's headless hooks.
+
+```ts
+await initOAuth({ provider: "twitter" }); // Continue with X
+await sendCode({ email });                 // or a 6-digit email code
+```
+
+**What you feel:** tap "Continue with X" and you're in. You have a wallet, a profile with your X name and picture, and your own page. Already use MetaMask? Keep it, or take a fresh Patched wallet for gas-free bids.
+**What we learned:** we first gave every user an embedded wallet. MetaMask users ended up with a second, empty wallet. Now your wallet is the one you chose at sign-in, else the one you linked first.
+**Code:** [WelcomeView.tsx](apps/web/src/app/welcome/WelcomeView.tsx) · [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx)
+
+### 2. Bid in one tap
+
+**The problem:** a wallet pop-up and a gas fee on every bid would kill a live auction.
+**The Privy piece:** gas sponsorship. The Privy wallet signs in the background, and Privy pays the network fee.
+
+```ts
+await sendTransaction({ to: MARKET, data, chainId }, { sponsor: true });
+```
+
+**What you feel:** tap Bid. No pop-up, no gas, no waiting on a wallet.
+**What we learned:** we planned a USDC permit (one signature) and it failed with "invalid signature". Gas sponsorship gives each Privy wallet an EIP-7702 delegation, so USDC checks the permit as if the wallet were a contract. Now a Privy wallet approves the exact amount, then bids: two silent transactions, still one tap.
+**Proof:** [a brand bidding from a Privy wallet](https://testnet.monadexplorer.com/tx/0x77d837d64256a20cb45fe02cbc3e1305ff977e4e87907b705eb884237666e92b), with no prompt and no gas.
+**Code:** [useBid.ts](apps/web/src/lib/market/useBid.ts) · [permit.ts](apps/web/src/lib/market/permit.ts) · [useTx.ts](apps/web/src/lib/market/useTx.ts)
+
+### 3. A keeper on a short leash
+
+**The problem:** auctions end on their own, but a contract can't call itself. Something has to close bidding, pay each milestone and refund brands when a creator doesn't show. That means a key on a server, next to escrow.
+**The Privy piece:** a Privy server wallet with a policy. It may call exactly four functions: `closeBidding`, `release` and `markFailed` on our market, and `execute` on our auto-bidder. Privy refuses anything else before it is signed.
+**What you feel:** nothing, and that's the point. Auctions close on time, payments arrive after the review window, and no-shows are refunded without anyone pressing a button.
+**What we learned:** put the action in the idempotency key, not the attempt. A retried run sends `release:<listing>:<milestone>` again, and Privy returns the first transaction instead of paying twice.
+**Proof:** [the keeper closing an auction 8 seconds after it ended](https://testnet.monadexplorer.com/tx/0x2d1eb116841d9ce242685c4d32a4da0bfca97f3bb166e0ce47a807fdd7a34b19).
+**Code:** [keeper.ts](apps/web/src/lib/server/keeper.ts) · [privy-policy-check.mjs](apps/web/scripts/privy-policy-check.mjs)
+
+<p align="center">
+  <img src="docs/images/keeper-policy.png" alt="The keeper's policy: four allowed calls" width="85%">
+</p>
+
+### 4. Auto-bid while you sleep
+
+**The problem:** brands have meetings. Nobody can watch an auction all day, and we didn't want to lock their money in a contract just to bid for them.
+**The Privy piece:** signers. Turning on auto-bid adds Patched as a signer on your own wallet, with a policy that allows only bids on the spots you chose, up to your maximum.
+
+```ts
+await addSigners({ address, signers: [{ signerId, policyIds: [policyId] }] });
+```
+
+**What you feel:** "Keep me on top up to $40." When someone outbids you, Patched bids the next step from your wallet within seconds, never above $40. Settings shows exactly what Patched may do, in plain words, with one Revoke button.
+**What we learned:** always attach the policy when you add a signer; without one, the signer isn't limited. A higher maximum asks your wallet to approve again, while lowering one is instant.
+**Proof:** [an auto-bid answering an outbid, from the brand's own wallet](https://testnet.monadexplorer.com/tx/0x28e3a8c5a43459d4e7b4b6cea90cc91fd99aed62febdb50f5c56074c5adc58b1).
+**Code:** [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts) · [autoBidPolicy.ts](apps/web/src/lib/market/autoBidPolicy.ts) · [autoBidSigner.ts](apps/web/src/lib/server/autoBidSigner.ts)
+
+<p align="center">
+  <img src="docs/images/auto-bid.png" alt="Auto-bid: Patched as a signer with a maximum, revocable in one tap" width="70%">
+</p>
+
+### 5. Campaigns with a budget Privy checks
+
+**The problem:** big brands don't bid spot by spot. They say: "Spend up to $300 at Token2049, never more than $40 a spot, until the event ends."
+**The Privy piece:** each campaign gets its own Privy server wallet and its own policy, written from those settings: bids only for the brand, at most $40 each, only until the end time. The $300 total is a Privy aggregation, a running total Privy checks before every bid.
+**What you feel:** you fund the campaign once and it bids across the whole event for you, cheapest spots first. You can read its rules in plain words or as the raw policy. What's left at the end comes back to you.
+**What we learned:** aggregations only count transactions Privy signs, not sponsored sends. So each bid is signed first as a budget check, and only then sent. Each campaign needs its own aggregation, and an app can have 10.
+**Proof:** [a $10 campaign bidding, then Privy refusing the bid that would pass $10](https://testnet.monadexplorer.com/tx/0x2a5d3397c267b182a3daef0dce7f854b3713e681ece27e7303b7984a4891e1a3).
+**Code:** [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts) · [campaigns.ts](apps/web/src/lib/server/campaigns.ts) · [privy.ts](apps/web/src/lib/server/privy.ts)
+
+<p align="center">
+  <img src="docs/images/campaign.png" alt="A campaign with a budget and its Privy policy" width="70%">
+</p>
+
+### 6. Pay anyone on X
+
+**The problem:** the perfect creator for a brand has often never heard of Patched. You can't pay someone who has no account and no wallet.
+**The Privy piece:** pregenerated wallets. We look up the X handle's numeric id and create a Privy user with that X account linked and a wallet, before they ever sign up.
+
+```ts
+await privy.users().create({
+  linked_accounts: [{ type: "twitter_oauth", subject: xUserId, username: handle }],
+  wallets: [{ chain_type: "ethereum" }],
+});
+```
+
+**What you feel:** a brand offers "$200 for a spot on your outfit at Token2049" to any X handle and shares it in one tap. The creator taps "Continue with X" for the first time, and the wallet and the offer are already theirs. If their wallet is empty, the offer even pays their listing stake.
+**What we learned:** Privy links an X account by its numeric id, not its handle. Handles change; ids don't. Resolve the id on the server first.
+**Proof:** [a $5 offer to an X handle, waiting in its own wallet](https://testnet.monadexplorer.com/tx/0x6172ae361a4dcfb6237339da6148e50a94409519a731297ed7f672d1c54e203f).
+**Code:** [xOffers.ts](apps/web/src/lib/server/xOffers.ts) · [xLookup.ts](apps/web/src/lib/server/xLookup.ts) · [OfferView.tsx](apps/web/src/app/offers/[id]/OfferView.tsx)
+
+<p align="center">
+  <img src="docs/images/offer-to-x.png" alt="Patch anyone on X: an offer waiting in its own wallet" width="70%">
+</p>
+
+### 7. Trust for big money
+
+**The problem:** once real money moves, people ask two things. Can a stolen session spend it? And is the brand behind this bid real?
+**The Privy piece:** passkeys through Privy MFA, linked accounts, and wallet export.
+**What you feel:**
+- Bids of $1,000 or more ask for your passkey (Face ID, Touch ID or Windows Hello).
+- "Verified brand" means something. A brand links a work email with a Privy code. If its domain matches the brand's website, the badge appears. Gmail doesn't count.
+- Your wallet is yours. One button in Settings exports the key to any wallet.
+
+**What we learned:** once a passkey is on, Privy asks for it before the wallet signs anything, then remembers it for a while. It isn't only for big moves. Privy's policy-based MFA, where a signer handles small bids and your passkey the big ones, is how we'll make small bids passkey-free again.
+**Code:** [stepUp.ts](apps/web/src/lib/market/stepUp.ts) · [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx) · [SettingsView.tsx](apps/web/src/app/settings/SettingsView.tsx)
+
+### 8. Judges in one tap
+
+**The problem:** a judge has minutes, not days. They won't make an account, fund a wallet, then wait for an admin to approve a listing.
+**The Privy piece:** a Privy test account behind a "Use the demo account" button, and a second server wallet for admin actions, with its own policy.
+**What you feel:** one tap and you're signed in as a brand with a wallet, on test money only. You can even approve a listing yourself. That goes through a wallet whose policy allows only review actions: no pausing, no fees, no treasury, no upgrades. Nobody can approve their own listing.
+**What we learned:** a shared account needs guard rails. The demo account can't add a passkey, export its key or link an email, so one visitor can't lock out the next. The same test account also signs in to our end-to-end UI tests on every run.
+**Proof:** [a listing approved through open admin](https://testnet.monadexplorer.com/tx/0x11a6f46c18c70697cd9ee23007ee68471e39eac5b80b729cbd422a7cf30340ac).
+**Code:** [api/admin/act](apps/web/src/app/api/admin/act/route.ts) · [demoAccount.ts](apps/web/src/lib/server/demoAccount.ts) · [api/demo-login](apps/web/src/app/api/demo-login/route.ts)
+
+### If you're building on Privy
+
+1. Make a Privy feature the product, not just the login. Our auto-bid is a signer. Our campaign is a policy. Our offer to an X handle is a pregenerated wallet.
+2. Write policies from the user's own settings, and show them back in plain words. If people can read the rules, they trust them.
+3. Name the action in idempotency keys, never the attempt.
+4. Sponsored wallets and permits don't mix. Approve first.
+5. Aggregations have sharp edges: sign-only, one total each, 10 per app, a 72-hour window, a few seconds of lag.
+6. Use a test account from day one. Ours runs our tests and became the judges' demo.
+
+Left out on purpose: card and bank on-ramps (Patched has no fiat) and transaction webhooks (Enterprise only, so notifications come from our own indexer and Supabase Realtime).
 
 ## The patch NFT that grows up
 
@@ -55,45 +197,6 @@ Winning a spot mints a **Living Patch**: an embroidered patch sewn onto the crea
 - **Verifiable proofs.** Proof photos and the proof record are pinned to IPFS, and the hash in the contract is the hash of that record. Every patch has a page at `/patch/<token>` with a timeline and a button that fetches the proof, hashes it in your browser and compares it with the chain.
 - **Resale with a royalty.** A patch can be resold on Patched while the creator is delivering; 5% goes to the creator. Tokens cannot move any other way.
 - Thread colour shows the price (cotton under $100, silk to $999, gold from $1,000) and each listing's patches come in five shapes. Design and plan: [docs/nft-plan.md](docs/nft-plan.md).
-
-## Privy beyond login
-
-Privy is not only the login. It signs every transaction, and every key Patched owns sits behind a Privy policy.
-
-<p align="center">
-  <img src="docs/images/who-signs-what.png" alt="Who can sign what: the user's Privy wallet, and Patched's keeper, campaign, offer and admin wallets, each with its own policy" width="100%">
-</p>
-
-| Privy feature | What it does in Patched | Code |
-|---|---|---|
-| **Sign-in in our own design** | Headless Privy hooks for X and email, with Privy's own window branded to match. | [WelcomeView.tsx](apps/web/src/app/welcome/WelcomeView.tsx) |
-| **Embedded wallets** | Login with X, email or a wallet gives a self-custodial wallet in seconds: no seed phrase, no extension. | [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx) |
-| **Gas sponsorship** | Bids, listings, proofs and disputes cost users no MON. | [useTx.ts](apps/web/src/lib/market/useTx.ts) |
-| **Silent, sponsored bids** | A Privy wallet approves the exact amount, then bids, with no prompt. Permits fail for EIP-7702 wallets, so approve-then-bid it is. | [useBid.ts](apps/web/src/lib/market/useBid.ts) |
-| **Server wallet and policy: the keeper** | Closes auctions, pays milestones and marks no-shows. Its policy allows four functions; anything else is refused before it is signed. | [keeper.ts](apps/web/src/lib/server/keeper.ts) |
-| **Open admin for judges** | Anyone signed in can review listings through a separate policy-limited server wallet. Nobody can review their own. | [api/admin/act](apps/web/src/app/api/admin/act/route.ts) |
-| **Campaign wallets** | Each campaign gets its own wallet and a policy written from the brand's settings: who it bids for, the per-spot cap, an end time. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts) |
-| **Stateful policy** | A Privy aggregation keeps the running total, so a campaign cannot pass its budget even if our server asks it to. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts) |
-| **Wallets made ahead of time** | "Patch anyone on X": the wallet and the offer exist before the person has ever signed in. | [xOffers.ts](apps/web/src/lib/server/xOffers.ts) |
-| **Signers** | Auto-bid from the brand's own wallet, within a policy it can see and revoke in one tap. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts) |
-| **Passkey step-up** | Moves of $1,000 or more need a passkey. | [stepUp.ts](apps/web/src/lib/market/stepUp.ts) |
-| **Linked accounts** | A work email whose domain matches the brand's site earns the Verified brand badge; X profile data fills the creator's page. | [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx) |
-| **Wallet export** | "Your wallet is yours": export the key from Settings. | [SettingsView.tsx](apps/web/src/app/settings/SettingsView.tsx) |
-| **Server-side auth** | Every route that acts for a person verifies the Privy token; the wallet never comes from the browser. | [auth.ts](apps/web/src/lib/server/auth.ts) |
-| **Test accounts** | A Privy test account behind "Use the demo account" and in the end-to-end UI tests. | [signed-in.spec.ts](apps/web/e2e/signed-in.spec.ts) |
-
-The full table, with every detail and limit we hit, is in [docs/privy.md](docs/privy.md). Features we chose not to use: card and bank on-ramps (Patched has no fiat) and transaction webhooks (Enterprise only, so notifications come from our own indexer and Supabase Realtime).
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/keeper-policy.png" alt="The keeper's policy"><br><sub>The keeper may call four functions. Anything else is refused.</sub></td>
-    <td width="50%"><img src="docs/images/campaign.png" alt="A campaign with a budget"><br><sub>A campaign bids for a brand and cannot pass its budget.</sub></td>
-  </tr>
-  <tr>
-    <td><img src="docs/images/auto-bid.png" alt="Auto-bid"><br><sub>Auto-bid: Patched is a signer with a maximum, revocable in one tap.</sub></td>
-    <td><img src="docs/images/offer-to-x.png" alt="Patch anyone on X"><br><sub>Patch anyone on X: the wallet exists before they sign in.</sub></td>
-  </tr>
-</table>
 
 ## Verify it yourself
 
