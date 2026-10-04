@@ -514,10 +514,12 @@ library PatchArt {
         return s;
     }
 
+    /// @dev Upper-cases a copy; the caller's string is left alone (the traits and description reuse it).
     function _upper(string memory s) internal pure returns (string memory) {
-        bytes memory b = bytes(s);
-        for (uint256 i; i < b.length; ++i) {
-            if (b[i] >= 0x61 && b[i] <= 0x7A) b[i] = bytes1(uint8(b[i]) - 32);
+        bytes memory src = bytes(s);
+        bytes memory b = new bytes(src.length);
+        for (uint256 i; i < src.length; ++i) {
+            b[i] = src[i] >= 0x61 && src[i] <= 0x7A ? bytes1(uint8(src[i]) - 32) : src[i];
         }
         return string(b);
     }

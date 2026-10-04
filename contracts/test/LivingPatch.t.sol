@@ -4,11 +4,20 @@ pragma solidity 0.8.28;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PatchedMarket} from "../src/PatchedMarket.sol";
 import {PatchReceipt} from "../src/PatchReceipt.sol";
-import {PatchRenderer} from "../src/PatchRenderer.sol";
+import {PatchRenderer, PatchCard, PatchArt} from "../src/PatchRenderer.sol";
 import {IPatchReceipt} from "../src/interfaces/IPatchReceipt.sol";
 import {MarketFactory} from "../script/MarketFactory.sol";
 import {PatchReceiptV1} from "./mocks/PatchReceiptV1.sol";
 import {BaseTest} from "./Base.t.sol";
+
+/// Lets a test read the renderer's internal card.
+contract RendererHarness is PatchRenderer {
+    constructor(address owner_) PatchRenderer(owner_, "") {}
+
+    function card(PatchedMarket.TokenView memory v) external pure returns (PatchCard memory) {
+        return _card(v);
+    }
+}
 
 /// The Living Patch: stages follow the listing, the art redraws itself, and an upgrade strands nothing.
 contract LivingPatchTest is BaseTest {
@@ -151,6 +160,18 @@ contract LivingPatchTest is BaseTest {
         uint256 id = _delivering();
         // 29 characters on the rounded patch (470 wide): 4700 / 174 = 27px
         assertTrue(_has(_svg(id, 0), 'font-size="27"'));
+    }
+
+    function test_names_keep_their_case_in_the_metadata() public {
+        vm.prank(creator);
+        market.setBrandName("mira-demo");
+        uint256 id = _delivering();
+        PatchedMarket.TokenView memory v = _tv(id, 0);
+        PatchCard memory c = new RendererHarness(address(this)).card(v);
+        // The card shouts the creator's name in capitals; drawing it must not change the name used for the traits.
+        PatchArt.render(c);
+        assertEq(c.creator, "mira-demo");
+        assertEq(c.eventStr, "Outfit");
     }
 
     function test_token_uri_is_json_with_the_traits() public {
