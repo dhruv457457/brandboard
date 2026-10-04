@@ -1,16 +1,33 @@
-# Patched
+<p align="center">
+  <img src="docs/images/banner.png" alt="Patched: Get patched. Get paid." width="100%">
+</p>
 
-**Get patched. Get paid.**
+<p align="center">
+  <a href="https://monad.patched.world"><b>Live on Monad testnet</b></a> ·
+  <a href="docs/contracts.md">Contracts</a> ·
+  <a href="docs/SPEC.md">Spec</a> ·
+  <a href="docs/privy.md">Privy in detail</a> ·
+  <a href="docs/evidence.md">On-chain evidence</a>
+</p>
 
-Creators sell ad space on things people look at: their outfit at an event, their car for a few weeks, or their team's hoodie at a hackathon. They upload a photo, AI turns it into a clean canvas, and they mark **patches** (logo spots) on it. Brands **bid in USDC** for each patch in its own live auction. The money waits in an on-chain escrow on Monad and is paid to the creator step by step, only after they post proof that they showed up.
+<p align="center">
+  <img alt="Monad" src="https://img.shields.io/badge/Monad-testnet%20%2B%20mainnet-836EF9?style=flat-square">
+  <img alt="Privy" src="https://img.shields.io/badge/Privy-wallets%2C%20signers%2C%20policies-FF5A1F?style=flat-square">
+  <img alt="Solidity" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square">
+  <img alt="Tests" src="https://img.shields.io/badge/contract%20tests-120%20passing-1F8A4C?style=flat-square">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-0B0B0C?style=flat-square">
+</p>
 
-- Product spec: [docs/SPEC.md](docs/SPEC.md)
-- Contracts: [docs/contracts.md](docs/contracts.md)
-- Design system: [docs/design-system.md](docs/design-system.md)
-- Data model: [docs/data-model.md](docs/data-model.md)
-- Agent guide: [AGENTS.md](AGENTS.md)
+## What it is
 
-## Try it
+**Patched** lets creators sell ad space on things people look at: an outfit at an event, a car for a few weeks, a team's hoodie at a hackathon. A creator uploads a photo, AI turns it into a clean canvas, and they mark **patches** (logo spots) on it. Brands **bid in USDC** for each patch in its own live auction. The money waits in an on-chain escrow on Monad and is paid out in steps, only after the creator posts proof that they showed up.
+
+| Creator | Brand | The contract |
+|---|---|---|
+| Photographs the outfit, car or hoodie and draws the patches. | Bids on a spot. Outbid? The money comes straight back. | Holds the money. Pays the creator step by step as proof arrives, refunds the brand if they never show. |
+| Posts proof: print photos, venue photos, an X post. | Holds a patch NFT that updates as the creator delivers. | Gives every brand 72 hours to dispute a proof for its own patch. |
+
+## Try it in a minute
 
 1. Open [monad.patched.world](https://monad.patched.world) and press **Sign in**.
 2. Press **Use the demo account** at the bottom of the sign-in card. One tap signs you in to a shared Privy test account
@@ -26,7 +43,62 @@ Creators sell ad space on things people look at: their outfit at an event, their
 
 Test USDC on testnet: Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
 
+## The patch NFT that grows up
+
+Winning a spot mints a **Living Patch**: an embroidered patch sewn onto the creator's fabric, with a woven label that carries the facts. The picture is drawn by the contract itself and redraws as the creator proves each step. It *is* the spot: its holder gets the refund and the right to dispute.
+
+<p align="center">
+  <img src="docs/images/living-patch.png" alt="The six stages of a patch NFT: won, printed, seen, delivered, refunded, disputed" width="100%">
+</p>
+
+- **Sponsor numbers.** "No.001, first sponsor of @mira": a public record of which brand backed which creator first.
+- **Verifiable proofs.** Proof photos and the proof record are pinned to IPFS, and the hash in the contract is the hash of that record. Every patch has a page at `/patch/<token>` with a timeline and a button that fetches the proof, hashes it in your browser and compares it with the chain.
+- **Resale with a royalty.** A patch can be resold on Patched while the creator is delivering; 5% goes to the creator. Tokens cannot move any other way.
+- Thread colour shows the price (cotton under $100, silk to $999, gold from $1,000) and each listing's patches come in five shapes. Design and plan: [docs/nft-plan.md](docs/nft-plan.md).
+
+## Privy beyond login
+
+Privy is not only the login. It signs every transaction, and every key Patched owns sits behind a Privy policy.
+
+<p align="center">
+  <img src="docs/images/who-signs-what.png" alt="Who can sign what: the user's Privy wallet, and Patched's keeper, campaign, offer and admin wallets, each with its own policy" width="100%">
+</p>
+
+| Privy feature | What it does in Patched | Code |
+|---|---|---|
+| **Sign-in in our own design** | Headless Privy hooks for X and email, with Privy's own window branded to match. | [WelcomeView.tsx](apps/web/src/app/welcome/WelcomeView.tsx) |
+| **Embedded wallets** | Login with X, email or a wallet gives a self-custodial wallet in seconds: no seed phrase, no extension. | [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx) |
+| **Gas sponsorship** | Bids, listings, proofs and disputes cost users no MON. | [useTx.ts](apps/web/src/lib/market/useTx.ts) |
+| **Silent, sponsored bids** | A Privy wallet approves the exact amount, then bids, with no prompt. Permits fail for EIP-7702 wallets, so approve-then-bid it is. | [useBid.ts](apps/web/src/lib/market/useBid.ts) |
+| **Server wallet and policy: the keeper** | Closes auctions, pays milestones and marks no-shows. Its policy allows four functions; anything else is refused before it is signed. | [keeper.ts](apps/web/src/lib/server/keeper.ts) |
+| **Open admin for judges** | Anyone signed in can review listings through a separate policy-limited server wallet. Nobody can review their own. | [api/admin/act](apps/web/src/app/api/admin/act/route.ts) |
+| **Campaign wallets** | Each campaign gets its own wallet and a policy written from the brand's settings: who it bids for, the per-spot cap, an end time. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts) |
+| **Stateful policy** | A Privy aggregation keeps the running total, so a campaign cannot pass its budget even if our server asks it to. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts) |
+| **Wallets made ahead of time** | "Patch anyone on X": the wallet and the offer exist before the person has ever signed in. | [xOffers.ts](apps/web/src/lib/server/xOffers.ts) |
+| **Signers** | Auto-bid from the brand's own wallet, within a policy it can see and revoke in one tap. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts) |
+| **Passkey step-up** | Moves of $1,000 or more need a passkey. | [stepUp.ts](apps/web/src/lib/market/stepUp.ts) |
+| **Linked accounts** | A work email whose domain matches the brand's site earns the Verified brand badge; X profile data fills the creator's page. | [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx) |
+| **Wallet export** | "Your wallet is yours": export the key from Settings. | [SettingsView.tsx](apps/web/src/app/settings/SettingsView.tsx) |
+| **Server-side auth** | Every route that acts for a person verifies the Privy token; the wallet never comes from the browser. | [auth.ts](apps/web/src/lib/server/auth.ts) |
+| **Test accounts** | A Privy test account behind "Use the demo account" and in the end-to-end UI tests. | [signed-in.spec.ts](apps/web/e2e/signed-in.spec.ts) |
+
+The full table, with every detail and limit we hit, is in [docs/privy.md](docs/privy.md). Features we chose not to use: card and bank on-ramps (Patched has no fiat) and transaction webhooks (Enterprise only, so notifications come from our own indexer and Supabase Realtime).
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/keeper-policy.png" alt="The keeper's policy"><br><sub>The keeper may call four functions. Anything else is refused.</sub></td>
+    <td width="50%"><img src="docs/images/campaign.png" alt="A campaign with a budget"><br><sub>A campaign bids for a brand and cannot pass its budget.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/auto-bid.png" alt="Auto-bid"><br><sub>Auto-bid: Patched is a signer with a maximum, revocable in one tap.</sub></td>
+    <td><img src="docs/images/offer-to-x.png" alt="Patch anyone on X"><br><sub>Patch anyone on X: the wallet exists before they sign in.</sub></td>
+  </tr>
+</table>
+
 ## Verify it yourself
+
+<details>
+<summary><b>One full cycle on Monad testnet, 25 transactions</b></summary>
 
 One full cycle ran on Monad testnet on 2026-10-02, with the Privy test account as the brand. Every step is on the
 explorer; [docs/evidence.md](docs/evidence.md) has all 25 transactions.
@@ -47,6 +119,8 @@ explorer; [docs/evidence.md](docs/evidence.md) has all 25 transactions.
 Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps) and `apps/web/scripts/browser-steps.mjs`
 (the brand, in a browser, as the Privy test account).
 
+</details>
+
 ## Surfaces
 
 | Surface | What | Proof |
@@ -58,7 +132,8 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 
 ## Features
 
-### For creators
+<details>
+<summary><b>For creators</b></summary>
 
 - **AI canvas.** Upload a photo and AI turns the outfit, car or hoodie into a clean white canvas, with the background removed.
 - **AI outfit looks.** AI suggests outfit styles from your photo and generates front and back model shots in the style you pick.
@@ -72,7 +147,10 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Creator studio.** Close bidding, see the winners, upload proof for each milestone and release your payments.
 - **One profile.** `/<handle>` shows your listings, the spots you sponsor and your record. As the owner you also get your Earnings (what needs doing, payouts) and Bids tabs there, so there's no separate dashboard to find.
 
-### For brands
+</details>
+
+<details>
+<summary><b>For brands</b></summary>
 
 - **One-tap bidding.** Tap a spot on the photo and a bubble shows the price, who leads and the last few bids. One button bids the minimum to take the lead. Quick chips add +$5, +$10 or buy it now.
 - **Full bid sheet.** Enter a custom amount or buy the spot outright.
@@ -86,7 +164,10 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Patch anyone on X.** Offer money to any X account for a spot at an event, even if they've never used Patched. Privy creates their account and wallet on the spot; the offer waits in its own policy-limited wallet, can pay their listing stake if their wallet is empty, and buys their spot when they list. Share the offer on X in one tap.
 - **Bids tab.** Spots you lead, spots where you were outbid, your receipts, and resale, on your profile.
 
-### Live auctions
+</details>
+
+<details>
+<summary><b>Live auctions</b></summary>
 
 - Every spot is its own auction, with a starting price, a buy-now price and a minimum step of +5% (at least +$5).
 - **Anti-snipe:** a bid in the last 5 minutes adds 5 minutes to the whole listing, and everyone on the page is told.
@@ -95,7 +176,10 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Bidding war** labels when brands trade the lead, plus recent activity on each spot.
 - A live activity feed on every listing, and a live ticker on the landing page.
 
-### Escrow and trust
+</details>
+
+<details>
+<summary><b>Escrow and trust</b></summary>
 
 - **Paid only on proof.** Money is released in milestones (for example 40% after the print proof and 60% after the show-up proof), each only after proof is posted.
 - **72-hour disputes.** Each patch holder can dispute a proof for their own patch within 72 hours. An admin settles it, and can split the payment between creator and brand.
@@ -106,14 +190,20 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Resale.** A receipt can be listed, bought or delisted on Patched, with a 5% royalty to the creator. Receipts can't move outside the market, so the royalty always applies.
 - **Fallback payouts.** If a payment to a wallet ever fails, the money waits in the contract and the owner withdraws it. The market can be paused in an emergency.
 
-### Discovery and social
+</details>
+
+<details>
+<summary><b>Discovery and social</b></summary>
 
 - **Home feed.** Signed in, `/` is a feed of new listings, bids ("Kite took Chest on Dhruv · $120", with Outbid) and proofs, with upcoming events, what's ending soon and search alongside.
 - **Explore board.** Live listings with search, surface filters, bid counts and a live activity feed.
 - **Events.** `/events` lists every event with its cover. `/e/<slug>` has the cover, venue and links, who's going, leaderboards (most sponsored, brand on the most spots, biggest bidding war), every spot and a live wall of bids. Admins edit the cover and details.
 - **Notifications.** A live bell and a full `/notifications` page for outbid, new bid, auto-bid placed or paused, won, listing live or rejected, bidding closed, proof posted, dispute opened, payment made, no-show refund and resale sold.
 
-### Getting around
+</details>
+
+<details>
+<summary><b>Getting around</b></summary>
 
 - **An app shell like X.** A slim sidebar (Home, Events, Explore, Activity, Profile and Create) that never reloads. Your name and dollar balance sit at the bottom; tapping it opens the wallet: Add money, My bids, Campaigns, Earnings, Settings, theme, network and sign out.
 - **Phone navigation:** bottom tabs (Home, Events, Create, Activity, Profile) and your avatar at the top for the wallet.
@@ -123,13 +213,19 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Listing tools:** a creator's listing page, Manage screen and Share kit are tabs of one bar.
 - **Testnet and mainnet:** each runs as its own site from the same code. A switch in the wallet panel and Settings moves between them and keeps you on the same page where it exists.
 
-### Admin
+</details>
+
+<details>
+<summary><b>Admin</b></summary>
 
 - Approve or reject listings. A rejected listing returns the creator's stake.
 - Review proofs, fast-track milestones and settle disputes.
 - Create events, and give each one a cover, venue, city, description and links.
 
-### Behind the scenes
+</details>
+
+<details>
+<summary><b>Behind the scenes</b></summary>
 
 - **Keeper.** A policy-limited Privy server wallet closes auctions when they end, releases payments after the review window, marks no-shows and runs auto-bids. It also runs campaigns. Every send carries an idempotency key, so a retry never acts twice.
 - **Indexer.** Syncs every contract event into Supabase: bids, patches, receipts, payouts and notifications. It's rate-limited when called from the app.
@@ -137,63 +233,38 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Themes and motion.** Light and dark themes. Every animation respects reduced-motion settings.
 - **USDC only.** No banks or fiat anywhere: wallets hold USDC, and a test run on mainnet uses a TestUSD token with a daily faucet.
 
-## How Patched uses Privy
-
-Privy does much more than sign-in here. Every row is live in the app and links to the code.
-
-| Privy feature | What it does in Patched | Code |
-|---|---|---|
-| Sign-in in our own design | The welcome page signs people in with Privy's headless hooks (`useLoginWithOAuth` for X, `useLoginWithEmail` for a code), and Privy's own window is branded with our logo, colour and copy. | [WelcomeView.tsx](apps/web/src/app/welcome/WelcomeView.tsx), [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx) |
-| Login with X, email or a wallet + embedded wallets | A brand or creator gets a self-custodial wallet in seconds, with no seed phrase and no extension. People who sign in with MetaMask keep using it; the account's wallet is always the one linked first, in the browser and on the server. The X handle becomes the creator's page. | [PrivyRuntime.tsx](apps/web/src/components/providers/PrivyRuntime.tsx), [api/profile](apps/web/src/app/api/profile/route.ts) |
-| Gas sponsorship | Bids, listings, proofs and disputes cost users no MON on testnet (`sponsor: true`); it's a setting per network. | [useTx.ts](apps/web/src/lib/market/useTx.ts), [useBid.ts](apps/web/src/lib/market/useBid.ts) |
-| Silent, sponsored bids | A Privy wallet approves the exact amount, then bids: two gas-sponsored transactions with no prompt. A plain outside wallet signs one USDC permit instead. Permits don't work for Privy wallets: gas sponsorship gives them an EIP-7702 delegation, and USDC checks a permit from an address with code through ERC-1271 (found by the on-chain run, see [docs/evidence.md](docs/evidence.md)). Privy's `signTypedData` gets uint256 values as strings, since it sends typed data as JSON. | [useBid.ts](apps/web/src/lib/market/useBid.ts), [permit.ts](apps/web/src/lib/market/permit.ts) |
-| Server wallet + policy (keeper) | A Privy server wallet closes auctions, releases milestone payouts and marks no-shows. Its policy allows only `closeBidding`, `release` and `markFailed` on our market, plus `execute` on the auto-bidder. Anything else is rejected with `policy_violation` (checked by a script). Every send carries an `idempotency_key` keyed to the specific due action (and, for auto-bid, the top bid it's responding to), so a retried keeper tick can't pay or bid twice. | [keeper.ts](apps/web/src/lib/server/keeper.ts), [privy-keeper-add-chain.mjs](apps/web/scripts/privy-keeper-add-chain.mjs), [privy-policy-check.mjs](apps/web/scripts/privy-policy-check.mjs) |
-| Open admin for judges on a policy-limited server wallet | For the hackathon, anyone signed in can approve listings, fast-track milestones, settle disputes and manage events. Those actions are sent by a separate Privy server wallet whose policy allows only those market calls: no pause, fees, treasury, roles or upgrades. Turned off after judging. | [api/admin/act](apps/web/src/app/api/admin/act/route.ts), [privy-open-admin-setup.mjs](apps/web/scripts/privy-open-admin-setup.mjs), [AdminConsole.tsx](apps/web/src/app/admin/AdminConsole.tsx) |
-| Campaign wallets with policies the brand configures | Each campaign gets its own Privy server wallet and its own policy, written from the brand's settings: `bidFor` on our market only for the brand (`bidFor.bidder`), at most the per-spot maximum (`bidFor.amount`), until the end time (`current_unix_timestamp`); `approve` only for the market; `transfer` only back to the brand. The brand sees the same rules in plain words and as JSON. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts), [campaigns.ts](apps/web/src/lib/server/campaigns.ts), [CampaignBuilder.tsx](apps/web/src/app/campaigns/new/CampaignBuilder.tsx) |
-| Stateful policy: the campaign budget as a Privy aggregation | Each campaign also gets a Privy aggregation that adds up the `bidFor.amount` its wallet signs, and a budget-check rule that only signs a bid while `aggregation ≤ budget` (Privy counts the bid being checked, so the last one can't overshoot). Each bid is simulated, then checked (Privy signs it or refuses; the signature is discarded, since aggregations are only evaluated on `eth_signTransaction`), then sent through Privy's sponsored `sendTransaction`, so bids stay gasless. The send rule itself caps each bid; the wallet only ever holds the budget. `scripts/privy-campaign-budget-check.mts` proves the check with the app's own policy code ($3 + $2 of a $5 budget approved; the bid that would pass $5, a bid over the per-bid cap and a bid for another brand refused). Limits: Privy's window is at most 72 hours, and its running total lags a few seconds, so a campaign's checks are spaced 5 s apart. Privy allows at most 10 aggregations per app, and an aggregation keeps one total for every wallet that uses it (the check script shows a second wallet refused once the first used the budget), so campaigns can't share one: each live campaign gets its own, it is deleted when the campaign ends (one nobody funds closes after a day), and past 8 live ones a campaign goes without and is held to its per-bid cap and the budget in its wallet. | [campaignPolicy.ts](apps/web/src/lib/market/campaignPolicy.ts), [privy.ts](apps/web/src/lib/server/privy.ts), [campaigns.ts](apps/web/src/lib/server/campaigns.ts) |
-| Wallets made ahead of time: Patch anyone on X | A brand offers money to any X handle. The server looks up the numeric X id and calls `privy.users().create({ linked_accounts: [{ type: "twitter_oauth", subject, username }], wallets: [{ chain_type: "ethereum" }] })`, or finds the existing user with `getByTwitterSubject`. When that person first signs in with X, Privy logs them into this user, so the wallet and the offer are already theirs. The offer is a campaign wallet whose policy also allows exactly one kind of transfer to them: their listing stake, to their wallet only. `scripts/privy-x-offer-check.mts` proves it with the app's own code. | [xOffers.ts](apps/web/src/lib/server/xOffers.ts), [xLookup.ts](apps/web/src/lib/server/xLookup.ts), [api/offers](apps/web/src/app/api/offers/route.ts), [OfferView.tsx](apps/web/src/app/offers/[id]/OfferView.tsx) |
-| Signers: auto-bid from the brand's own wallet | "Keep me on top up to $X" on a Patched wallet adds our key quorum as a signer (`useSigners().addSigners` with a policy id). The wallet's Privy policy lists the brand's auto-bids: `bid` on those spots only (`bid.id`, `bid.patchId`, `bid.amount` ≤ max) and `approve` of the market up to the largest max. Lowering a maximum or turning one off narrows that policy in place. A new spot or a higher maximum needs the brand's wallet to approve again: it gets a new policy, and only counts once the wallet swaps our signer onto it (`removeSigners`, then `addSigners`), so a stolen session can't raise anything. When the brand is outbid, the keeper bids from their wallet within seconds. One-tap revoke in Settings (`removeSigners`). `scripts/privy-signer-check.mts` proves Privy refuses everything else. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts), [autoBidPolicy.ts](apps/web/src/lib/market/autoBidPolicy.ts), [autoBidSigner.ts](apps/web/src/lib/server/autoBidSigner.ts), [api/autobid](apps/web/src/app/api/autobid/route.ts), [keeper.ts](apps/web/src/lib/server/keeper.ts) |
-| Auto-bid for outside wallets on the policy-limited server wallet | MetaMask and other outside wallets can't take a Privy signer, so they use `PatchAutoBidder`: the keeper calls `execute()` and the contract caps every bid at the brand's max. | [useAutoBid.ts](apps/web/src/lib/market/useAutoBid.ts), [PatchAutoBidder.sol](contracts/src/PatchAutoBidder.sol) |
-| One tap, sponsored gas: sweep | Our `PatchSweeper` contract places several bids at once, all or nothing; a Privy wallet approves the total and sweeps with sponsored gas, so bidding on many patches is one click. | [SweepPanel.tsx](apps/web/src/components/market/SweepPanel.tsx), [PatchSweeper.sol](contracts/src/PatchSweeper.sol) |
-| Passkey MFA step-up | Bids, sweeps, auto-bid maximums and campaign or offer budgets of $1,000 or more need a passkey (Face ID, Touch ID, Windows Hello), checked with Privy MFA first. Once a passkey is on, Privy asks for it before the wallet signs, then remembers it for a short while. | [stepUp.ts](apps/web/src/lib/market/stepUp.ts), [SettingsView.tsx](apps/web/src/app/settings/SettingsView.tsx) |
-| Linked accounts: verified brands | A brand links a work email (Privy one-time code). If the domain matches its website, its patches show "Verified brand". This stops impersonation. | [BrandVerify.tsx](apps/web/src/components/market/BrandVerify.tsx), [verify-brand route](apps/web/src/app/api/profile/verify-brand/route.ts) |
-| Linked accounts: X profile data | Signing in with X fills the creator's page from the account Privy links: their X name and full-size picture, plus their follower count (refreshed at most once a day), so brands see real reach. | [auth.ts](apps/web/src/lib/server/auth.ts), [api/profile](apps/web/src/app/api/profile/route.ts) |
-| Wallet export | "Your wallet is yours": export the embedded wallet's key to any wallet, from Settings. | [SettingsView.tsx](apps/web/src/app/settings/SettingsView.tsx) |
-| Server-side auth | Every API route that acts for a signed-in person verifies the Privy access token (JWKS) and never takes the wallet from the browser. Routes that move money or read private data get the wallet, linked wallets and verified emails from Privy's API. Light actions on your own account (follows, reactions, spotted photos) read the wallet from our `profiles` row for the verified user instead, saving a Privy round trip. | [auth.ts](apps/web/src/lib/server/auth.ts) |
-| Test accounts | A Privy test account (fixed email and code) signs in the end-to-end UI tests, so every signed-in screen is checked on each run. The same account is behind "Use the demo account" on the sign-in card, offered only on play money. Everyone shares it, so it can't add a passkey, export its key or change its email in the app, and the server refuses to switch its wallet or verify a brand on it. | [signed-in.spec.ts](apps/web/e2e/signed-in.spec.ts), [api/demo-login](apps/web/src/app/api/demo-login/route.ts), [demoAccount.ts](apps/web/src/lib/server/demoAccount.ts) |
-
-Not used, and why:
-- **Funding (card or bank on-ramps)** is left out on purpose: Patched has no banks or fiat, and wallets hold USDC only.
-- **Transaction webhooks** need Privy's Enterprise plan, so notifications come from our own indexer and Supabase Realtime.
+</details>
 
 ## Contracts
 
 | Contract | What it does |
 |---|---|
-| `PatchedMarket` | Listings, per-patch auctions with anti-snipe, permit bids, escrow, milestones, proofs, disputes, no-show refunds, creator stakes and records, events, resale with royalties |
+| `PatchedMarket` | Listings, per-patch auctions with anti-snipe, permit bids, escrow, milestones, proofs, disputes, no-show refunds, creator stakes and records, events, resale with royalties. Upgradeable proxy. |
 | `PatchReceipt` | The Living Patch NFT for each won patch, with ERC-2981 royalties and ERC-4906 refresh events. It only moves through the market. |
 | `PatchRenderer` | Draws each NFT's SVG and metadata from the market's state. Swappable, so the art can be fixed without touching a token. |
 | `PatchAutoBidder` | Holds each brand's auto-bid maximum and bids for them. It never goes above the maximum. |
-| `PatchSweeper` | Bids on several patches in one transaction, all or nothing |
-| `TestUSD` | A USDC-style test token with permit and a daily faucet, for the mainnet test run |
+| `PatchSweeper` | Bids on several patches in one transaction, all or nothing. |
+| `TestUSD` | A USDC-style test token with permit and a daily faucet, for the mainnet test run. |
 
-| Contract | Monad testnet | Monad mainnet (TestUSD run) |
+| Contract | Monad testnet (10143) | Monad mainnet (143, TestUSD run) |
 |---|---|---|
-| PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (upgradeable proxy) | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
-| PatchReceipt (NFT) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
+| PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
+| PatchReceipt, Living Patch (listings 11 and later) | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` | not upgraded yet |
+| PatchRenderer | `0xe8a5Ae9A1e801d26cD3cA1F8D95C6853349bcb86` | not upgraded yet |
+| PatchReceipt, first version (listings 1 to 10) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba` |
 | TestUSD (faucet token) | – | `0xB0fabbBc9a26dC78b200a36b2344cAc2518D0e3f` |
 
-The mainnet contracts are verified on Monad's Sourcify; the testnet ones are not yet. Testnet uses Monad's native USDC.
-The earlier testnet market (v2, not upgradeable) was `0xd3808dE425493934f036f8E77ef5a4de332e9552`. Details: [docs/contracts.md](docs/contracts.md).
+The mainnet contracts are verified on Monad's Sourcify; the testnet ones are not yet. Testnet uses Monad's native USDC. The earlier testnet market (v2, not upgradeable) was `0xd3808dE425493934f036f8E77ef5a4de332e9552`. Details: [docs/contracts.md](docs/contracts.md).
 
 ## Tech stack
 
-- **Contracts:** Solidity 0.8.28, Foundry, OpenZeppelin v5.4, with unit, fuzz and invariant tests.
+- **Contracts:** Solidity 0.8.28, Foundry, OpenZeppelin v5.4, with unit, fuzz and invariant tests (120 passing).
 - **Web:** Next.js (App Router), React 19, Tailwind CSS v4, Motion, NumberFlow, viem, Privy.
 - **Data:** Supabase (Postgres, Storage, Realtime), with our own indexer in `packages/indexer`.
-- **AI:** OpenRouter, through `packages/ai`.
+- **Storage:** proofs and photos on IPFS through QuickNode.
+- **AI:** OpenRouter, through `packages/ai`, server side only.
 - **Chain:** Monad testnet (10143) and Monad mainnet (143). Chain values live in config.
 
 ```
@@ -203,10 +274,23 @@ brandboard/
 ├─ packages/ai/       OpenRouter client and prompts
 ├─ packages/indexer/  Chain events → Supabase
 ├─ apps/web/          Next.js app
-└─ supabase/          Database migrations
+├─ supabase/          Database migrations
+└─ docs/              Spec, contracts, design system, plans and evidence
 ```
 
-## Testing the UI
+## Run it
+
+```bash
+pnpm install
+pnpm contracts:setup
+pnpm contracts:test
+cp .env.example .env.local   # then fill in the values
+pnpm web:dev                 # the app on Monad testnet
+pnpm web:dev:mainnet         # the app on Monad mainnet, http://localhost:3200
+```
+
+<details>
+<summary><b>Testing the UI</b></summary>
 
 `pnpm --filter web test:ui` runs Playwright against the dev server (start it first with `pnpm web:dev`), in the
 Chrome installed on the machine, on a laptop size and a phone size:
@@ -221,13 +305,8 @@ Chrome installed on the machine, on a laptop size and a phone size:
 
 The report is in `apps/web/e2e/report/` (`npx playwright show-report e2e/report` from `apps/web`).
 
-## Setup
+</details>
 
-```bash
-pnpm install
-pnpm contracts:setup
-pnpm contracts:test
-cp .env.example .env.local   # then fill in the values
-pnpm web:dev                 # the app on Monad testnet
-pnpm web:dev:mainnet         # the app on Monad mainnet, http://localhost:3200
-```
+## More
+
+[Product spec](docs/SPEC.md) · [Contracts](docs/contracts.md) · [Design system](docs/design-system.md) · [Data model](docs/data-model.md) · [Agent guide](AGENTS.md)
