@@ -40,6 +40,22 @@ test.describe("signed in", () => {
     expect(errors).toEqual([]);
   });
 
+  test("a stale remembered profile without a handle doesn't send a finished person back to onboarding", async ({ page }) => {
+    await signIn(page);
+    await page.waitForTimeout(3000); // let the profile land and be remembered on this device
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem("patched.profile") ?? "null");
+      if (raw) {
+        raw.profile.handle = null;
+        localStorage.setItem("patched.profile", JSON.stringify(raw));
+      }
+      for (const k of Object.keys(localStorage)) if (k.startsWith("patched.role.")) localStorage.removeItem(k);
+    });
+    await page.goto("/explore");
+    await expect(page.getByRole("heading", { name: "Set up your profile" })).toHaveCount(0, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/explore/);
+  });
+
   test("home is the feed, and the profile has your private tabs", async ({ page }) => {
     const errors = watchErrors(page);
     await signIn(page);

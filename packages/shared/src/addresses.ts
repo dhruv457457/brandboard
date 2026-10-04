@@ -31,7 +31,7 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     // Living Patch upgrade 2026-10-04: new receipt + renderer. Listings 1-10 keep their tokens on the first receipt.
     receipt: "0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A",
     legacyReceipt: "0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e",
-    renderer: "0xe8a5Ae9A1e801d26cD3cA1F8D95C6853349bcb86",
+    renderer: "0x59171aEA5658B057BD8eC1F948672a3Aeb06F7fe",
     livingPatch: true,
     usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3",
     deployBlock: 66627600,

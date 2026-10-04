@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { OffersForYou } from "@/components/market/OffersForYou";
+import { FundYourWallet } from "@/components/wallet/FundYourWallet";
 import { EventCover } from "@/components/events/EventCover";
 import type { PatchData } from "@/components/surface/Patch";
 import { Avatar } from "@/components/ui/Avatar";
@@ -89,6 +90,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
         </header>
 
         <Composer />
+        <FundYourWallet />
         <OffersForYou />
         {events.length > 0 && <EventsStrip events={events} />}
 

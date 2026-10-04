@@ -45,7 +45,7 @@ export function WelcomeView() {
   // Someone who already finished onboarding (a role saved in this browser, or a saved @handle from any device)
   // doesn't see it again. Decided once, when the profile first loads, so saving a handle in step one doesn't skip
   // step two.
-  const { profile } = useProfile();
+  const { profile, fresh } = useProfile();
   const checked = useRef(false);
   useEffect(() => {
     if (!authenticated || !walletAddress || checked.current) return;
@@ -55,10 +55,14 @@ export function WelcomeView() {
     } catch {
       /* storage blocked */
     }
-    if (!done && !profile) return; // wait for the profile before deciding
+    const skip = done || !!profile?.handle;
+    // A handle on file means onboarding is done, even in the copy remembered on this device. "No handle" is only
+    // believed once the server has answered: the remembered copy can be out of date, and trusting it sent people
+    // who had finished back to this screen.
+    if (!skip && !(profile && fresh)) return;
     checked.current = true;
-    if (done || profile?.handle) router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/");
-  }, [authenticated, walletAddress, profile, router]);
+    if (skip) router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/");
+  }, [authenticated, walletAddress, profile, fresh, router]);
 
   function finish() {
     try {
