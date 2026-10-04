@@ -16,10 +16,11 @@ export function RoleWelcome() {
   const { authenticated, walletAddress } = usePatchedAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { profile } = useProfile();
+  const { profile, fresh } = useProfile();
 
   useEffect(() => {
-    // Wait for the saved profile: it decides whether onboarding is done, not this browser's storage alone.
+    // Wait for the saved profile: it decides whether onboarding is done, not this browser's storage alone. A "no handle"
+    // answer only counts once it came from the server; the copy remembered on this device can be out of date.
     if (!authenticated || !walletAddress || !profile) return;
     const key = roleKey(walletAddress);
     try {
@@ -31,9 +32,9 @@ export function RoleWelcome() {
     } catch {
       return; // storage blocked: skip onboarding
     }
-    if (isPublicPage(pathname)) return;
+    if (!fresh || isPublicPage(pathname)) return;
     router.push(`/welcome?next=${encodeURIComponent(pathname)}`);
-  }, [authenticated, walletAddress, profile, router, pathname]);
+  }, [authenticated, walletAddress, profile, fresh, router, pathname]);
 
   return null;
 }
