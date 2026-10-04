@@ -78,17 +78,11 @@ export async function readTokenView(client: PublicClient, tokenId: bigint): Prom
   return parseTokenView(tokenId, raw);
 }
 
-/** Many tokens in one multicall; a token that can't be read is left out. */
+/** Many tokens read in parallel (the Monad chain config has no multicall address); a token that can't be read is left out. */
 export async function readTokenViews(client: PublicClient, tokenIds: bigint[]): Promise<Map<string, TokenData>> {
   const out = new Map<string, TokenData>();
-  if (!tokenIds.length) return out;
-  const res = await client.multicall({
-    allowFailure: true,
-    contracts: tokenIds.map((id) => ({ address: MARKET, abi: patchedMarketAbi, functionName: "tokenView" as const, args: [id] as const })),
-  });
-  res.forEach((r, i) => {
-    if (r.status === "success") out.set(tokenIds[i].toString(), parseTokenView(tokenIds[i], r.result));
-  });
+  const res = await Promise.all(tokenIds.map((id) => readTokenView(client, id).catch(() => null)));
+  res.forEach((t, i) => t && out.set(tokenIds[i].toString(), t));
   return out;
 }
 

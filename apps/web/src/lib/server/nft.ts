@@ -27,27 +27,25 @@ export async function getNftPage(tokenId: bigint): Promise<NftPage | null> {
   if (!holder) return null; // not minted yet: the listing is still open for bids
 
   const id = BigInt(token.listingId);
-  const calls = Array.from({ length: token.proofsDone }, (_, m) => [
-    { address: MARKET, abi: patchedMarketAbi, functionName: "proofURIOf" as const, args: [id, m] as const },
-    { address: MARKET, abi: patchedMarketAbi, functionName: "proofCoverOf" as const, args: [id, m] as const },
-    { address: MARKET, abi: patchedMarketAbi, functionName: "proofAt" as const, args: [id, m] as const },
-    { address: MARKET, abi: patchedMarketAbi, functionName: "getMilestone" as const, args: [id, m] as const },
-  ]).flat();
-  const [resalePrice, res] = await Promise.all([
+  const read = <T,>(p: Promise<T>) => p.then((v) => v, () => null);
+  const [resalePrice, ...rows] = await Promise.all([
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "resalePrice", args: [tokenId] }),
-    calls.length ? client.multicall({ allowFailure: true, contracts: calls }) : Promise.resolve([]),
+    ...Array.from({ length: token.proofsDone }, (_, m) =>
+      Promise.all([
+        read(client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "proofURIOf", args: [id, m] })),
+        read(client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "proofCoverOf", args: [id, m] })),
+        read(client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "proofAt", args: [id, m] })),
+        read(client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getMilestone", args: [id, m] })),
+      ]),
+    ),
   ]);
-  const proofs: NftPage["proofs"] = [];
-  for (let m = 0; m < token.proofsDone; m++) {
-    const [uri, cover, at, ms] = res.slice(m * 4, m * 4 + 4);
-    proofs.push({
-      milestone: m,
-      uri: uri?.status === "success" ? (uri.result as string) : "",
-      cover: cover?.status === "success" ? (cover.result as string) : "",
-      at: at?.status === "success" ? Number(at.result) : 0,
-      hash: ms?.status === "success" ? ((ms.result as { proofHash: `0x${string}` }).proofHash) : "0x",
-    });
-  }
+  const proofs: NftPage["proofs"] = (rows as [string | null, string | null, number | null, { proofHash: `0x${string}` } | null][]).map(([uri, cover, at, ms], m) => ({
+    milestone: m,
+    uri: uri ?? "",
+    cover: cover ?? "",
+    at: at ? Number(at) : 0,
+    hash: ms?.proofHash ?? "0x",
+  }));
   return { token, receipt, holder, resalePrice, proofs };
 }
 
