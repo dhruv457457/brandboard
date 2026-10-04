@@ -48,10 +48,11 @@ export function WelcomeView() {
   const { profile, fresh } = useProfile();
   const checked = useRef(false);
   useEffect(() => {
-    if (!authenticated || !walletAddress || checked.current) return;
+    // A saved handle is enough to know onboarding is done: it must not wait for the wallet to be found.
+    if (!authenticated || checked.current) return;
     let done = false;
     try {
-      done = !!localStorage.getItem(roleKey(walletAddress));
+      done = !!walletAddress && !!localStorage.getItem(roleKey(walletAddress));
     } catch {
       /* storage blocked */
     }
@@ -61,6 +62,7 @@ export function WelcomeView() {
     // who had finished back to this screen.
     if (!skip && !(profile && fresh)) return;
     checked.current = true;
+    console.info("[patched] onboarding", skip ? "skipped" : "shown", { handle: profile?.handle ?? null, fresh, wallet: !!walletAddress, done });
     if (skip) router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/");
   }, [authenticated, walletAddress, profile, fresh, router]);
 

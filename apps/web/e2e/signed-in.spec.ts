@@ -42,7 +42,7 @@ test.describe("signed in", () => {
 
   test("a stale remembered profile without a handle doesn't send a finished person back to onboarding", async ({ page }) => {
     await signIn(page);
-    await page.waitForTimeout(3000); // let the profile land and be remembered on this device
+    await page.waitForFunction(() => !!localStorage.getItem("patched.profile"), undefined, { timeout: 30_000 }); // the profile landed and is remembered on this device
     await page.evaluate(() => {
       const raw = JSON.parse(localStorage.getItem("patched.profile") ?? "null");
       if (raw) {
