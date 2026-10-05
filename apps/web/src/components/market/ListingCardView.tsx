@@ -47,7 +47,7 @@ export function ListingCardView({ card, mounted }: { card: ListingCard; mounted:
       <div className="flex justify-between items-center gap-2">
         <Chip><Icon size={13} /> {label}</Chip>
         <Chip variant={live ? "orange" : "default"}>
-          {live ? <><span className="dot live bg-[var(--accent)]" />{mounted ? `${countdown.text.split(" ")[0]} left` : "Live"}</> : card.status === 0 ? "Waiting for approval" : card.status === 1 ? "Ended" : card.status === 6 ? "Rejected" : "Closed"}
+          {live ? <><span className="dot live bg-[var(--accent)]" />{mounted ? `${countdown.text.split(" ")[0]} left` : "Live"}</> : card.status === 0 ? "Going live" : card.status === 1 ? "Ended" : card.status === 6 ? "Rejected" : "Closed"}
         </Chip>
       </div>
       <div>

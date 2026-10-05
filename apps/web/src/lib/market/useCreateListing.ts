@@ -79,9 +79,12 @@ export function useCreateListing() {
       });
       const receipt = await send(MARKET, encodeFunctionData({ abi: patchedMarketAbi, functionName: "createListing", args: [params] }));
       const [created] = parseEventLogs({ abi: patchedMarketAbi, eventName: "ListingCreated", logs: receipt.logs });
+      const listingId = created ? Number(created.args.listingId) : null;
+      // No review: ask the approver wallet to open the listing now. If that fails the keeper does it within a minute.
+      if (listingId) await authedFetch("/api/listings/approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ listingId }) }).catch(() => {});
       fetch("/api/indexer/sync", { method: "POST" }).catch(() => {});
       setStep("done");
-      return created ? Number(created.args.listingId) : null;
+      return listingId;
     } catch (err) {
       // The person sees one plain sentence; the console keeps the real cause (Privy, RPC or contract) for debugging.
       console.error(`Publishing failed while ${stage === "approving" ? "approving the stake" : stage}:`, err);

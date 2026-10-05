@@ -6,6 +6,7 @@ import { patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
 import { syncChain } from "@patched/indexer";
 import { AUTO_BIDDER, CHAIN_ID, MARKET, USDC, serverClient, serverRpcUrl } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/supabase";
+import { approvePending } from "./autoApprove";
 import { runCampaigns } from "./campaigns";
 import { isPolicyViolation, sendFromServerWallet } from "./privy";
 
@@ -41,6 +42,9 @@ let privy: PrivyClient | null = null;
 export async function runKeeper(): Promise<KeeperAction[]> {
   sql ??= postgres(process.env.DATABASE_URL!, { prepare: false, max: 2, onnotice: () => {} });
   await syncChain({ sql, chainId: CHAIN_ID, rpcUrl: serverRpcUrl(), maxBlocks: 5_000n });
+
+  // New listings go live without a review: open anything still Pending before looking for what is due.
+  await approvePending().catch((err) => console.error("auto-approve failed", err));
 
   const db = supabaseAdmin();
   const now = new Date().toISOString();

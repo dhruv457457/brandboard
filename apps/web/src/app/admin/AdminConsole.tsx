@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink, Pencil, Plus, ShieldHalf } from "lucide-react";
+import { EyeOff, ExternalLink, Flag, Pencil, Plus, RotateCcw, ShieldHalf } from "lucide-react";
 import { SignInPrompt } from "@/components/ui/SignInPrompt";
 import PageLoading from "@/app/loading";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData, keccak256, parseEventLogs, stringToHex, toBytes } from "viem";
 import { patchedMarketAbi } from "@patched/shared";
@@ -11,11 +12,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { toast } from "@/components/ui/Toast";
-import { ListingCardView } from "@/components/market/ListingCardView";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { MARKET, OPEN_ADMIN, publicClient } from "@/lib/config";
-import { fromWire, type Wire } from "@/lib/market/types";
-import type { AdminReviewItem, ListingCard } from "@/lib/market/server";
+import type { AdminReviewItem } from "@/lib/market/server";
+import type { ModItem } from "@/lib/server/moderationView";
 import { formatCountdown, formatShortAddress } from "@/lib/format";
 import { friendlyError } from "@/lib/market/useBid";
 import { useTx } from "@/lib/market/useTx";
@@ -45,8 +45,7 @@ const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
 const IDLE: EventProgress = { step: null, createdId: null, error: null };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function AdminConsole({ pending: wire, review, events }: { pending: Wire<ListingCard[]>; review: AdminReviewItem[]; events: AdminEvent[] }) {
-  const pending = useMemo(() => fromWire<ListingCard[]>(wire), [wire]);
+export function AdminConsole({ moderation, review, events }: { moderation: { reported: ModItem[]; hidden: ModItem[] }; review: AdminReviewItem[]; events: AdminEvent[] }) {
   const router = useRouter();
   const { walletAddress, authenticated, ready } = usePatchedAuth();
   const send = useTx();
@@ -85,6 +84,23 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       toast(!isAdmin && msg ? msg : friendlyError(err).replace("The bid didn't", "That didn't"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Hide, restore or dismiss reports on one listing or photo. Nothing is sent on-chain: the app just stops showing it. */
+  async function moderate(item: ModItem, action: "hide" | "restore" | "dismiss", done: string) {
+    const key = `m${item.kind}${item.id}${action}`;
+    setBusy(key);
+    try {
+      const res = await authedFetch("/api/admin/moderate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: item.kind, id: item.id, action }) });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "That didn't go through.");
+      toast(done);
+      router.refresh();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "That didn't go through.");
     } finally {
       setBusy(null);
     }
@@ -166,38 +182,29 @@ export function AdminConsole({ pending: wire, review, events }: { pending: Wire<
     <main className="wrap pt-8 pb-24 grid gap-10">
       {isAdmin === false && OPEN_ADMIN && (
         <p className="rounded-2xl bg-[var(--accent-soft)] p-4 text-sm" role="status">
-          <b>Open admin for the hackathon demo.</b> Anyone signed in can approve listings, fast-track proofs, settle disputes and
+          <b>Open admin for the hackathon demo.</b> Anyone signed in can hide reported posts, fast-track proofs, settle disputes and
           manage events. Your actions are sent by a Patched Privy server wallet whose policy allows only these calls: it can&apos;t
           pause the market, change fees or upgrade the contract.
         </p>
       )}
       <section>
         <span className="eyebrow">Admin console</span>
-        <h1 className="font-extrabold text-4xl tracking-tight mt-1 mb-5">Waiting for approval</h1>
-        {pending.length === 0 ? (
-          <Card className="p-6"><p className="muted">No listings are waiting. New listings show up here within a few seconds of being published.</p></Card>
+        <h1 className="font-extrabold text-4xl tracking-tight mt-1 mb-2">Reported posts</h1>
+        <p className="muted max-w-[62ch] mb-5">
+          Listings go live on their own, with no approval. When someone reports a listing or a spotted photo it shows up here:
+          hide it, or dismiss the report. Three different people reporting the same thing hides it automatically.
+        </p>
+        {moderation.reported.length === 0 ? (
+          <Card className="p-6"><p className="muted">Nothing has been reported.</p></Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pending.map((c) => (
-              <div key={c.id} className="grid gap-2.5">
-                <ListingCardView card={c} mounted />
-                {/* Open admin never reviews your own listing (the server refuses it too). */}
-                {!isAdmin && c.creator.toLowerCase() === walletAddress?.toLowerCase() ? (
-                  <p className="text-sm muted">Your listing. Another person has to approve it.</p>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="primary" size="small" disabled={!!busy}
-                      onClick={() => run(`a${c.id}`, `Listing #${c.id} is live.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "approveListing", args: [BigInt(c.id)] }))}>
-                      {busy === `a${c.id}` ? "Approving…" : "Approve"}
-                    </Button>
-                    <Button variant="ghost" size="small" disabled={!!busy}
-                      onClick={() => run(`r${c.id}`, `Listing #${c.id} rejected. The bond went back to the creator.`, encodeFunctionData({ abi: patchedMarketAbi, functionName: "rejectListing", args: [BigInt(c.id), 1] }))}>
-                      {busy === `r${c.id}` ? "Rejecting…" : "Reject"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="grid gap-3">
+            {moderation.reported.map((m) => <ModRow key={`${m.kind}:${m.id}`} item={m} busy={busy} onAct={moderate} />)}
+          </div>
+        )}
+        {moderation.hidden.length > 0 && (
+          <div className="grid gap-3 mt-8">
+            <h2 className="font-extrabold text-2xl tracking-tight flex items-center gap-2"><EyeOff size={20} /> Hidden</h2>
+            {moderation.hidden.map((m) => <ModRow key={`h:${m.kind}:${m.id}`} item={m} busy={busy} onAct={moderate} />)}
           </div>
         )}
       </section>
@@ -338,4 +345,48 @@ function toValues(e: AdminEvent | undefined): EventFormValues {
     name: e.name, slug: e.slug ?? "", start: e.startsAt.slice(0, 10), end: e.endsAt.slice(0, 10), city: e.city ?? "", venue: e.venue ?? "",
     description: e.description ?? "", website: e.website ?? "", x: e.x ?? "", bannerUrl: e.bannerUrl ?? "",
   };
+}
+
+
+const REASON_LABEL: Record<string, string> = { spam: "Spam", scam: "Scam", inappropriate: "Inappropriate", copyright: "Copyright", other: "Other" };
+
+/** One reported (or hidden) listing or photo, with what people said and the buttons to act on it. */
+function ModRow({ item, busy, onAct }: { item: ModItem; busy: string | null; onAct: (item: ModItem, action: "hide" | "restore" | "dismiss", done: string) => void }) {
+  const key = (a: string) => `m${item.kind}${item.id}${a}`;
+  return (
+    <Card className="p-4 flex gap-4 items-start flex-wrap">
+      {item.photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.photo} alt="" width={72} height={72} className="w-[72px] h-[72px] rounded-xl object-cover flex-none border-2 border-[var(--line)]" />
+      )}
+      <div className="grid gap-1 min-w-0 flex-1 basis-[220px]">
+        <b className="truncate">{item.title}</b>
+        <span className="text-sm muted">{item.subtitle}</span>
+        {item.reports > 0 && (
+          <span className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1 font-semibold text-[var(--accent-text)]"><Flag size={13} /> {item.reports} report{item.reports === 1 ? "" : "s"}</span>
+            <span className="muted">{item.reasons.map((r) => REASON_LABEL[r] ?? r).join(", ")}</span>
+          </span>
+        )}
+        {item.notes.map((n, i) => <p key={i} className="text-sm muted italic m-0">&ldquo;{n}&rdquo;</p>)}
+        {item.href && <Link href={item.href} className="text-sm underline w-fit" target="_blank">Open it</Link>}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {item.hidden ? (
+          <Button size="small" variant="ghost" disabled={!!busy} onClick={() => onAct(item, "restore", "Back in the app.")}>
+            <RotateCcw size={14} /> {busy === key("restore") ? "Restoring…" : "Restore"}
+          </Button>
+        ) : (
+          <>
+            <Button size="small" variant="primary" disabled={!!busy} onClick={() => onAct(item, "hide", "Hidden from the app.")}>
+              <EyeOff size={14} /> {busy === key("hide") ? "Hiding…" : "Hide"}
+            </Button>
+            <Button size="small" variant="ghost" disabled={!!busy} onClick={() => onAct(item, "dismiss", "Reports dismissed.")}>
+              {busy === key("dismiss") ? "Dismissing…" : "Dismiss"}
+            </Button>
+          </>
+        )}
+      </div>
+    </Card>
+  );
 }

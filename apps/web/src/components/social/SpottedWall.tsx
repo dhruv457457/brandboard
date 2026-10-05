@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ReportButton } from "./ReportButton";
 import { Camera, Flame, Heart, ImagePlus, Loader2, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -79,7 +80,10 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
                   <span className="text-[var(--muted)] truncate">
                     {p.author.handle ? <Link href={`/${p.author.handle}`} className="font-semibold text-[var(--ink)] no-underline">{p.author.name}</Link> : p.author.name} · {formatTimeAgo(p.createdAt)}
                   </span>
-                  <ReactionBar postId={p.id} initial={p.reactions} onSignIn={login} />
+                  <span className="flex items-center justify-between gap-2">
+                    <ReactionBar postId={p.id} initial={p.reactions} onSignIn={login} />
+                    {!mine && <ReportButton kind="post" id={p.id} label={false} />}
+                  </span>
                 </div>
                 {mine && (
                   <button type="button" onClick={() => remove(p.id)} aria-label="Remove this photo"
