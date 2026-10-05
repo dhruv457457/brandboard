@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Fingerprint, Loader2, Lock, Mail, ShieldCheck, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Droplets, Fingerprint, Loader2, Lock, Mail, ShieldCheck, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StoryPanel } from "@/components/brand/StoryPanel";
 import { PrivyLogo } from "@/components/brand/PartnerLogos";
@@ -13,7 +13,9 @@ import { loadDemoLogin, useIsDemoAccount, type DemoLogin } from "@/lib/demoAccou
 import { useInjectedWallets, type InjectedWallet } from "@/lib/injectedWallets";
 import { handleProblem } from "@/lib/handles";
 import { STEP_UP_USD } from "@/lib/market/stepUp";
-import { GAS_SPONSORED } from "@/lib/config";
+import { GAS_SPONSORED, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
+import { useBalances } from "@/lib/useBalances";
+import { openAddMoney } from "@/components/wallet/AddMoney";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/Toast";
 
@@ -21,6 +23,9 @@ type Role = "creator" | "brand" | "both";
 const X_PATH = "M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8zM16.7 19.2h1.7L7.3 4.7H5.5z";
 
 export const roleKey = (wallet: string) => `patched.role.${wallet.toLowerCase()}`;
+
+/** Where to go once onboarding is done (or was never needed): the page they came from, else home. */
+const leaveTo = () => safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/";
 
 /** Only same-site paths are allowed as the place to go after onboarding. */
 function safeNext(next: string | null) {
@@ -46,10 +51,13 @@ export function WelcomeView() {
   // doesn't see it again. Decided once, when the profile first loads, so saving a handle in step one doesn't skip
   // step two.
   const { profile, fresh } = useProfile();
-  const checked = useRef(false);
+  // "checking": waiting for the profile. "skip": onboarding is done and we're leaving. "show": the profile form.
+  // The form only appears once we know it is needed, so a finished person never sees it flash by (or sits on it while
+  // the next page loads) and thinks they're being asked to sign up again.
+  const [gate, setGate] = useState<"checking" | "skip" | "show">("checking");
   useEffect(() => {
     // A saved handle is enough to know onboarding is done: it must not wait for the wallet to be found.
-    if (!authenticated || checked.current) return;
+    if (!authenticated || gate !== "checking") return;
     let done = false;
     try {
       done = !!walletAddress && !!localStorage.getItem(roleKey(walletAddress));
@@ -61,10 +69,25 @@ export function WelcomeView() {
     // believed once the server has answered: the remembered copy can be out of date, and trusting it sent people
     // who had finished back to this screen.
     if (!skip && !(profile && fresh)) return;
-    checked.current = true;
     console.info("[patched] onboarding", skip ? "skipped" : "shown", { handle: profile?.handle ?? null, fresh, wallet: !!walletAddress, done });
-    if (skip) router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/");
-  }, [authenticated, walletAddress, profile, fresh, router]);
+    if (!skip) return setGate("show");
+    setGate("skip");
+    router.replace(leaveTo());
+  }, [authenticated, walletAddress, profile, fresh, gate, router]);
+
+  // If the soft navigation stalls (a slow or failed page request), do a full page load instead.
+  useEffect(() => {
+    if (gate !== "skip") return;
+    const t = setTimeout(() => window.location.replace(leaveTo()), 4000);
+    return () => clearTimeout(t);
+  }, [gate]);
+
+  // The profile never answered (offline, server error): show the form rather than a spinner forever.
+  useEffect(() => {
+    if (!authenticated || gate !== "checking") return;
+    const t = setTimeout(() => setGate((g) => (g === "checking" ? "show" : g)), 8000);
+    return () => clearTimeout(t);
+  }, [authenticated, gate]);
 
   function finish() {
     try {
@@ -97,6 +120,11 @@ export function WelcomeView() {
           <div className="grid justify-items-center gap-3 text-center">
             <Loader2 className="animate-spin text-[var(--muted)]" aria-hidden="true" />
             <b>Setting up your wallet…</b>
+          </div>
+        ) : gate !== "show" ? (
+          <div className="grid justify-items-center gap-3 text-center">
+            <Loader2 className="animate-spin text-[var(--muted)]" aria-hidden="true" />
+            <b>{gate === "skip" ? "Signing you in…" : "Loading your profile…"}</b>
           </div>
         ) : step === "profile" ? (
           <ProfileStep role={role} setRole={setRole} onDone={() => setStep("bidding")} />
@@ -388,7 +416,10 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
 
 /** How bidding works, stated as promises the app actually keeps. */
 function BiddingStep({ onDone }: { onDone: () => void }) {
-  const { hasPasskey, enrollPasskey, isEmbeddedWallet } = usePatchedAuth();
+  const { hasPasskey, enrollPasskey, isEmbeddedWallet, walletAddress } = usePatchedAuth();
+  const { usdc } = useBalances(walletAddress);
+  const funded = usdc !== null && Number(usdc.replace(/,/g, "")) > 0;
+  const faucet = PLAY_MONEY && !TEST_TOKEN;
   // No passkey on the shared demo account: it would lock every judge after this one out of bidding.
   const demo = useIsDemoAccount();
   const points = [
@@ -412,6 +443,18 @@ function BiddingStep({ onDone }: { onDone: () => void }) {
           </li>
         ))}
       </ul>
+      <div className="flex items-center gap-3 rounded-2xl bg-[var(--accent-soft)] p-4">
+        <Droplets size={26} className="flex-none" />
+        <span className="flex-1 text-sm leading-snug">
+          <b className="block text-[15px]">Fund your wallet</b>
+          {funded ? `You have $${usdc} to bid with.` : faucet ? "Your wallet starts at $0. Get free test USDC from Circle's faucet in about a minute." : "Your wallet starts at $0. Add USDC to place your first bid."}
+        </span>
+        {funded ? (
+          <span className="inline-flex items-center gap-1 text-sm font-bold text-[var(--green)] flex-none"><Check size={15} /> Funded</span>
+        ) : (
+          <button onClick={openAddMoney} className="btn-base btn-small btn-primary flex-none">{faucet ? "Get free USDC" : "Add money"}</button>
+        )}
+      </div>
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--soft)] p-4">
         <Fingerprint size={26} className="flex-none" />
         <span className="flex-1 text-sm leading-snug">
