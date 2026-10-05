@@ -14,6 +14,7 @@ import type { PatchData, PatchHandle } from "@/components/surface/Patch";
 import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
 import { TokenCard } from "@/components/nft/TokenCard";
+import { ReportButton } from "@/components/social/ReportButton";
 import { Seg } from "@/components/ui/Seg";
 import { toast } from "@/components/ui/Toast";
 import { formatCountdown, formatShortAddress, formatTimeAgo, formatUsdc, parseUsdc } from "@/lib/format";
@@ -50,7 +51,7 @@ import { cn } from "@/lib/utils";
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 const STATUS_LABEL: Record<number, string> = {
-  0: "Waiting for approval", 1: "Bidding live", 2: "Bidding closed", 3: "Completed",
+  0: "Going live", 1: "Bidding live", 2: "Bidding closed", 3: "Completed",
   4: "Creator missed a deadline", 5: "Cancelled", 6: "Rejected", 7: "Closed with no bids",
 };
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
@@ -335,6 +336,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         >
           <Link2 size={13} /> Copy link
         </button>
+        {!isCreator && <ReportButton kind="listing" id={listing.id} />}
       </div>
       {isCreator && (
         <div className="wrap mt-4">

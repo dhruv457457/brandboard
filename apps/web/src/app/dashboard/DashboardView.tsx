@@ -19,7 +19,7 @@ import { formatShortAddress, formatTimeAgo, formatUsdc } from "@/lib/format";
 const usd = (v: number | bigint | string) => formatUsdc(Number(v) / 1e6);
 
 const STATUS: Record<number, { label: string; variant: "top" | "wait" | "won" | "out" }> = {
-  0: { label: "Waiting for approval", variant: "wait" },
+  0: { label: "Going live", variant: "wait" },
   1: { label: "Live auction", variant: "top" },
   2: { label: "Delivering", variant: "top" },
   3: { label: "Completed", variant: "won" },
@@ -115,7 +115,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
   // What needs the creator's attention, most urgent first.
   const todo: { text: string; href: string; action: string }[] = [];
   for (const l of listings) {
-    if (l.status === 0) todo.push({ text: `${titleOf(l)} is waiting for approval by the Patched team.`, href: hrefOf(l.listing_id), action: "View" });
+    if (l.status === 0) todo.push({ text: `${titleOf(l)} is going live. This usually takes a few seconds.`, href: hrefOf(l.listing_id), action: "View" });
     if (l.status === 2) {
       const m = milestones.find((x) => x.listing_id === l.listing_id && x.idx === l.next_milestone);
       if (m && m.status === 0) {

@@ -17,7 +17,7 @@ section assumes the ones before it. Status as of 2026-10-01.
    keeps them apart. Privy test accounts (dashboard → Authentication → Test accounts) also work.
 5. **Test USDC.** Patched wallets don't need MON (gas is sponsored on testnet). Send testnet USDC
    (`0x534b2f3A21130d7a60830c2Df862319e593943A3`) to each wallet from Circle's testnet faucet.
-6. **Admin.** One account must be admin on the market (to approve listings). Use the deployer wallet or grant the role.
+6. **Auto-approve.** The approver wallet (`PRIVY_APPROVER_WALLET_ID`, or the open-admin wallet) needs `ADMIN_ROLE` on the market so new listings open by themselves. Moderation needs migration `0025`.
 
 ## 1. Sign in and profile
 
@@ -35,7 +35,8 @@ section assumes the ones before it. Status as of 2026-10-01.
 | Try | Expect |
 |---|---|
 | Create → 4 steps (what, spots, deal, page) | Live preview on the right; publish asks for one stake signature. |
-| Admin console → approve the listing | The listing goes live; bidding countdown starts. |
+| Publish | The listing goes live by itself within seconds (no approval); the bidding countdown starts. |
+| Someone else: listing page → Report, pick a reason | Admin console → "Reported posts" shows it. Hide takes it out of every page; Restore brings it back. Three different people reporting hides it at once. |
 | Listing → Share | Poster templates, QR, link preview. |
 
 ## 3. Brand: bid

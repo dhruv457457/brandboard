@@ -49,6 +49,8 @@ Written by the **app** (server routes, RLS by wallet/user):
 | `listing_meta` | `listing_id`, `metadata` (jsonb, the JSON above), `moderation` (jsonb from AI moderation) |
 | `proof_files` | `listing_id`, `milestone`, `files` (jsonb of storage URLs), `ai_check` (jsonb) |
 | `posts` | `id`, `author`, `listing_id?`, `body`, `media`, `created_at` |
+| `reports` | `id`, `chain_id`, `target_kind` (`listing` or `post`), `target_id`, `reporter`, `reason`, `note?`, `created_at`, `resolved_at?`, `resolution?`. One per person per target; server only. Three different reporters hide the target. |
+| `hidden_listings` | `chain_id`, `listing_id`, `reason`, `hidden_by`, `hidden_at`. A listing in here drops out of `listing_cards`, so no page shows it. The market is untouched. Spotted photos use `posts.hidden`. |
 | `notifications` | `user_id`, `kind`, `payload`, `read_at` |
 | `auto_bid_rules` | `brand_wallet`, `listing_id`, `patch_id`, `max_amount`, `active`, indexed from `PatchAutoBidder`'s `AutoBidSet` (outside wallets) |
 | `brand_campaigns` (offers) | `kind` = `x_offer` for "Patch anyone on X": `target_x_id`, `target_x_handle`, `target_x_name`, `target_x_avatar`, `target_wallet`, `target_privy_did`, `pregenerated`, `message`, `advance` (listing stake it may pay them), `advanced_at`, `claimed_at`. Plus `aggregation_id` on every campaign: its Privy spend total. |

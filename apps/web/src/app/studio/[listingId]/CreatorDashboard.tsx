@@ -21,7 +21,7 @@ import { useTx } from "@/lib/market/useTx";
 
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
 const STATUS: Record<number, string> = {
-  0: "Waiting for approval", 1: "Bidding live", 2: "Delivering", 3: "Completed", 4: "Failed", 5: "Cancelled", 6: "Rejected", 7: "Closed with no bids",
+  0: "Going live", 1: "Bidding live", 2: "Delivering", 3: "Completed", 4: "Failed", 5: "Cancelled", 6: "Rejected", 7: "Closed with no bids",
 };
 
 export function CreatorDashboard({ listing: lw, delivery: dw }: { listing: Wire<ListingView>; delivery: Wire<DeliveryView> }) {

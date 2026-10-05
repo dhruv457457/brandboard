@@ -427,7 +427,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
       deadlines: plan.map((m) => Math.floor(m.deadline / 1000)),
     });
     if (id) {
-      toast("Listing created. It goes live once an admin approves it.");
+      toast("Listing created. It is live and open for bids.");
       router.push(`/${walletAddress?.toLowerCase()}/${id}`);
     }
   }
@@ -454,7 +454,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
         {offer && (
           <p className="rounded-2xl bg-[var(--accent-soft)] p-3.5 text-sm" role="status">
             <b>{offer.brand} offered you ${offer.amount.toLocaleString("en-US")}.</b> List at {events.find((e) => e.id === offer.eventId)?.name ?? "the event"} and
-            price one spot&apos;s buy-now at ${offer.amount.toLocaleString("en-US")} or less: the offer buys it as soon as your listing is approved.
+            price one spot&apos;s buy-now at ${offer.amount.toLocaleString("en-US")} or less: the offer buys it as soon as your listing is live.
           </p>
         )}
         <Stepper step={stepIdx} onPick={goTo} />

@@ -9,14 +9,14 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /** The admin calls anyone may make while open admin is on. Its Privy wallet's policy allows exactly these. */
-const OPEN_FNS = new Set(["approveListing", "rejectListing", "fastTrack", "resolveDispute", "createEvent", "setEventActive"]);
+const OPEN_FNS = new Set(["fastTrack", "resolveDispute", "createEvent", "setEventActive"]);
 
 /**
- * Open admin (hackathon demo, OPEN_ADMIN=true): a signed-in person who isn't an admin can still approve listings,
- * fast-track milestones, settle disputes and manage events. Body { data } is the market calldata; it is sent from the
+ * Open admin (hackathon demo, OPEN_ADMIN=true): a signed-in person who isn't an admin can still fast-track
+ * milestones, settle disputes and manage events (listings need no approval any more, see lib/server/autoApprove.ts). Body { data } is the market calldata; it is sent from the
  * open-admin Privy server wallet, whose policy refuses anything outside OPEN_FNS on our market.
  * Only while the site runs on play money (PLAY_MONEY), and never on your own listing or your own dispute: a creator
- * can't approve or reject their own listing or skip the review window on their own proof, and neither side can settle
+ * can't skip the review window on their own proof, and neither side can settle
  * a dispute it is part of.
  */
 export async function POST(req: Request) {
@@ -36,14 +36,13 @@ export async function POST(req: Request) {
   }
   const fn = call.functionName;
   if (!OPEN_FNS.has(fn)) return Response.json({ error: "That action is for the real admins only." }, { status: 403 });
-  if (call.functionName === "approveListing" || call.functionName === "rejectListing" || call.functionName === "fastTrack" || call.functionName === "resolveDispute") {
+  if (call.functionName === "fastTrack" || call.functionName === "resolveDispute") {
     const mine = new Set([...user.wallets, ...(user.wallet ? [user.wallet] : [])].map((w) => w.toLowerCase()));
     const listingId = call.args[0];
     const client = serverClient();
     const listing = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getListing", args: [listingId] });
     if (mine.has(listing.creator.toLowerCase())) {
-      const verb = call.functionName === "approveListing" ? "approve" : call.functionName === "rejectListing" ? "reject" : "review";
-      return Response.json({ error: `That's your own listing. Another person has to ${verb} it.` }, { status: 403 });
+      return Response.json({ error: "That's your own listing. Another person has to review it." }, { status: 403 });
     }
     if (call.functionName === "resolveDispute") {
       const patch = await client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "getPatch", args: [listingId, call.args[2]] });
