@@ -198,6 +198,21 @@ export const STYLE_PRESETS: Record<string, string> = {
   jersey: "a sports jersey with track pants",
 };
 
+/**
+ * A typed outfit is clothes only: the face is kept anyway, so instructions about it ("keep my face the same") are taken
+ * out before the text is used as a garment list, where the model would treat them as clothing.
+ */
+export function cleanOutfit(text: string): string {
+  const cleaned = text
+    .replace(/\b(and\s+)?(please\s+)?(keep|make|leave)\s+(my|the|same|it)(\s+same)?\s+(face|hair|body|skin|look|person)[^,.;]*/gi, "")
+    .replace(/\b(same|my)\s+face\b[^,.;]*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s,;.]+$/g, "")
+    .trim()
+    .slice(0, 200);
+  return cleaned || "a plain white outfit";
+}
+
 /** Flat key colour that cutoutGreen() removes afterwards (see ./cutout.ts). */
 const GREEN_SCREEN =
   "The background is one flat, solid, pure chroma-key green (#00FF00) from edge to edge: no floor, no horizon, " +
@@ -232,7 +247,14 @@ async function imageCall(content: ChatMessage["content"], aspect = "2:3"): Promi
  * For the back view pass the generated front image as `front` so person, outfit and framing match.
  */
 export async function makeModelShot(opts: { photo: string; style: string; side: "front" | "back"; front?: string }) {
-  const outfit = STYLE_PRESETS[opts.style] ?? String(opts.style).slice(0, 200);
+  const preset = STYLE_PRESETS[opts.style];
+  const outfit = preset ?? cleanOutfit(String(opts.style));
+  // The reference photo shows what the person is wearing today, and the model tends to copy it (a selfie in a t-shirt
+  // gave a t-shirt whatever was asked). So say plainly that only the person comes from the photo, and what each word means.
+  const garments = preset && opts.style === "current" ? "" :
+    "Only the face, hair, skin tone and body come from the reference photo; ignore the clothes in it completely. " +
+    "Dress them in exactly the garments named, one by one, reading each word literally: a shirt is a collared button-up shirt " +
+    "(never a t-shirt), a t-shirt or tee is a crew-neck t-shirt, jeans are denim jeans, trousers and chinos are tailored trousers. ";
   if (opts.side === "front") {
     return imageCall([
       {
@@ -241,7 +263,7 @@ export async function makeModelShot(opts: { photo: string; style: string; side: 
           "Create a photorealistic full-body studio photo of the same person as in this reference photo: same face, hair, " +
           "skin tone and body type. They stand straight facing the camera, arms relaxed slightly away from the body, " +
           "whole body visible from head to shoes, centered, with a little space above the head and below the feet. " +
-          `Soft even studio lighting. ${GREEN_SCREEN} They wear ${outfit}. ${WHITE_RULE} ` +
+          `Soft even studio lighting. ${GREEN_SCREEN} They wear ${outfit}. ${garments}${WHITE_RULE} ` +
           "Portrait orientation, 2:3. Return only the image.",
       },
       { type: "image_url", image_url: { url: opts.photo } },
