@@ -601,12 +601,12 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
                               ))}
                             </div>
                           )}
-                          <input className={INPUT + " text-sm"} placeholder="Or describe your own" value={customStyle} maxLength={120} aria-label="Describe your outfit"
+                          <input className={INPUT + " text-sm"} placeholder="Or describe your own, e.g. a button-down shirt and jeans" value={customStyle} maxLength={120} aria-label="Describe your outfit"
                             onFocus={() => setStyleKey("custom")} onChange={(e) => { setCustomStyle(e.target.value); setStyleKey("custom"); }} />
                           <Button variant="primary" onClick={generateLook} disabled={!!busy} className="justify-center">
                             <Wand2 size={15} /> {views.length ? "Make it again" : "Make my look"}
                           </Button>
-                          <p className="text-xs text-[var(--muted)]">AI makes a front and back view of you in plain white, ready for logos.</p>
+                          <p className="text-xs text-[var(--muted)]">AI makes a front and back view of you in plain white, ready for logos. Your face is kept automatically, so describe only the clothes.</p>
                         </div>
                       )}
                     </div>
