@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from "react";
 import { patchReceiptAbi } from "@patched/shared";
 import { publicClient, RECEIPT } from "@/lib/config";
 import { cardSvg, readTokenView, tokenPath, type TokenData } from "@/lib/nft/token";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const FRAME = "block rounded-[22px] overflow-hidden border-2 border-[var(--ink)] shadow-[5px_5px_0_var(--ink)] [&>svg]:block [&>svg]:w-full [&>svg]:h-auto bg-[var(--soft)]";
@@ -24,6 +25,30 @@ export function loadToken(tokenId: string): Promise<TokenData | null> {
     }));
   }
   return cache.get(tokenId)!;
+}
+
+/**
+ * Names for the card. The chain only knows a brand or creator name if that person saved one on-chain, which most
+ * wallets never did, so the card would show a short address. The profile on Patched has the name; ask for it once per
+ * wallet and keep it for this tab. The same cleaning the contract applies: letters, digits, space . - _
+ */
+interface Names { brand: string; person: string }
+const names = new Map<string, Promise<Names | null>>();
+const clean = (v: string | null | undefined) => (v ?? "").replace(/[^A-Za-z0-9 ._-]/g, "").trim().slice(0, 24);
+function profileNames(wallet: string): Promise<Names | null> {
+  const key = wallet.toLowerCase();
+  if (!names.has(key)) {
+    names.set(key, Promise.resolve(supabase().from("profiles").select("display_name, brand_name, handle").eq("wallet", key).maybeSingle())
+      .then(({ data }) => (data ? { brand: clean(data.brand_name) || clean(data.display_name) || clean(data.handle), person: clean(data.handle) || clean(data.display_name) } : null))
+      .catch(() => null));
+  }
+  return names.get(key)!;
+}
+/** A token with the profile names filled in wherever the chain has none. */
+async function withNames(t: TokenData): Promise<TokenData> {
+  if (t.brand && t.creatorName) return t;
+  const [b, c] = await Promise.all([t.brand ? null : profileNames(t.winner), t.creatorName ? null : profileNames(t.creator)]);
+  return { ...t, brand: t.brand || b?.brand || "", creatorName: t.creatorName || c?.person || "" };
 }
 
 /**
@@ -49,13 +74,17 @@ export function TokenCard({ tokenId, token, link = true, className }: { tokenId:
   const [data, setData] = useState<TokenData | null | undefined>(token);
   const [fallback, setFallback] = useState<string | null>(null);
   useEffect(() => {
-    if (token) return setData(token);
     let live = true;
-    void loadToken(tokenId).then(async (t) => {
+    // Show the token as soon as it is read, then again with profile names once those arrive.
+    const show = async (t: TokenData | null) => {
       if (!live) return;
       setData(t);
-      if (!t) setFallback(await receiptImage(tokenId));
-    });
+      if (!t) return setFallback(await receiptImage(tokenId));
+      const named = await withNames(t);
+      if (live && named !== t) setData(named);
+    };
+    if (token) void show(token);
+    else void loadToken(tokenId).then(show);
     return () => { live = false; };
   }, [tokenId, token]);
 
