@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Fingerprint, Loader2, Lock, Mail, ShieldCheck, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Droplets, Fingerprint, Loader2, Lock, Mail, ShieldCheck, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StoryPanel } from "@/components/brand/StoryPanel";
 import { PrivyLogo } from "@/components/brand/PartnerLogos";
@@ -13,7 +13,9 @@ import { loadDemoLogin, useIsDemoAccount, type DemoLogin } from "@/lib/demoAccou
 import { useInjectedWallets, type InjectedWallet } from "@/lib/injectedWallets";
 import { handleProblem } from "@/lib/handles";
 import { STEP_UP_USD } from "@/lib/market/stepUp";
-import { GAS_SPONSORED } from "@/lib/config";
+import { GAS_SPONSORED, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
+import { useBalances } from "@/lib/useBalances";
+import { openAddMoney } from "@/components/wallet/AddMoney";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/Toast";
 
@@ -388,7 +390,10 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
 
 /** How bidding works, stated as promises the app actually keeps. */
 function BiddingStep({ onDone }: { onDone: () => void }) {
-  const { hasPasskey, enrollPasskey, isEmbeddedWallet } = usePatchedAuth();
+  const { hasPasskey, enrollPasskey, isEmbeddedWallet, walletAddress } = usePatchedAuth();
+  const { usdc } = useBalances(walletAddress);
+  const funded = usdc !== null && Number(usdc.replace(/,/g, "")) > 0;
+  const faucet = PLAY_MONEY && !TEST_TOKEN;
   // No passkey on the shared demo account: it would lock every judge after this one out of bidding.
   const demo = useIsDemoAccount();
   const points = [
@@ -412,6 +417,18 @@ function BiddingStep({ onDone }: { onDone: () => void }) {
           </li>
         ))}
       </ul>
+      <div className="flex items-center gap-3 rounded-2xl bg-[var(--accent-soft)] p-4">
+        <Droplets size={26} className="flex-none" />
+        <span className="flex-1 text-sm leading-snug">
+          <b className="block text-[15px]">Fund your wallet</b>
+          {funded ? `You have $${usdc} to bid with.` : faucet ? "Your wallet starts at $0. Get free test USDC from Circle's faucet in about a minute." : "Your wallet starts at $0. Add USDC to place your first bid."}
+        </span>
+        {funded ? (
+          <span className="inline-flex items-center gap-1 text-sm font-bold text-[var(--green)] flex-none"><Check size={15} /> Funded</span>
+        ) : (
+          <button onClick={openAddMoney} className="btn-base btn-small btn-primary flex-none">{faucet ? "Get free USDC" : "Add money"}</button>
+        )}
+      </div>
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--soft)] p-4">
         <Fingerprint size={26} className="flex-none" />
         <span className="flex-1 text-sm leading-snug">
