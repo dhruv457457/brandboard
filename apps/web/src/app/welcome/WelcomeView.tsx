@@ -24,6 +24,9 @@ const X_PATH = "M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h
 
 export const roleKey = (wallet: string) => `patched.role.${wallet.toLowerCase()}`;
 
+/** Where to go once onboarding is done (or was never needed): the page they came from, else home. */
+const leaveTo = () => safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/";
+
 /** Only same-site paths are allowed as the place to go after onboarding. */
 function safeNext(next: string | null) {
   return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/welcome") ? next : null;
@@ -48,10 +51,13 @@ export function WelcomeView() {
   // doesn't see it again. Decided once, when the profile first loads, so saving a handle in step one doesn't skip
   // step two.
   const { profile, fresh } = useProfile();
-  const checked = useRef(false);
+  // "checking": waiting for the profile. "skip": onboarding is done and we're leaving. "show": the profile form.
+  // The form only appears once we know it is needed, so a finished person never sees it flash by (or sits on it while
+  // the next page loads) and thinks they're being asked to sign up again.
+  const [gate, setGate] = useState<"checking" | "skip" | "show">("checking");
   useEffect(() => {
     // A saved handle is enough to know onboarding is done: it must not wait for the wallet to be found.
-    if (!authenticated || checked.current) return;
+    if (!authenticated || gate !== "checking") return;
     let done = false;
     try {
       done = !!walletAddress && !!localStorage.getItem(roleKey(walletAddress));
@@ -63,10 +69,25 @@ export function WelcomeView() {
     // believed once the server has answered: the remembered copy can be out of date, and trusting it sent people
     // who had finished back to this screen.
     if (!skip && !(profile && fresh)) return;
-    checked.current = true;
     console.info("[patched] onboarding", skip ? "skipped" : "shown", { handle: profile?.handle ?? null, fresh, wallet: !!walletAddress, done });
-    if (skip) router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/");
-  }, [authenticated, walletAddress, profile, fresh, router]);
+    if (!skip) return setGate("show");
+    setGate("skip");
+    router.replace(leaveTo());
+  }, [authenticated, walletAddress, profile, fresh, gate, router]);
+
+  // If the soft navigation stalls (a slow or failed page request), do a full page load instead.
+  useEffect(() => {
+    if (gate !== "skip") return;
+    const t = setTimeout(() => window.location.replace(leaveTo()), 4000);
+    return () => clearTimeout(t);
+  }, [gate]);
+
+  // The profile never answered (offline, server error): show the form rather than a spinner forever.
+  useEffect(() => {
+    if (!authenticated || gate !== "checking") return;
+    const t = setTimeout(() => setGate((g) => (g === "checking" ? "show" : g)), 8000);
+    return () => clearTimeout(t);
+  }, [authenticated, gate]);
 
   function finish() {
     try {
@@ -99,6 +120,11 @@ export function WelcomeView() {
           <div className="grid justify-items-center gap-3 text-center">
             <Loader2 className="animate-spin text-[var(--muted)]" aria-hidden="true" />
             <b>Setting up your wallet…</b>
+          </div>
+        ) : gate !== "show" ? (
+          <div className="grid justify-items-center gap-3 text-center">
+            <Loader2 className="animate-spin text-[var(--muted)]" aria-hidden="true" />
+            <b>{gate === "skip" ? "Signing you in…" : "Loading your profile…"}</b>
           </div>
         ) : step === "profile" ? (
           <ProfileStep role={role} setRole={setRole} onDone={() => setStep("bidding")} />
