@@ -47,6 +47,17 @@ export function WelcomeView() {
 
   useEffect(() => setNext(safeNext(new URLSearchParams(window.location.search).get("next"))), []);
 
+  // Coming back from X: Privy needs a couple of seconds to finish the sign-in, during which it says "not signed in".
+  // Say so (instead of showing the sign-in options again), unless it takes too long or fails.
+  const [fromX, setFromX] = useState(false);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has("privy_oauth_code") && !q.has("privy_oauth_state")) return;
+    setFromX(true);
+    const t = setTimeout(() => setFromX(false), 15_000);
+    return () => clearTimeout(t);
+  }, []);
+
   // Someone who already finished onboarding (a role saved in this browser, or a saved @handle from any device)
   // doesn't see it again. Decided once, when the profile first loads, so saving a handle in step one doesn't skip
   // step two.
@@ -114,6 +125,11 @@ export function WelcomeView() {
       <section className="order-first lg:order-none grid place-items-center px-5 py-8 lg:py-6 bg-[var(--paper)] min-w-0 lg:min-h-0 lg:overflow-y-auto">
         {!ready ? (
           <Loader2 className="animate-spin text-[var(--muted)]" aria-label="Loading" />
+        ) : !authenticated && fromX ? (
+          <div className="grid justify-items-center gap-3 text-center">
+            <Loader2 className="animate-spin text-[var(--muted)]" aria-hidden="true" />
+            <b>Signing you in with X…</b>
+          </div>
         ) : !authenticated ? (
           <SignInCard onSetup={setSetup} />
         ) : setup ? (
