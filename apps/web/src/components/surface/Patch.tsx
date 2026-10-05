@@ -158,7 +158,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
         {patch.number != null && (
           <span
             aria-hidden="true"
-            className="absolute top-[2px] left-[4px] font-bold leading-none opacity-80"
+            className={cn("absolute top-[2px] left-[4px] font-bold leading-none opacity-80", patch.logo && isFilled && "z-10 rounded bg-[var(--paper)]/80 px-0.5 text-[var(--ink)] opacity-100")}
             style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "min(20cqh, 9cqw)" }}
           >
             {String(patch.number).padStart(2, "0")}
@@ -171,7 +171,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
               <img
                 src={patch.logo}
                 alt={patch.brand || "Brand logo"}
-                className="max-w-[80%] max-h-[58%] object-contain select-none pointer-events-none"
+                className="absolute inset-[2px] w-[calc(100%-4px)] h-[calc(100%-4px)] rounded-[6px] object-cover select-none pointer-events-none"
               />
             ) : (
               <span
@@ -186,7 +186,11 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
             )}
             {showPrices && topVal > 0 && (
               <span
-                className="pr font-semibold mt-0.5 leading-none"
+                className={cn(
+                  "pr font-semibold mt-0.5 leading-none",
+                  // On a logo the price sits on top of it, in a small pill, so the logo gets the whole patch.
+                  patch.logo && "absolute bottom-[3px] left-1/2 -translate-x-1/2 z-10 mt-0 rounded-full bg-[var(--paper)]/90 px-1.5 py-[2px] text-[var(--ink)]",
+                )}
                 style={{
                   fontFamily: "var(--font-geist-mono), monospace",
                   fontSize: "min(24cqh, 11cqw)",
