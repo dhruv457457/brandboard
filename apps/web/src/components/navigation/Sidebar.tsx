@@ -42,7 +42,7 @@ export function useNavItems(): NavItem[] {
 /** Desktop navigation, like X: a slim column that never reloads. Icons only on medium screens, labels from xl. */
 export function Sidebar() {
   const items = useNavItems();
-  const { ready, authenticated } = usePatchedAuth();
+  const { ready, authenticated, login } = usePatchedAuth();
   const pathname = usePathname();
 
   return (
@@ -88,10 +88,10 @@ export function Sidebar() {
         ) : authenticated ? (
           <AccountButton />
         ) : (
-          <Link href={`/welcome?next=${encodeURIComponent(pathname)}`} className="btn-base w-[50px] xl:w-full h-[50px] justify-center !rounded-full !px-0" aria-label="Sign in">
+          <button type="button" onClick={login} className="btn-base w-[50px] xl:w-full h-[50px] justify-center !rounded-full !px-0" aria-label="Sign in">
             <LogIn size={20} className="xl:hidden" />
             <span className="hidden xl:inline">Sign in</span>
-          </Link>
+          </button>
         )}
       </div>
     </aside>

@@ -16,14 +16,14 @@ import { WalletPanel } from "./WalletPanel";
 /** Phone navigation: Home, Events, Create, Activity, Profile, one thumb-tap away. Hidden from md up. */
 export function TabBar() {
   const items = useNavItems().filter((i) => i.label !== "Explore");
-  const { authenticated } = usePatchedAuth();
+  const { authenticated, login } = usePatchedAuth();
   const [home, events, activity, profile] = items;
   const cell = "flex flex-col items-center justify-center gap-0.5 min-h-[58px] w-full text-[11px] font-semibold no-underline";
 
   const tab = (it: (typeof items)[number]) => (
     <li key={it.label}>
       {it.label === "Profile" && !authenticated ? (
-        <Link href="/welcome" className={cn(cell, "text-[var(--muted)]")}><LogIn size={22} /> Sign in</Link>
+        <button type="button" onClick={login} className={cn(cell, "text-[var(--muted)]")}><LogIn size={22} /> Sign in</button>
       ) : (
         <Link href={it.href} aria-current={it.active ? "page" : undefined} className={cn(cell, it.active ? "text-[var(--ink)]" : "text-[var(--muted)]")}>
           <span className="relative inline-flex">
@@ -60,7 +60,7 @@ export function TabBar() {
 
 /** Phone top bar: the logo, and your avatar to open the wallet. */
 export function MobileTopBar() {
-  const { ready, authenticated, walletAddress, xHandle } = usePatchedAuth();
+  const { ready, authenticated, walletAddress, xHandle, login } = usePatchedAuth();
   const { profile } = useProfile();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -77,7 +77,7 @@ export function MobileTopBar() {
             <Avatar src={profile?.avatar_url} name={profile?.display_name ?? xHandle} wallet={walletAddress} size={36} />
           </button>
         ) : (
-          <Link href="/welcome" className="btn-base btn-small">Sign in</Link>
+          <button type="button" onClick={login} className="btn-base btn-small">Sign in</button>
         )}
       </header>
       {authenticated && (

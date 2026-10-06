@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { isAddress } from "viem";
 import { patchedMarketAbi } from "@patched/shared";
 import { MARKET, serverClient } from "@/lib/config";
-import { fetchListingCards } from "@/lib/market/server";
+import { fetchListingCards, fetchListingView } from "@/lib/market/server";
+import { publicUrl } from "@/lib/handles";
 import { toWire } from "@/lib/market/types";
 import { supabase } from "@/lib/supabase";
 import { CHAIN_ID } from "@/lib/config";
@@ -18,6 +19,18 @@ export async function generateStaticParams() {
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle: raw } = await params;
   const handle = decodeURIComponent(raw).toLowerCase();
+
+  // Digits only is a listing ID (e.g. /12 landed on the root domain), not a creator handle.
+  if (/^\d+$/.test(handle)) {
+    const id = Number(handle);
+    const listing = await fetchListingView(id);
+    if (listing) {
+      const canonical = listing.creatorHandle ?? listing.creator;
+      redirect(publicUrl(`/${canonical}/${id}`));
+    }
+    notFound();
+  }
+
   const db = supabase();
   const { data: profile } = isAddress(handle)
     ? await db.from("profiles").select("*").eq("wallet", handle).maybeSingle()

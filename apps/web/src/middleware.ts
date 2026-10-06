@@ -27,6 +27,22 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
+  // Sign-in lives on the main domain; preserve this creator's subdomain in `next` so sign-in returns right back here.
+  if (pathname === "/welcome") {
+    const targetUrl = new URL(`https://${base}/welcome`);
+    const nextParam = req.nextUrl.searchParams.get("next");
+    if (nextParam && /^https?:\/\//i.test(nextParam)) {
+      targetUrl.searchParams.set("next", nextParam);
+    } else {
+      const destPath = nextParam && nextParam.startsWith("/") ? nextParam : "/";
+      targetUrl.searchParams.set("next", `https://${host}${destPath}`);
+    }
+    req.nextUrl.searchParams.forEach((val, key) => {
+      if (key !== "next") targetUrl.searchParams.set(key, val);
+    });
+    return to(targetUrl.toString());
+  }
+
   const m = pathname.match(/^\/([^/]+)(?:\/(\d+))?\/?$/);
   if (m && !RESERVED_HANDLES.has(m[1].toLowerCase())) {
     const who = m[1].toLowerCase();

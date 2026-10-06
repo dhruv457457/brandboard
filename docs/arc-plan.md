@@ -128,9 +128,62 @@ Monad work comes first, since Metropolis closes earlier. Split the Arc work so a
 - A webhook endpoint (public HTTPS) for transaction notifications.
 - Add each new variable to `.env.example` with a comment.
 
+## Deeper research (round 2, 2026-09-29)
+
+### The chain: rules that affect our contracts and keeper
+- **Minimum base fee is 20 gwei** (ceiling 20,000 gwei). Transactions below the floor are *silently dropped*. Set `maxFeePerGas ≥ 20 gwei` and a 1 gwei tip. The target cost is about **$0.001 per ERC-20 transfer**.
+- **Finality is instant and deterministic** (Malachite BFT, under a second). No confirmation counts or reorg handling are needed, so the indexer and keeper can treat an included transaction as final.
+- **Block timestamps** don't decrease and have one-second granularity; blocks within the same second share a timestamp. Our anti-snipe logic (`block.timestamp`) is fine. Order events by block number, not time.
+- **`PREVRANDAO` always returns 0.** We don't use randomness. If we ever do, use an oracle.
+- **The USDC blocklist is enforced at runtime.** A transfer to a blocklisted address reverts. Our market already credits `refundable` when a push fails (`Refunded(pushed=false)` / `Credited`), so refunds can't brick an auction. Keep that design.
+- "Transfers to contracts are not guaranteed" refers to **native value** sends. We only use the ERC-20 interface (`transferFrom` / `transfer`). **Test the full bid → refund → release cycle on Arc before trusting it.**
+- No blob transactions and no withdrawals. Neither affects us.
+- **Tooling:** Circle ships **Arc Foundry** (`arc-forge`, `arc-cast`, `arc-anvil`), a Foundry fork that simulates Arc's EVM rules locally. It isn't on `foundryup`; download the binaries from `circlefin/arc-foundry`. Run our 56 tests with `arc-forge test --network arc` before deploying.
+- **Verification:** the explorer is **Blockscout**: `arc-forge verify-contract <addr> <path:Name> --chain-id 5042 --verifier blockscout --verifier-url https://explorer.arc.io/api/`.
+- Circle's contract platform recommends compiling with **`evmVersion: "paris"`** (no `PUSH0`) when deploying through its API. Arc's EVM-differences page doesn't list `PUSH0` as missing, so the Arc Foundry tests will tell us. If deployment fails, set `evm_version = "paris"` in `foundry.toml`.
+- **Privacy (Arc Privacy Sector) isn't live yet.** Don't plan around it.
+
+### Circle wallet stack on Arc (confirmed)
+- **Gas Station is live on Arc mainnet and testnet**, for user-controlled and developer-controlled wallets. It requires smart accounts (SCA or modular MSCA); EOAs can't be sponsored. Gas is billed to our card, plus 5%.
+- **Circle Paymaster** (users pay gas in USDC, 10% surcharge) is **not on Arc**, and isn't needed there because gas is USDC anyway.
+- **Modular wallets:** passkey smart accounts on Arc mainnet; `sendUserOperation({ calls: [...], paymaster: true })` batches **approve + bid** into one sponsored passkey confirmation. There's also a module system (multisig, subscriptions, **session keys**), which could run auto-bid from the brand's own account. Availability on Arc still needs checking.
+- **User-controlled wallets:** Google, Apple, Facebook, email OTP, PIN. **No X login**, and every transaction goes through Circle's confirmation UI.
+- **Developer-controlled wallets** (`@circle-fin/developer-controlled-wallets`): entity secret, wallet sets, `createContractExecutionTransaction`, required UUID idempotency keys, webhooks (`X-Circle-Signature`). **No policy engine.**
+- **Circle Smart Contract Platform** (`@circle-fin/smart-contract-platform`) can deploy and import contracts and read them. Writes still go through the wallets SDK. **Its event monitors and webhooks are documented for Arc testnet only**, so on mainnet we keep our own indexer.
+
+### App Kit (`@circle-fin/app-kit`): every feature is supported on Arc mainnet
+| Module | Use in Patched | Notes |
+|---|---|---|
+| **Unified Balance (Gateway)** | **"Fund your bids from any chain":** a brand deposits USDC on Base, Ethereum, Arbitrum, etc. into one balance and spends it on Arc in **under 500 ms** | The best answer to "how do brands get USDC onto Arc". GatewayWallet `0x7777…00eE`, GatewayMinter `0x2222…C205`. |
+| **Bridge (CCTP V2)** | Move USDC to or from Arc (domain 26) | For creators cashing out to another chain |
+| **Send** | Payout transfers, returning campaign budgets | Simple |
+| **Swap (USDC ↔ EURC)** | Optional: EU brands bid in EURC | Needs a `kitKey`. Only if time allows. |
+| **Earn** | Optional and risky: idle campaign budget earning yield | Separate API keys per environment. Skip for the grant. |
+| **Onramp** | Buying USDC by card | **Out of scope:** AGENTS.md says no banks or fiat. Only if the user changes that rule for the Arc mirror. |
+
+Adapters: `@circle-fin/adapter-viem-v2`, `@circle-fin/adapter-ethers-v6`, `@circle-fin/adapter-circle-wallets` (developer-controlled). There's no modular-wallet adapter listed, so for user-side App Kit calls wrap the modular account's viem client, or use Gateway's API directly.
+
+### Arc-native standards worth using (strong "relevance to Arc")
+- **ERC-8183 Jobs:** Arc's escrow standard. The *client* funds USDC escrow, the *provider* submits a `bytes32` deliverable hash, and the *evaluator* completes (pays) or rejects. The states are Open → Funded → Submitted → Completed / Rejected / Expired. **This is almost exactly a Patched deal** (brand = client, creator = provider, Patched or the brand = evaluator, proof hash = deliverable). The reference contract on testnet is `0x0747EEf0706327138c69792bF28Cd525089e4583`; check for a mainnet address.
+  - **Cheapest angle:** make our milestone escrow *speak* ERC-8183: emit its events, or expose `submit` / `complete` names mapping to `submitProof` / `release`, and describe Patched deals as ERC-8183 jobs in the README.
+- **ERC-8004 registries** (identity, reputation, validation). Testnet addresses: `0x8004A818…BD9e`, `0x8004B663…8713`, `0x8004Cb1B…4272`. They're agent-focused, but `register(metadataURI)` mints an identity, and the reputation registry could carry **creator delivery reputation**. Optional; check mainnet addresses first.
+- **Refund Protocol:** Circle's EIP-712 non-custodial USDC escrow with disputes, used by the **`circlefin/arc-escrow`** sample (Next.js + Supabase + developer-controlled wallets + webhooks + AI-checked deliverables). **It's almost our stack.** Read it for Circle wallet, webhook and Supabase patterns to copy. Note the open issues about refund-after-withdraw double-pay; don't copy its contract blindly.
+- **Commerce Payments Protocol** (`circlefin/arc-ecommerce-payments`): escrow-based USDC/EURC checkout. Not needed; our market already escrows.
+- **Compliance:** Chainalysis, Elliptic and TRM Labs support Arc wallet screening. Optional: screen brand wallets before campaigns.
+
+### Sample apps to crib from (all `github.com/circlefin/…`)
+- `arc-escrow`: developer-controlled wallets, Refund Protocol, webhooks, Supabase.
+- `arc-p2p-payments`: **gasless passkey modular wallets**, our user-wallet flow.
+- `arc-commerce`: developer-controlled wallets + webhook settlement.
+- `arc-multichain-wallet`: Gateway unified balance with wagmi, our "fund from any chain" UI.
+- `arc-fintech`: Bridge Kit + Gateway treasury.
+- `arc-stablecoin-fx`: App Kit swap with platform fees.
+
 ## Open questions to verify during the build
-1. Is Gas Station / Paymaster **live on Arc mainnet** for both modular wallets and developer SCA wallets? (The supported-chains table confirms wallets, not Gas Station.)
-2. Does a real `bidWithPermit` on Arc succeed with the "USDC" / "2" domain? (Needed only as a fallback.)
-3. Are session-key modules for modular wallets available on Arc? If so, auto-bid could run from the brand's own smart account, like Privy signers.
+1. ~~Is Gas Station live on Arc mainnet?~~ **Yes**, for Circle SCA and modular wallets (not EOAs).
+2. Does a real `bidWithPermit` on Arc succeed with the "USDC" / "2" domain? (Fallback only; the main path is the batched approve + bid.)
+3. Are modular-wallet **session-key modules** available on Arc mainnet? If yes, auto-bid can run from the brand's own account.
+4. Do ERC-8183 and ERC-8004 have **mainnet** deployments on Arc? If not, deploy our own ERC-8183-compatible escrow or skip.
+5. Do our contracts pass `arc-forge test --network arc`, and do they deploy without `evm_version = "paris"`?
 
 Sources: [Arc connect](https://docs.arc.io/arc/references/connect-to-arc), [Arc contract addresses](https://docs.arc.io/arc/references/contract-addresses), [Arc EVM compatibility](https://docs.arc.io/arc/references/evm-compatibility), [Arc account abstraction providers](https://docs.arc.io/arc/tools/account-abstraction), [Arc data indexers](https://docs.arc.io/arc/tools/data-indexers), [Circle supported blockchains](https://developers.circle.com/wallets/supported-blockchains), [Circle Wallets](https://www.circle.com/wallets), [Circle skills: user-controlled](https://github.com/circlefin/skills/blob/master/plugins/circle/skills/use-user-controlled-wallets/SKILL.md), [modular](https://github.com/circlefin/skills/blob/master/plugins/circle/skills/use-modular-wallets/SKILL.md), [developer-controlled](https://github.com/circlefin/skills/blob/master/plugins/circle/skills/use-developer-controlled-wallets/SKILL.md) wallets, [Arc USDC permit docs PR](https://github.com/circlefin/arc-node/pull/290).

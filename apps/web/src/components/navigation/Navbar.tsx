@@ -13,7 +13,7 @@ import { Logo } from "@/components/brand/Logo";
  */
 export function Navbar() {
   const appHref = useAppHref();
-  const { ready } = useAuth();
+  const { ready, login } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -38,7 +38,7 @@ export function Navbar() {
             <span className="w-40 h-9 rounded-xl bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
           ) : (
             <>
-              <Link href={appHref("/welcome")} className="btn-base btn-small btn-ghost">Sign in</Link>
+              <button type="button" onClick={login} className="btn-base btn-small btn-ghost">Sign in</button>
               <Link href={appHref("/welcome?next=/studio")} className="btn-base btn-small btn-primary hidden sm:inline-flex">Get patched</Link>
             </>
           )}

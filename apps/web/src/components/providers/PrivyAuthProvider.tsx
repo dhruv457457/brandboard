@@ -117,9 +117,19 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   // "Sign in" anywhere goes to our welcome page (no pop-up) and comes back to the same place afterwards.
   const login = useCallback(() => {
-    const here = `${window.location.pathname}${window.location.search}`;
+    if (typeof window === "undefined") return;
     if (window.location.pathname.startsWith("/welcome")) return;
-    router.push(`/welcome?next=${encodeURIComponent(here)}`);
+    const domain = process.env.NEXT_PUBLIC_HANDLE_DOMAIN?.toLowerCase();
+    const isSubdomain = !!domain && window.location.hostname.toLowerCase().endsWith(`.${domain}`);
+    const here = isSubdomain ? window.location.href : `${window.location.pathname}${window.location.search}`;
+    const target = isSubdomain
+      ? `https://${domain}/welcome?next=${encodeURIComponent(here)}`
+      : `/welcome?next=${encodeURIComponent(here)}`;
+    if (isSubdomain) {
+      window.location.href = target;
+    } else {
+      router.push(target);
+    }
   }, [router]);
   const withLogin = useMemo(() => ({ ...value, login }), [value, login]);
 

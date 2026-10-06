@@ -27,9 +27,27 @@ export const roleKey = (wallet: string) => `patched.role.${wallet.toLowerCase()}
 /** Where to go once onboarding is done (or was never needed): the page they came from, else home. */
 const leaveTo = () => safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/";
 
-/** Only same-site paths are allowed as the place to go after onboarding. */
-function safeNext(next: string | null) {
-  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/welcome") ? next : null;
+/** Same-site paths and creator subdomain URLs are allowed as the place to go after onboarding. */
+function safeNext(next: string | null): string | null {
+  if (!next) return null;
+  if (next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/welcome")) {
+    return next;
+  }
+  try {
+    const u = new URL(next);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    const host = u.hostname.toLowerCase();
+    const domain = process.env.NEXT_PUBLIC_HANDLE_DOMAIN?.toLowerCase();
+    if (domain && (host === domain || host.endsWith(`.${domain}`))) {
+      return u.toString();
+    }
+    if (typeof window !== "undefined" && (host === window.location.hostname.toLowerCase() || host === "localhost" || host === "127.0.0.1")) {
+      return u.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 /**
@@ -83,7 +101,12 @@ export function WelcomeView() {
     console.info("[patched] onboarding", skip ? "skipped" : "shown", { handle: profile?.handle ?? null, fresh, wallet: !!walletAddress, done });
     if (!skip) return setGate("show");
     setGate("skip");
-    router.replace(leaveTo());
+    const dest = leaveTo();
+    if (/^https?:\/\//i.test(dest)) {
+      window.location.replace(dest);
+    } else {
+      router.replace(dest);
+    }
   }, [authenticated, walletAddress, profile, fresh, gate, router]);
 
   // If the soft navigation stalls (a slow or failed page request), do a full page load instead.
@@ -106,7 +129,12 @@ export function WelcomeView() {
     } catch {
       /* storage blocked */
     }
-    router.push(next ?? (role === "creator" ? "/studio" : "/"));
+    const dest = next ?? (role === "creator" ? "/studio" : "/");
+    if (/^https?:\/\//i.test(dest)) {
+      window.location.replace(dest);
+    } else {
+      router.push(dest);
+    }
   }
 
   return (
