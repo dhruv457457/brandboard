@@ -49,6 +49,8 @@ export interface PatchProps {
   animDelay?: number;
   showPrices?: boolean;
   onClick?: () => void;
+  /** Called with true when the pointer enters the patch and false when it leaves (mouse and pen only). */
+  onHover?: (over: boolean) => void;
   onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
   onResizePointerDown?: (e: React.PointerEvent<HTMLSpanElement>) => void;
   className?: string;
@@ -63,6 +65,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
     animDelay,
     showPrices = true,
     onClick,
+    onHover,
     onPointerDown,
     onResizePointerDown,
     className,
@@ -129,6 +132,8 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
         ref={containerRef}
         data-id={patch.id}
         onClick={onClick}
+        onPointerEnter={onHover ? (e) => e.pointerType !== "touch" && onHover(true) : undefined}
+        onPointerLeave={onHover ? () => onHover(false) : undefined}
         onPointerDown={onPointerDown}
         className={cn(
           "patch",

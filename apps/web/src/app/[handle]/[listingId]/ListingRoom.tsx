@@ -118,9 +118,12 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   // The spot whose bid panel is open on the board.
   const [openId, setOpenId] = useState<number | null>(null);
   const reduce = useReducedMotion();
-  // The photo turns through its views (front and back, or every side of a car) on its own until someone takes over.
+  // On arrival the photo turns once through its views (front, back, or every side of a car) and comes back to the
+  // first, then stays put. Hovering the photo, opening a spot or choosing a view yourself cancels it.
   const [autoplay, setAutoplay] = useState(true);
   const [stageHover, setStageHover] = useState(false);
+  // The spot under the pointer on the photo (mouse only): a small card shows its leader and the next bid.
+  const [hoverId, setHoverId] = useState<number | null>(null);
   // Creator page editing: `saved` is what visitors see, `draft` is what the creator is changing.
   const authedFetch = useAuthedFetch();
   const [saved, setSaved] = useState<ListingPage>(() => listing.page);
@@ -146,13 +149,19 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     };
   }, []);
 
-  const rotating = listing.views.length > 1 && autoplay && !reduce && !stageHover && openId === null && !editing;
+  const turning = listing.views.length > 1 && autoplay && !reduce && !stageHover && openId === null && !editing;
   useEffect(() => {
-    if (!rotating) return;
+    if (!turning) return;
     const ids = listing.views.map((v) => v.id);
-    const t = setInterval(() => setViewSide((cur) => ids[(ids.indexOf(cur) + 1) % ids.length]), 2000);
-    return () => clearInterval(t);
-  }, [rotating, listing.views]);
+    const hold = 2200;
+    // After the drop-in: each other view in turn, then back to the first, then stop.
+    const timers = [...ids.slice(1), ids[0]].map((id, i) => setTimeout(() => setViewSide(id), 1900 + hold * (i + 1) - 700));
+    timers.push(setTimeout(() => setAutoplay(false), 1900 + hold * ids.length));
+    return () => timers.forEach(clearTimeout);
+  }, [turning, listing.views]);
+  useEffect(() => {
+    if (stageHover || openId !== null || editing) setAutoplay(false);
+  }, [stageHover, openId, editing]);
 
   const selected = patches.find((p) => p.id === selectedId) ?? patches[0];
   const countdown = formatCountdown(endsAt);
@@ -366,21 +375,12 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                   <div className="overflow-x-auto">
                     <Seg options={listing.views.map((v) => ({ value: v.id, label: v.label }))} value={viewSide} onChange={(v) => { setViewSide(v); setAutoplay(false); }} size="small" />
                   </div>
-                  {/* How long until the next view */}
-                  <span className="block h-[2px] rounded-full bg-[var(--line)]/10 overflow-hidden" aria-hidden="true">
-                    {rotating && <span key={viewSide} className="block h-full bg-[var(--ink)] origin-left [animation:story-fill_2s_linear_forwards]" />}
-                  </span>
                 </div>
-                {!reduce && (
-                  <button type="button" onClick={() => setAutoplay((a) => !a)} aria-label={autoplay ? "Stop turning the photo" : "Turn the photo"}
-                    className="w-8 h-8 rounded-full grid place-items-center text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--card)] flex-none">
-                    {autoplay ? <Pause size={14} /> : <Play size={14} />}
-                  </button>
-                )}
               </div>
             )}
-            <motion.div key={viewSide} initial={intro ? false : { opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-              className={cn("relative", listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[400px] mx-auto w-full" : "max-w-[340px] mx-auto w-full")}>
+            <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={viewSide} initial={intro ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.32, ease: "easeInOut" }}
+              className={cn("relative", listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto w-full" : "max-w-[460px] mx-auto w-full")}>
               <SurfaceFigure
                 surface={listing.surface}
                 imageUrl={listing.views.find((v) => v.id === viewSide)?.image ?? listing.canvasImage}
@@ -388,11 +388,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                 mode={biddingOpen ? "interactive" : "static"}
                 selectedId={selectedId}
                 onSelect={(id) => focusSpot(Number(id))}
+                onHover={(id) => setHoverId(id === null ? null : Number(id))}
                 patchRefs={patchRefs}
                 animateDrop={intro}
               />
+              <SpotHover open={biddingOpen} patch={hoverId === null ? null : figurePatches.find((x) => x.id === hoverId) ?? null} live={hoverId === null ? null : patches.find((x) => x.id === hoverId) ?? null} next={hoverId === null ? null : (() => { const lp = patches.find((x) => x.id === hoverId); return lp ? minNext(lp) : null; })()} />
               <Burst key={burst?.n} x={burst?.x ?? 50} y={burst?.y ?? 50} show={!!burst} />
             </motion.div>
+            </AnimatePresence>
           </div>
           <div className="flex gap-4 justify-center flex-wrap text-[13px] text-[var(--muted)]">
             <span className="inline-flex items-center gap-1.5"><i className="sw-legend filled" />Has a bid</span>
@@ -401,8 +404,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           </div>
         </div>
 
-        <div className="grid gap-8 min-w-0">
-          <header className="grid gap-4">
+        <div className="grid gap-6 min-w-0">
+          <header className="grid gap-2.5">
             <div className="flex items-center gap-2 flex-wrap text-sm">
               <Avatar creatorAvatar={listing.creatorAvatar} label={creatorLabel} />
               <b>{creatorLabel}</b>
@@ -420,7 +423,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               fallback={defaultHeadline}
               maxLength={80}
               onChange={(v) => setPg({ headline: v })}
-              className="text-[2.6rem] sm:text-6xl font-extrabold tracking-tight leading-[0.98]"
+              className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.02]"
             />
             <EditableText
               editing={editing}
@@ -429,7 +432,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               maxLength={300}
               multiline
               onChange={(v) => setPg({ intro: v })}
-              className="text-lg text-[var(--muted)] max-w-xl"
+              className={cn("text-base text-[var(--muted)] max-w-xl", !editing && "line-clamp-2")}
             />
           </header>
 
@@ -1042,6 +1045,29 @@ function Fact({ icon, title, children }: { icon: React.ReactNode; title: string;
         <dt className="font-bold">{title}</dt>
         <dd className="m-0 text-sm text-[var(--muted)]">{children}</dd>
       </span>
+    </div>
+  );
+}
+
+/**
+ * What a spot shows when the pointer rests on it in the photo: which spot, who leads and the next bid. It sits above the
+ * spot (below it near the top of the photo), never takes the pointer, and is not shown on touch screens.
+ */
+function SpotHover({ open, patch, live, next }: { open: boolean; patch: PatchData | null; live: LivePatch | null; next: bigint | null }) {
+  if (!patch || !live || live.bought) return null;
+  const below = patch.y < 22;
+  const left = Math.min(Math.max(patch.x + patch.w / 2, 22), 78);
+  return (
+    <div
+      role="status"
+      className="absolute z-30 pointer-events-none w-max max-w-[220px] rounded-xl border-2 border-[var(--ink)] bg-[var(--paper)] px-3 py-2 text-left shadow-[3px_3px_0_var(--ink)]"
+      style={{ left: `${left}%`, top: below ? `${patch.y + patch.h + 2}%` : `${patch.y - 2}%`, transform: below ? "translateX(-50%)" : "translate(-50%, -100%)" }}
+    >
+      <b className="block text-sm leading-tight">{live.label}</b>
+      <span className="block text-xs text-[var(--muted)] mt-0.5">
+        {live.topBidder ? <>Leading: <b className="text-[var(--ink)]">{patch.brand}</b> · {usd(live.topBid)}</> : <>No bids yet · from {usd(live.floor)}</>}
+      </span>
+      {open && next !== null && <span className="block text-xs font-bold text-[var(--accent-text)] mt-1">Click to bid {usd(next)}</span>}
     </div>
   );
 }
