@@ -12,6 +12,8 @@ interface SurfaceFigureProps {
   mode?: "static" | "interactive" | "editable";
   selectedId?: string | number | null;
   onSelect?: (id: string | number) => void;
+  /** The patch under the pointer, or null when it leaves (mouse and pen only). */
+  onHover?: (id: string | number | null) => void;
   onUpdatePatches?: (patches: PatchData[]) => void;
   patchRefs?: React.MutableRefObject<Record<string | number, PatchHandle | null>>;
   previewId?: string | number | null;
@@ -164,6 +166,7 @@ export function SurfaceFigure({
   mode = "static",
   selectedId,
   onSelect,
+  onHover,
   onUpdatePatches,
   patchRefs,
   previewId,
@@ -274,6 +277,7 @@ export function SurfaceFigure({
             animDelay={animateDrop ? 0.15 + idx * 0.08 : undefined}
             showPrices={showPrices}
             onClick={() => onSelect?.(p.id)}
+            onHover={onHover ? (over) => onHover(over ? p.id : null) : undefined}
             onPointerDown={(e) => handlePointerDown(e, p, false)}
             onResizePointerDown={(e) => handlePointerDown(e, p, true)}
           />
