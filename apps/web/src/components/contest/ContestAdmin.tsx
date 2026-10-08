@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, ExternalLink, X } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
-import { useIsAdmin } from "@/lib/useIsAdmin";
 import { TRACKS } from "@/lib/contest";
 import { cn } from "@/lib/utils";
 
@@ -15,9 +14,9 @@ interface Row {
 
 /** For the team only (an admin wallet): review entries, rule them in or out, and record the winners and their payments. */
 export function ContestAdmin() {
-  const { walletAddress, authenticated } = usePatchedAuth();
-  const isAdmin = useIsAdmin(walletAddress);
+  const { authenticated } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
+  // null until the server says this person is on the team (it refuses everyone else).
   const [rows, setRows] = useState<Row[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [w, setW] = useState({ track: "post", handle: "", note: "", tx: "" });
@@ -25,10 +24,12 @@ export function ContestAdmin() {
   const load = useCallback(async () => {
     const res = await authedFetch("/api/contest/admin", { cache: "no-store" });
     if (res.ok) setRows(((await res.json()) as { entries: Row[] }).entries);
+    else setRows(null);
   }, [authedFetch]);
   useEffect(() => {
-    if (authenticated && isAdmin) void load();
-  }, [authenticated, isAdmin, load]);
+    if (authenticated) void load();
+    else setRows(null);
+  }, [authenticated, load]);
 
   async function post(body: object) {
     const res = await authedFetch("/api/contest/admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -37,10 +38,10 @@ export function ContestAdmin() {
     if (res.ok) void load();
   }
 
-  if (!authenticated || !isAdmin) return null;
+  if (!authenticated || rows === null) return null;
   return (
     <section className="grid gap-5 rounded-[24px] border-2 border-dashed border-[var(--ink)] p-5 bg-[var(--card)]" aria-label="Contest admin">
-      <h2 className="m-0 font-display font-extrabold text-2xl">Team only: entries ({rows?.length ?? "…"})</h2>
+      <h2 className="m-0 font-display font-extrabold text-2xl">Team only: entries ({rows.length})</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px] border-collapse min-w-[760px]">
           <thead>
@@ -49,7 +50,7 @@ export function ContestAdmin() {
             </tr>
           </thead>
           <tbody>
-            {(rows ?? []).map((r) => (
+            {rows.map((r) => (
               <tr key={r.id} className={cn("border-t border-[var(--soft)] align-top", r.valid === false && "opacity-50")}>
                 <td className="p-2 font-semibold">@{r.x_handle}</td>
                 <td className="p-2">{r.email}<br />{r.telegram}</td>

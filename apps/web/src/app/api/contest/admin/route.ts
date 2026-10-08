@@ -1,14 +1,37 @@
 import { CONTEST, TRACKS, type TrackId } from "@/lib/contest";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
-import { canModerate } from "@/lib/server/moderation";
+import { keccak256, toBytes } from "viem";
+import { patchedMarketAbi } from "@patched/shared";
+import { MARKET, serverClient } from "@/lib/config";
+import type { SessionUser } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
+const ADMIN_ROLE = keccak256(toBytes("ADMIN_ROLE"));
+
+/**
+ * Who may read entries (emails, Telegram names) and rule on them. NOT the app's "open admin" (which lets any signed-in
+ * person act as an admin on the play-money site): entries are private, so this needs one of
+ * - an X handle listed in CONTEST_ADMINS (comma separated, no @; defaults to the two Patched accounts), checked against the
+ *   handle Privy verified on the signed-in account,
+ * - a wallet listed in CONTEST_ADMIN_WALLETS, or
+ * - a wallet that holds the market's real ADMIN_ROLE.
+ */
+async function isContestAdmin(user: SessionUser): Promise<boolean> {
+  const handles = (process.env.CONTEST_ADMINS ?? "dhruvpanch0li,Patched_world").toLowerCase().split(",").map((s) => s.trim().replace(/^@/, "")).filter(Boolean);
+  if (user.xHandle && handles.includes(user.xHandle.toLowerCase())) return true;
+  const wallets = (process.env.CONTEST_ADMIN_WALLETS ?? "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+  const mine = [user.wallet, ...user.wallets].filter(Boolean).map((w) => String(w).toLowerCase());
+  if (mine.some((w) => wallets.includes(w))) return true;
+  if (!user.wallet) return false;
+  return serverClient().readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "hasRole", args: [ADMIN_ROLE, user.wallet] }).catch(() => false);
+}
+
 async function admin(req: Request) {
   const user = await getSessionUser(req);
   if (!user) return { error: unauthorized() };
-  if (!(await canModerate(user.wallet))) return { error: Response.json({ error: "Only admins can do that." }, { status: 403 }) };
+  if (!(await isContestAdmin(user))) return { error: Response.json({ error: "Only the contest team can do that." }, { status: 403 }) };
   return { user };
 }
 
