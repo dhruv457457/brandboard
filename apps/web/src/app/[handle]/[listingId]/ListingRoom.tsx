@@ -579,7 +579,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                               transition={{ duration: 0.2 }}
                               className="overflow-hidden"
                             >
-                              <div className="px-5 pb-5 grid gap-5 md:grid-cols-[minmax(0,1fr)_230px]">
+                              <div className={cn("px-5 pb-5 grid gap-5", !isCar && "md:grid-cols-[minmax(0,1fr)_230px]")}>
                                 <div className="grid gap-3 content-start min-w-0">
                                   <p className="text-sm text-[var(--muted)]">{pg.perks?.[String(p.id)] || p.perks || tier.blurb}</p>
                                   {!biddingOpen || p.bought ? (
@@ -634,7 +634,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                                       {authenticated && (
                                         <details className="group">
                                           <summary className="text-sm font-semibold cursor-pointer list-none inline-flex items-center gap-1.5">
-                                            <Repeat size={14} /> Auto-bid: stay on top up to your limit
+                                            <Repeat size={14} /> Auto-bid: stay on top
                                           </summary>
                                           <div className="mt-3">
                                             <AutoBidPanel listingId={listing.id} patchId={p.id} label={p.label} minNext={minNext(p)} buyNow={p.buyNow} disabled={busy} />

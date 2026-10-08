@@ -82,48 +82,48 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
   }
 
   return (
-    <div className="rounded-2xl border-2 border-dashed border-[var(--line)] p-4 grid gap-3">
+    <div className="rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--paper)] p-3 grid gap-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 font-bold">
-          <Bot size={18} className="text-[var(--accent-text)]" /> Auto-bid
+        <span className="flex items-center gap-2 font-bold text-sm">
+          <Bot size={16} className="text-[var(--accent-text)]" /> Auto-bid
         </span>
         {on && !paused && <span className="text-xs font-semibold rounded-full bg-[var(--green-soft)] text-[var(--green)] px-2 py-0.5">On, up to {usd(active!)}</span>}
         {on && paused && <span className="text-xs font-semibold rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] px-2 py-0.5">Paused</span>}
       </div>
-      <p className="text-sm text-[var(--muted)]">
-        Keep me on top up to a maximum. When someone outbids you, Patched bids the next step for you, within seconds.
-      </p>
-      <label className="grid gap-1.5">
-        <span className="field-label">Up to</span>
-        <div className="amt">
-          <span>$</span>
-          <input inputMode="decimal" value={text} onChange={(e) => { typed.current = true; setText(e.target.value); }} disabled={disabled || auto.busy} aria-label="Auto-bid maximum" />
-          <span>USDC</span>
-        </div>
-      </label>
+      <p className="text-xs text-[var(--muted)]">If someone outbids you, Patched bids the next step for you, up to this maximum.</p>
+      <div className="flex gap-2 items-stretch">
+        <label className="flex-1 min-w-0 flex items-center gap-1.5 h-10 px-3 rounded-xl border-[1.5px] border-[var(--line)] bg-[var(--card)]">
+          <span className="text-[var(--muted)] font-mono">$</span>
+          <input className="w-0 flex-1 min-w-0 bg-transparent outline-none font-mono text-base font-semibold" inputMode="decimal" value={text}
+            onChange={(e) => { typed.current = true; setText(e.target.value); }} disabled={disabled || auto.busy} aria-label="Auto-bid maximum" />
+          <span className="text-xs text-[var(--muted)] font-mono">USDC</span>
+        </label>
+        <Button variant={on ? "default" : "primary"} className="flex-none" disabled={disabled || auto.busy || tooLow || (max === active && paused !== "allowance")} onClick={save}>
+          {auto.busy ? "Saving…" : on ? "Update" : "Turn on"}
+        </Button>
+      </div>
       {tooLow && text && <p className="text-xs text-[var(--muted)]">Set at least {usd(minNext)}, the next bid on this patch.</p>}
       {on && paused && (
         <p className="text-xs rounded-lg bg-[var(--accent-soft)] p-2" role="status">
           {paused === "balance"
             ? `Auto-bid is paused: your wallet has less than ${usd(minNext)}, the next bid. Send USDC to your wallet and it picks up again.`
-            : "Auto-bid is paused: its spending permission ran out during the bidding. Press Update maximum to top it up."}
+            : "Auto-bid is paused: its spending permission ran out during the bidding. Press Update to top it up."}
         </p>
       )}
       {auto.error && <p className="text-sm text-[var(--red)]" role="alert">{auto.error}</p>}
-      <div className="flex gap-2 flex-wrap">
-        <Button variant={on ? "default" : "primary"} disabled={disabled || auto.busy || tooLow || (max === active && paused !== "allowance")} onClick={save}>
-          {auto.busy ? "Saving…" : on ? "Update maximum" : "Turn on auto-bid"}
-        </Button>
-        {on && (
-          <Button variant="ghost" disabled={disabled || auto.busy} onClick={stop}>Turn off</Button>
-        )}
-      </div>
-      <p className="text-xs text-[var(--muted)] flex gap-1.5 items-start">
-        <ShieldCheck size={14} className="flex-none mt-px" />
-        {auto.mode === "signer"
-          ? "Bids come from your own wallet. Patched is added to it as a Privy signer whose policy only allows bids on the spots you pick, never above your maximum. Revoke it any time in Settings."
-          : "Runs on a Privy server wallet that can only call the auto-bid contract. The contract never bids above your maximum, and outbid bids come straight back to you. Your maximum is public on-chain, so someone could bid just to push you up toward it: a Patched wallet keeps it private."}
-      </p>
+      {on && (
+        <button type="button" className="justify-self-start text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]" disabled={disabled || auto.busy} onClick={stop}>
+          Turn off auto-bid
+        </button>
+      )}
+      <details className="text-xs text-[var(--muted)]">
+        <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 font-semibold"><ShieldCheck size={13} /> How it works</summary>
+        <p className="mt-1.5">
+          {auto.mode === "signer"
+            ? "Bids come from your own wallet. Patched is added to it as a Privy signer whose policy only allows bids on the spots you pick, never above your maximum. Revoke it any time in Settings."
+            : "Runs on a Privy server wallet that can only call the auto-bid contract. The contract never bids above your maximum, and outbid bids come straight back to you. Your maximum is public on-chain, so someone could bid just to push you up toward it: a Patched wallet keeps it private."}
+        </p>
+      </details>
     </div>
   );
 }
