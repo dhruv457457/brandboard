@@ -12,7 +12,7 @@ export interface NotificationRow {
   id: string;
   kind: string;
   tx_hash?: string | null;
-  payload: { listingId?: string; patchId?: number; amount?: string; refunded?: string; milestone?: number; price?: string; totalEscrow?: string; reason?: string; by?: string; photo?: string; caption?: string };
+  payload: { listingId?: string; patchId?: number; amount?: string; refunded?: string; milestone?: number; price?: string; totalEscrow?: string; reason?: string; by?: string; photo?: string; caption?: string; body?: string };
   read_at: string | null;
   created_at: string;
 }
@@ -42,6 +42,7 @@ function message(n: NotificationRow, patch: string, title: string, actor?: strin
     case "listing_failed": return `${title} missed a deadline. Your money for ${patch} was refunded.`;
     case "resale_sold": return `Your ${patch} patch sold for ${usd(p.price)}.`;
     case "spotted": return `${p.by ?? "Someone"} spotted you${title ? ` (${title})` : ""}${p.caption ? `: ${p.caption}` : "."}`;
+    case "comment": return `${p.by ?? "Someone"} commented${title ? ` on ${title}` : ""}${p.body ? `: ${p.body}` : "."}`;
     case "bid_forwarded": return `Your bid on ${patch} couldn't be placed, so the money went back to your wallet.`;
     default: return "Something happened on one of your patches.";
   }

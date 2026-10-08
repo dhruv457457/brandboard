@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const page = /^\d{1,30}$/.test(tokenId) ? await getNftPage(BigInt(tokenId)).catch(() => null) : null;
   if (!page) return { title: "Patch" };
   const t = page.token;
-  const title = `${displayBrand(t)} on ${t.label}: Sponsor No.${t.sponsorNo || "?"} of ${displayCreator(t)}`;
+  const title = `${displayBrand(t)} on ${t.label}: ${t.sponsorNo > 0 ? `Sponsor No.${t.sponsorNo} of` : "sponsor of"} ${displayCreator(t)}`;
   const description = `${STAGE_LABEL[t.stage]}. A patch NFT that changes as ${displayCreator(t)} proves each step. Won for ${formatUsdc(t.amount)} on Patched.`;
   const image = `/patch/${tokenId}/card.png?v=${t.stage}${t.proofsDone}`;
   return {

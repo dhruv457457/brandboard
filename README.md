@@ -22,7 +22,7 @@
   <img alt="Monad" src="https://img.shields.io/badge/Monad-testnet%20%2B%20mainnet-836EF9?style=flat-square">
   <img alt="Privy" src="https://img.shields.io/badge/Privy-wallets%2C%20signers%2C%20policies-FF5A1F?style=flat-square">
   <img alt="Solidity" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square">
-  <img alt="Tests" src="https://img.shields.io/badge/contract%20tests-120%20passing-1F8A4C?style=flat-square">
+  <img alt="Tests" src="https://img.shields.io/badge/contract%20tests-134%20passing-1F8A4C?style=flat-square">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-0B0B0C?style=flat-square">
 </p>
 
@@ -185,6 +185,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Your deal.** Choose how you get paid: part before the event for printing (10% to 50%), all after, per event day, or a custom split of up to 4 steps. A live payout bar shows the split and the proof date of each step. Pick what every brand gets (photos, parked hours, route check-ins, an X post); brands see it before they bid.
 - **Stake.** You lock a small bond when you publish. It comes back when you deliver.
 - **Editable sponsor page.** Edit your listing page in place: headline, intro, perks per spot, section titles, accent colour, and which sections are shown. The FAQ is editable too.
+- **Your own background.** Put a colour or a picture behind your photo, on your page and in the feed. Set it when you publish, change it any time with Edit page → Background.
 - **Share kit.** A poster maker with templates, a QR code and downloadable images. Every listing also gets its own link preview image for X and chats.
 - **Creator studio.** Close bidding, see the winners, upload proof for each milestone and release your payments.
 - **One profile.** `/<handle>` shows your listings, the spots you sponsor and your record. As the owner you also get your Earnings (what needs doing, payouts) and Bids tabs there, so there's no separate dashboard to find.
@@ -237,7 +238,9 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 <details>
 <summary><b>Discovery and social</b></summary>
 
-- **Home feed.** Signed in, `/` is a feed of new listings, bids ("Kite took Chest on Dhruv · $120", with Outbid) and proofs, with upcoming events, what's ending soon and search alongside.
+- **Comments.** Free, one line each, on the whole listing or about one spot. The author and the creator can remove one, and the creator is told.
+- **Patchwork.** Home switches between the feed and a living graph of an event: creators, their spots, the brands leading them and the people who spotted them, all connected by what happened on-chain. Replay plays an event back in about 20 seconds.
+- **Home feed.** Signed in, `/` is a feed of new listings, bids ("Nike unseated Kite and took Chest on Dhruv · $120", with Outbid) and proofs, with upcoming events, what's ending soon and search alongside.
 - **Explore board.** Live listings with search, surface filters, bid counts and a live activity feed.
 - **Events.** `/events` lists every event with its cover. `/e/<slug>` has the cover, venue and links, who's going, leaderboards (most sponsored, brand on the most spots, biggest bidding war), every spot and a live wall of bids. Admins edit the cover and details.
 - **Notifications.** A live bell and a full `/notifications` page for outbid, new bid, auto-bid placed or paused, won, listing live or rejected, bidding closed, proof posted, dispute opened, payment made, no-show refund and resale sold.
@@ -247,13 +250,15 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 <details>
 <summary><b>Getting around</b></summary>
 
-- **An app shell like X.** A slim sidebar (Home, Events, Explore, Activity, Profile and Create) that never reloads. Your name and dollar balance sit at the bottom; tapping it opens the wallet: Add money, My bids, Campaigns, Earnings, Settings, theme, network and sign out.
+- **An app shell like X.** A slim sidebar (Home, Events, Explore, Activity, Profile and Create) that never reloads. Once signed in, Automate, Campaigns and Earnings sit under it. Your name and dollar balance sit at the bottom; tapping it opens the wallet: Add money, My bids, Settings, theme, network and sign out.
+- **Car pages are a road scene.** The car sits large on a moving road, with the spots of the side you are looking at beside it, so you can bid without scrolling. Car cards in the feed sit on the same road.
+- **Printed, not boxed.** When bidding ends, winning brands are printed into the photo: their logo is cut out of its box and blended into the fabric.
 - **Phone navigation:** bottom tabs (Home, Events, Create, Activity, Profile) and your avatar at the top for the wallet.
 - **A creator's page stands alone.** A listing page is the creator's own site with only a small "Made with Patched" mark, so sharing it on X feels like sharing a site they built.
 - **Welcome.** New visitors sign in on a page that plays the whole story (sign in, draw spots, brands bid, show up, get paid) across outfits, vehicles and team hoodies, then pick a name, a handle (checked live) and whether they sell spots, sponsor or both.
 - **Settings** (`/settings`): profile, brand (name, logo, website, verified badge), security (passkey, wallet export) and network, in one place.
 - **Listing tools:** a creator's listing page, Manage screen and Share kit are tabs of one bar.
-- **Testnet and mainnet:** each runs as its own site from the same code. A switch in the wallet panel and Settings moves between them and keeps you on the same page where it exists.
+- **Testnet and mainnet:** each runs as its own site from the same code. A switch at the bottom of the sidebar (and in the wallet panel and Settings) moves between them and keeps you on the same page where it exists. Going to mainnet first says it is a test run.
 
 </details>
 
@@ -292,7 +297,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 |---|---|---|
 | PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
 | PatchReceipt, Living Patch (listings 11 and later) | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` | not upgraded yet |
-| PatchRenderer | `0x59171aEA5658B057BD8eC1F948672a3Aeb06F7fe` | not upgraded yet |
+| PatchRenderer | `0xE0369f8e0cddf96Ad069A413D3a53f7109c9826d` | not upgraded yet |
 | PatchReceipt, first version (listings 1 to 10) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba` |
@@ -302,7 +307,7 @@ The mainnet contracts are verified on Monad's Sourcify; the testnet ones are not
 
 ## Tech stack
 
-- **Contracts:** Solidity 0.8.28, Foundry, OpenZeppelin v5.4, with unit, fuzz and invariant tests (120 passing).
+- **Contracts:** Solidity 0.8.28, Foundry, OpenZeppelin v5.4, with unit, fuzz and invariant tests (134 passing).
 - **Web:** Next.js (App Router), React 19, Tailwind CSS v4, Motion, NumberFlow, viem, Privy.
 - **Data:** Supabase (Postgres, Storage, Realtime), with our own indexer in `packages/indexer`.
 - **Storage:** proofs and photos on IPFS through QuickNode.

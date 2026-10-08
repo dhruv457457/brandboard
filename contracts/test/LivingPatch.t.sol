@@ -174,6 +174,16 @@ contract LivingPatchTest is BaseTest {
         assertEq(c.eventStr, "Outfit");
     }
 
+    function test_a_receipt_without_a_sponsor_number_shows_which_spot_it_is() public {
+        uint256 id = _delivering();
+        PatchedMarket.TokenView memory v = _tv(id, 0);
+        v.sponsorNo = 0; // minted before sponsor numbers existed
+        PatchCard memory c = new RendererHarness(address(this)).card(v);
+        string memory svg = PatchArt.render(c);
+        assertFalse(_has(svg, "No.000"));
+        assertTrue(_has(svg, string.concat(">#", vm.toString(id), ".1<")));
+    }
+
     function test_token_uri_is_json_with_the_traits() public {
         vm.prank(alice);
         market.setBrandName("Nodeflux");

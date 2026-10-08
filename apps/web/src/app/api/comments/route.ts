@@ -55,8 +55,8 @@ export async function POST(req: Request) {
 
   const db = supabaseAdmin();
   const [{ data: author }, { data: listing }] = await Promise.all([
-    db.from("profiles").select("id").eq("privy_did", user.did).maybeSingle(),
-    db.from("listings").select("status").eq("chain_id", CHAIN_ID).eq("listing_id", listingId).maybeSingle(),
+    db.from("profiles").select("id, display_name, handle").eq("privy_did", user.did).maybeSingle(),
+    db.from("listings").select("status, creator").eq("chain_id", CHAIN_ID).eq("listing_id", listingId).maybeSingle(),
   ]);
   if (!author) return Response.json({ error: "Finish your profile first." }, { status: 400 });
   if (!listing || listing.status === 0 || listing.status === 6) return Response.json({ error: "That listing isn't live." }, { status: 404 });
@@ -65,6 +65,14 @@ export async function POST(req: Request) {
     .insert({ chain_id: CHAIN_ID, listing_id: listingId, patch_id: patchId, author: author.id, body })
     .select("id").single();
   if (error || !row) return Response.json({ error: /listing_comments/.test(error?.message ?? "") ? NOT_READY : "Couldn't post that. Try again." }, { status: 500 });
+  // Tell the creator, unless they wrote it themselves.
+  const creator = String(listing.creator ?? "").toLowerCase();
+  if (creator && creator !== user.wallet) {
+    await db.from("notifications").upsert({
+      chain_id: CHAIN_ID, tx_hash: `comment:${row.id}`, log_index: 0, wallet: creator, kind: "comment",
+      payload: { listingId: String(listingId), by: author.display_name ?? (author.handle ? `@${author.handle}` : "Someone"), body: body.slice(0, 120) },
+    }, { onConflict: "chain_id,tx_hash,log_index,wallet,kind", ignoreDuplicates: true });
+  }
   return Response.json({ id: row.id });
 }
 

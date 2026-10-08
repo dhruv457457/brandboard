@@ -398,11 +398,15 @@ library PatchArt {
 
     function _header(PatchCard memory c) private pure returns (string memory) {
         bool first = c.sponsorNo == 1;
+        // Receipts minted before sponsor numbers existed have none: show which spot it is instead.
+        string memory num = c.sponsorNo > 0
+            ? string.concat("No.", _pad3(c.sponsorNo))
+            : string.concat("#", uint256(c.listingId).toString(), ".", (uint256(c.patchId) + 1).toString());
         return string.concat(
             '<text x="64" y="118" font-family="',
             DISPLAY,
-            '" font-weight="800" font-size="76" letter-spacing="-0.04em" fill="#F4EFE3">No.',
-            _pad3(c.sponsorNo),
+            '" font-weight="800" font-size="76" letter-spacing="-0.04em" fill="#F4EFE3">',
+            num,
             '</text><text x="68" y="158" font-family="',
             MONO,
             '" font-weight="600" font-size="22" letter-spacing="2" fill="',
@@ -626,7 +630,9 @@ contract PatchRenderer is Ownable, IPatchRenderer {
         pure
         returns (string memory)
     {
-        string memory who = string.concat(c.brand, " backed ", c.creator, " (sponsor No.", uint256(c.sponsorNo).toString(), "). ");
+        string memory who = c.sponsorNo > 0
+            ? string.concat(c.brand, " backed ", c.creator, " (sponsor No.", uint256(c.sponsorNo).toString(), "). ")
+            : string.concat(c.brand, " backed ", c.creator, ". ");
         if (v.stage == PatchArt.DELIVERED) {
             return string.concat(who, "The creator delivered and was paid. This patch is a permanent record that it happened.");
         }
@@ -656,8 +662,7 @@ contract PatchRenderer is Ownable, IPatchRenderer {
         return string.concat(
             _trait("Stage", _stageName(v.stage)),
             ",",
-            _num("Sponsor #", c.sponsorNo),
-            ",",
+            c.sponsorNo > 0 ? string.concat(_num("Sponsor #", c.sponsorNo), ",") : "",
             _trait("Proofs", string.concat(uint256(v.proofsDone).toString(), "/", uint256(v.milestoneCount).toString())),
             ",",
             _trait("Creator", c.creator),
