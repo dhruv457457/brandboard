@@ -35,7 +35,8 @@ export default async function SharePatchworkPage({ params }: Params) {
   if (!valid(eventId, wallet)) notFound();
   const g = await fetchEventGraph(Number(eventId)).catch(() => null);
   if (!g) notFound();
-  const to = `/?view=patchwork&event=${eventId}`;
+  // The event page works for visitors who are not signed in; Home would show them the landing page instead.
+  const to = eventId === "0" ? "/?view=patchwork&event=0" : `/e/${eventId}/patchwork`;
   return (
     <main className="min-h-dvh grid place-items-center p-6 gap-4 content-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}

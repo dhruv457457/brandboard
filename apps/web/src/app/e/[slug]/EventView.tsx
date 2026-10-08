@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Flame, Globe, Megaphone, Plus, Swords, Trophy, Users, Zap } from "lucide-react";
+import { ExternalLink, Flame, Globe, Megaphone, Network, Plus, Swords, Trophy, Users, Zap } from "lucide-react";
 import { EventHeader } from "@/components/events/EventHeader";
 import { ListingCardView } from "@/components/market/ListingCardView";
 import { Avatar } from "@/components/ui/Avatar";
@@ -82,6 +82,7 @@ export function EventView({ event, cards: wire, leaderboards, wall }: { event: E
         actions={<>
           {event.website && <a href={event.website} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><Globe size={14} /> Website <ExternalLink size={12} /></a>}
           {event.x && <a href={event.x} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg> On X</a>}
+          <Link href={`/e/${event.id}/patchwork`} className="btn-base btn-small"><Network size={14} /> Patchwork</Link>
           <FollowButton kind="event" id={`${CHAIN_ID}:${event.id}`} />
           {event.active && !past && <Link href={`/campaigns/new?event=${event.id}`} className="btn-base btn-small"><Megaphone size={14} /> Sponsor everyone here</Link>}
           {event.active && !past && <Link href="/studio" className="btn-base btn-small btn-primary"><Plus size={14} /> Get patched here</Link>}
