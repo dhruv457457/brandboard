@@ -89,13 +89,13 @@ export function StoryPanel({ className }: { className?: string }) {
         </button>
       </div>
 
-      <div className="flex items-center gap-4 mt-3 flex-none text-[15px] text-[#0B0B0C]" role="tablist" aria-label="What creators patch">
-        <span className="font-mono text-xs font-semibold tracking-[0.06em]">PATCH ANYTHING</span>
+      <div className="flex items-center gap-3 sm:gap-4 mt-3 flex-none text-[14px] sm:text-[15px] text-[#0B0B0C] whitespace-nowrap overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="What creators patch">
+        <span className="hidden sm:inline font-mono text-xs font-semibold tracking-[0.06em]">PATCH ANYTHING</span>
         {SURFACES.map((s, i) => {
           const on = scene >= 1 && scene <= 3 && surface === i;
           return (
             <button key={s.label} role="tab" aria-selected={on} onClick={() => go(s.scene)}
-              className="h-8 border-b-[2.5px] transition-opacity" style={{ borderColor: on ? INK : "transparent", fontWeight: on ? 800 : 600, opacity: on || scene === 4 ? 1 : 0.6 }}>
+              className="h-8 flex-none whitespace-nowrap border-b-[2.5px] transition-opacity" style={{ borderColor: on ? INK : "transparent", fontWeight: on ? 800 : 600, opacity: on || scene === 4 ? 1 : 0.6 }}>
               {s.label}
             </button>
           );

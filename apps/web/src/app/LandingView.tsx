@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ContestBanner } from "@/components/contest/ContestBanner";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -479,9 +480,9 @@ function FinalCta() {
     <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-16">
       <Reveal>
         <div className="relative overflow-hidden rounded-[36px] bg-[#0B0B0C] text-white px-6 py-16 sm:py-24 text-center">
-          <DecoPatch color="p3" className="w-20 h-14 top-8 left-[8%]" rotate={-12} delay={0.2} />
+          <DecoPatch color="p3" className="w-11 h-8 top-4 left-4 sm:w-20 sm:h-14 sm:top-8 sm:left-[8%]" rotate={-12} delay={0.2} />
           <DecoPatch color="p2" className="w-14 h-14 bottom-10 left-[16%] hidden sm:block" rotate={8} delay={0.35} />
-          <DecoPatch color="p1" className="w-16 h-11 top-12 right-[10%]" rotate={14} delay={0.5} />
+          <DecoPatch color="p1" className="w-10 h-8 bottom-5 right-5 sm:bottom-auto sm:w-16 sm:h-11 sm:top-12 sm:right-[10%]" rotate={14} delay={0.5} />
           <DecoPatch color="p5" className="w-12 h-16 bottom-8 right-[18%] hidden sm:block" rotate={-6} delay={0.65} />
           <div className="relative">
             <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight">Stop posting for free.</h2>
@@ -515,6 +516,8 @@ export function LandingView({ featured, stats, ticker, brandLogos }: LandingData
   return (
     <MotionConfig reducedMotion="user">
       <div className="overflow-x-clip">
+        {/* Most visitors come from the contest post on X: show them the way in first. */}
+        <div className="max-w-6xl mx-auto sm:px-4 pt-1 sm:pt-3"><ContestBanner /></div>
         <Hero featured={featured} ticker={ticker} stats={stats} brandLogos={brandLogos} />
         <Ticker items={ticker} />
         <StoryBand />
