@@ -2,7 +2,7 @@ import "server-only";
 import { createPublicClient, http } from "viem";
 import { monadTestnet } from "@patched/shared";
 import { CHAIN_ID } from "@/lib/config";
-import { CONTEST, CONTEST_EVENT_SLUG, DEADLINE, OPENS, type ContestData, type ContestSteps, type ContestWinner, type MyEntry, type PublicEntry, type TrackId } from "@/lib/contest";
+import { CONTEST, CONTEST_EVENT_SLUG, DEADLINE, OPENS, type ContestData, type ContestSteps, type ContestWinner, type MyEntry, type PublicEntry, type PublicPerson, type TrackId } from "@/lib/contest";
 import type { SessionUser } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -73,32 +73,66 @@ const toMine = (r: EntryRow): MyEntry => ({
 export async function fetchContest(user: SessionUser | null): Promise<ContestData> {
   const db = supabaseAdmin();
   const event = await contestEvent();
-  const [{ data: rows }, { data: winnerRows }, numbers] = await Promise.all([
+  const [{ data: rows }, { data: winnerRows }, numbers, { data: signups, count: joinedCount }] = await Promise.all([
     db.from("contest_entries").select("id, privy_did, profile_id, wallet, x_handle, email, telegram, tracks, post_url, feedback_url, feedback_text, joined_telegram, valid, created_at, updated_at")
       .eq("contest", CONTEST).order("created_at").order("id").limit(5000),
     db.from("contest_winners").select("track, x_handle, note, tx_hash").eq("contest", CONTEST),
     eventNumbers(event?.id ?? null, user?.wallet ?? null),
+    db.from("contest_signups").select("privy_did, profile_id, x_handle, created_at", { count: "exact" }).eq("contest", CONTEST).order("created_at", { ascending: false }).limit(200),
   ]);
   const all = (rows ?? []) as EntryRow[];
   // Public view: handle, avatar and tracks of every entry that has not been ruled out.
   const shown = all.filter((e) => e.valid !== false);
-  const profileIds = [...new Set(shown.map((e) => e.profile_id).filter(Boolean))] as string[];
+  const joinedRows = (signups ?? []) as { privy_did: string; profile_id: string | null; x_handle: string | null; created_at: string }[];
+  const profileIds = [...new Set([...shown.map((e) => e.profile_id), ...joinedRows.map((j) => j.profile_id)].filter(Boolean))] as string[];
   const { data: profiles } = profileIds.length ? await db.from("profiles").select("id, avatar_url").in("id", profileIds) : { data: [] as { id: string; avatar_url: string | null }[] };
   const avatar = new Map((profiles ?? []).map((p) => [p.id, p.avatar_url]));
   const entries: PublicEntry[] = shown.map((e) => ({ handle: e.x_handle, avatar: (e.profile_id && avatar.get(e.profile_id)) || null, tracks: e.tracks as TrackId[] }));
 
+  const people: PublicPerson[] = joinedRows.filter((j) => j.x_handle).map((j) => ({ handle: String(j.x_handle), avatar: (j.profile_id && avatar.get(j.profile_id)) || null }));
   const mine = user ? all.find((e) => e.privy_did === user.did) : undefined;
+  const joined = Boolean(user && (mine || joinedRows.some((j) => j.privy_did === user.did) || (await isJoined(user.did))));
   const steps: ContestSteps = { x: Boolean(user?.xHandle), action: numbers.action };
   const winners: ContestWinner[] = (winnerRows ?? []).map((w) => ({ track: w.track as TrackId, handle: String(w.x_handle), note: w.note as string | null, tx: w.tx_hash as string | null }));
   return {
     open: Date.now() < DEADLINE,
     deadline: DEADLINE,
     event,
-    stats: { entries: shown.length, ...numbers.stats },
+    stats: { joined: Math.max(joinedCount ?? 0, shown.length), entries: shown.length, ...numbers.stats },
     entries,
+    people,
     winners,
-    me: user ? { xHandle: user.xHandle, email: user.emails[0] ?? null, steps, entry: mine ? toMine(mine) : null } : null,
+    me: user ? { xHandle: user.xHandle, email: user.emails[0] ?? null, joined, steps, entry: mine ? toMine(mine) : null } : null,
   };
+}
+
+async function isJoined(did: string) {
+  const { data } = await supabaseAdmin().from("contest_signups").select("privy_did").eq("contest", CONTEST).eq("privy_did", did).maybeSingle();
+  return Boolean(data);
+}
+
+/** Add a signed-in person to the joined list (idempotent). */
+export async function joinContest(user: SessionUser) {
+  const db = supabaseAdmin();
+  const { data: profile } = await db.from("profiles").select("id").eq("privy_did", user.did).maybeSingle();
+  await db.from("contest_signups").upsert(
+    { contest: CONTEST, privy_did: user.did, profile_id: profile?.id ?? null, wallet: user.wallet, x_handle: user.xHandle },
+    { onConflict: "contest,privy_did", ignoreDuplicates: false },
+  );
+}
+
+/** The funnel for the team: anonymous visitors per step, people who joined, entries, and how many count. */
+export async function contestFunnel() {
+  const db = supabaseAdmin();
+  const count = async (step: string) =>
+    (await db.from("contest_funnel").select("visitor", { count: "exact", head: true }).eq("contest", CONTEST).eq("step", step)).count ?? 0;
+  const [views, joinTaps, formStarts, joined, entries, valid] = await Promise.all([
+    count("view"), count("join"), count("form"),
+    db.from("contest_signups").select("privy_did", { count: "exact", head: true }).eq("contest", CONTEST).then((r) => r.count ?? 0),
+    db.from("contest_entries").select("id", { count: "exact", head: true }).eq("contest", CONTEST).then((r) => r.count ?? 0),
+    db.from("contest_entries").select("id", { count: "exact", head: true }).eq("contest", CONTEST).eq("valid", true).then((r) => r.count ?? 0),
+  ]);
+  return { views, joinTaps, joined, formStarts, entries, valid };
 }
 
 let cached: { number: number; hash: string; time: number } | null = null;

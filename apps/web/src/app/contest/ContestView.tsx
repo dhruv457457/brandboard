@@ -2,22 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, Camera, Check, ExternalLink, Gavel, MessageCircle, Send, Trophy } from "lucide-react";
+import { ArrowDown, Camera, Check, ExternalLink, Gavel, Hand, Loader2, MessageCircle, Send, Trophy } from "lucide-react";
 import NumberFlow from "@number-flow/react";
 import { Avatar } from "@/components/ui/Avatar";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { DEADLINE, HASHTAG, TELEGRAM_URL, TRACKS, X_URL, type ContestData } from "@/lib/contest";
 import { cn } from "@/lib/utils";
-import { Countdown, Floaters, Heading, Patch, SpinBadge, ThreadUnderline, hand } from "@/components/contest/Decor";
+import { Confetti, Countdown, Floaters, Heading, Patch, SpinBadge, ThreadUnderline, hand } from "@/components/contest/Decor";
+import { trackContest } from "@/lib/contestTrack";
 import { DrawStage, type DrawResult } from "@/components/contest/DrawStage";
 import { EntryForm } from "@/components/contest/EntryForm";
 import { ContestAdmin } from "@/components/contest/ContestAdmin";
 import "./contest.css";
 
+const JOIN_PENDING = "patched.contest.join";
+
 const EMPTY: ContestData = {
-  open: true, deadline: DEADLINE, event: null, entries: [], winners: [], me: null,
-  stats: { entries: 0, listings: 0, bids: 0, creators: 0, spots: 0 },
+  open: true, deadline: DEADLINE, event: null, entries: [], people: [], winners: [], me: null,
+  stats: { joined: 0, entries: 0, listings: 0, bids: 0, creators: 0, spots: 0 },
 };
 
 /** The Get Patched Week page: hero, how to enter, the three tracks, the lucky draw, timeline, entry form. */
@@ -45,14 +48,52 @@ export function ContestView({ cover }: { cover: string | null }) {
     return () => clearInterval(t);
   }, [ready, authenticated, load]);
 
+  // Count this visit once (anonymous), for the team's funnel.
+  useEffect(() => trackContest("view"), []);
+
+  // "Count me in": one tap. Signed-out people sign in first and are counted in when they come back.
+  const [joining, setJoining] = useState(false);
+  const [fire, setFire] = useState(0);
+  const join = useCallback(async () => {
+    setJoining(true);
+    const res = await authedFetch("/api/contest/join", { method: "POST" }).catch(() => null);
+    setJoining(false);
+    if (res?.ok) {
+      setFire((n) => n + 1);
+      await load();
+    }
+  }, [authedFetch, load]);
+  const countMeIn = () => {
+    trackContest("join");
+    if (authenticated) return void join();
+    try {
+      sessionStorage.setItem(JOIN_PENDING, "1");
+    } catch {
+      /* storage blocked: they tap again after signing in */
+    }
+    login();
+  };
+  useEffect(() => {
+    if (!ready || !authenticated || !loaded || data.me?.joined) return;
+    let pending = false;
+    try {
+      pending = sessionStorage.getItem(JOIN_PENDING) === "1";
+      sessionStorage.removeItem(JOIN_PENDING);
+    } catch {
+      /* ignore */
+    }
+    if (pending) void join();
+  }, [ready, authenticated, loaded, data.me?.joined, join]);
+
   const eventHref = data.event ? `/e/${data.event.slug}` : "/events";
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 
   return (
     <div className="ct pb-28">
       <div className="mx-auto w-full max-w-[1120px] px-4 sm:px-6 grid gap-16 sm:gap-28 pt-4 sm:pt-8">
-        <Hero data={data} cover={cover} loaded={loaded} onEnter={() => go("enter")} />
-        <Ticker entries={data.entries} />
+        <Hero data={data} cover={cover} loaded={loaded} onEnter={() => go("enter")} onJoin={countMeIn} joining={joining} />
+        <Confetti fire={fire} />
+        <Ticker people={data.people} />
         {data.winners.length > 0 && <Winners data={data} />}
         <Steps data={data} eventHref={eventHref} signedIn={authenticated} onSignIn={login} onForm={() => go("enter")} />
         <Tracks />
@@ -91,8 +132,9 @@ export function ContestView({ cover }: { cover: string | null }) {
 
 /* ───────────────────────── hero ───────────────────────── */
 
-function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: string | null; loaded: boolean; onEnter: () => void }) {
-  const stats: [string, number][] = [["Entries", data.stats.entries], ["Listings", data.stats.listings], ["Bids", data.stats.bids], ["Creators", data.stats.creators]];
+function Hero({ data, cover, loaded, onEnter, onJoin, joining }: { data: ContestData; cover: string | null; loaded: boolean; onEnter: () => void; onJoin: () => void; joining: boolean }) {
+  const stats: [string, number][] = [["Joined", data.stats.joined], ["Entries", data.stats.entries], ["Listings", data.stats.listings], ["Bids", data.stats.bids]];
+  const joined = Boolean(data.me?.joined);
   return (
     <section className="relative rounded-[28px] sm:rounded-[36px] border-[3px] border-[var(--ink)] bg-[var(--card)] shadow-[5px_5px_0_var(--shadow)] sm:shadow-[8px_8px_0_var(--shadow)] overflow-hidden">
       <Floaters
@@ -128,9 +170,16 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
             <Countdown to={DEADLINE} />
           </div>
           <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3 pt-1">
-            <button type="button" onClick={onEnter} className="btn-base btn-primary text-base h-12 px-6 justify-center"><ArrowDown size={18} /> Enter now</button>
+            {!data.open ? null : joined ? (
+              <button type="button" onClick={onEnter} className="btn-base btn-primary text-base h-12 px-6 justify-center"><ArrowDown size={18} /> {data.me?.entry ? "Edit your entry" : "Finish your entry"}</button>
+            ) : (
+              <button type="button" onClick={onJoin} disabled={joining} className="btn-base btn-primary text-base h-12 px-6 justify-center">
+                {joining ? <Loader2 size={18} className="animate-spin" /> : <Hand size={18} />} Count me in
+              </button>
+            )}
             <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="btn-base h-12 px-6 text-base justify-center"><Send size={17} /> Join the Telegram</a>
           </div>
+          <JoinedLine data={data} joined={joined} onEnter={onEnter} />
         </div>
 
         <div className="relative grid place-items-center lg:min-h-[420px] pb-6 sm:pb-0">
@@ -171,8 +220,28 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
   );
 }
 
-function Ticker({ entries }: { entries: ContestData["entries"] }) {
-  const items = entries.slice(-30).reverse();
+/** Social proof under the buttons: faces of the latest people in, and where you stand. */
+function JoinedLine({ data, joined, onEnter }: { data: ContestData; joined: boolean; onEnter: () => void }) {
+  const faces = data.people.slice(0, 5);
+  const n = data.stats.joined;
+  if (!n && !joined) return <p className="m-0 text-sm text-[var(--muted)]">One tap to say you&apos;re in. You can finish the steps later.</p>;
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {faces.length > 0 && (
+        <span className="flex -space-x-2.5">
+          {faces.map((p) => <Avatar key={p.handle} src={p.avatar} name={p.handle} wallet={null} size={30} className="!border-2 !border-[var(--card)] ring-2 ring-[var(--ink)]" />)}
+        </span>
+      )}
+      <span className="text-sm">
+        <b className="font-display font-extrabold text-base">{n.toLocaleString("en-US")}</b> {n === 1 ? "person is" : "people are"} in{joined ? ", you included." : " so far."}
+        {joined && !data.me?.entry && <> <button type="button" onClick={onEnter} className="font-semibold underline underline-offset-2">Finish your entry</button> to win.</>}
+      </span>
+    </div>
+  );
+}
+
+function Ticker({ people }: { people: ContestData["people"] }) {
+  const items = people.slice(0, 30);
   if (!items.length) {
     return (
       <div className="-mt-8 sm:-mt-14 text-center">
@@ -182,7 +251,7 @@ function Ticker({ entries }: { entries: ContestData["entries"] }) {
   }
   const row = [...items, ...items];
   return (
-    <div className="-mt-10 sm:-mt-14 overflow-hidden border-y-[2.5px] border-[var(--ink)] bg-[var(--accent)] py-3 -mx-4 sm:-mx-6 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]" aria-label="People who entered">
+    <div className="-mt-10 sm:-mt-14 overflow-hidden border-y-[2.5px] border-[var(--ink)] bg-[var(--accent)] py-3 -mx-4 sm:-mx-6 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]" aria-label="People who joined">
       <div className="ct-marquee" style={{ "--dur": `${Math.max(24, items.length * 3)}s` } as React.CSSProperties}>
         {row.map((e, i) => (
           <span key={i} className="mx-2 inline-flex items-center gap-2 rounded-full border-2 border-[#0b0b0c] bg-[var(--card)] py-1 pl-1 pr-3 text-[14px] font-bold text-[#0b0b0c] whitespace-nowrap">

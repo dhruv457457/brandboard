@@ -9,6 +9,8 @@ export const OPENS = Date.parse("2026-10-07T18:30:00Z");
 export const TELEGRAM_URL = "https://t.me/patchedworld";
 export const X_URL = "https://x.com/Patched_world";
 export const HASHTAG = "#GetPatched";
+export const FUNNEL_STEPS = ["view", "join", "form"] as const;
+export type FunnelStep = (typeof FUNNEL_STEPS)[number];
 
 export const TRACKS = [
   { id: "post", name: "Best post", prize: 10, blurb: "An X post, thread or video about using Patched. Tag @Patched_world and add #GetPatched.", judged: "Creativity and honesty, picked by the team. Not views, so small accounts can win." },
@@ -58,7 +60,15 @@ export interface MyEntry {
   updatedAt: string;
 }
 
+/** Someone who tapped "Count me in" (or entered). Only people with an X handle are listed by name. */
+export interface PublicPerson {
+  handle: string;
+  avatar: string | null;
+}
+
 export interface ContestStats {
+  /** People who joined: tapped "Count me in" or entered. */
+  joined: number;
   entries: number;
   listings: number;
   bids: number;
@@ -86,9 +96,11 @@ export interface ContestData {
   event: { id: number; slug: string; name: string } | null;
   stats: ContestStats;
   entries: PublicEntry[];
+  /** Joined people with an X handle, newest first (for the ticker). */
+  people: PublicPerson[];
   winners: ContestWinner[];
   /** Present when the caller is signed in. */
-  me: { xHandle: string | null; email: string | null; steps: ContestSteps; entry: MyEntry | null } | null;
+  me: { xHandle: string | null; email: string | null; joined: boolean; steps: ContestSteps; entry: MyEntry | null } | null;
 }
 
 /**

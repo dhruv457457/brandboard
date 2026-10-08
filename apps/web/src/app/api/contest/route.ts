@@ -1,5 +1,5 @@
 import { CONTEST, DEADLINE, FEEDBACK_MAX, FEEDBACK_MIN, EMAIL_RE, TELEGRAM_RE, TRACKS, normalizePostUrl, normalizeUrl, type TrackId } from "@/lib/contest";
-import { fetchContest } from "@/lib/server/contest";
+import { fetchContest, joinContest } from "@/lib/server/contest";
 import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -72,5 +72,6 @@ export async function POST(req: Request) {
     { onConflict: "contest,privy_did" },
   );
   if (error) return Response.json({ error: "Couldn't save your entry. Try again in a moment." }, { status: 500 });
+  await joinContest(user).catch(() => {});
   return Response.json({ ok: true });
 }

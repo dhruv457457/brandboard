@@ -7,6 +7,7 @@ import { useAuthedFetch } from "@/lib/authedFetch";
 import { FEEDBACK_MAX, FEEDBACK_MIN, HASHTAG, TELEGRAM_URL, TRACKS, type ContestData, type TrackId } from "@/lib/contest";
 import { cn } from "@/lib/utils";
 import { Confetti, Patch, hand } from "./Decor";
+import { trackContest } from "@/lib/contestTrack";
 
 const label = "font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]";
 
@@ -121,7 +122,7 @@ export function EntryForm({ data, onSaved }: { data: ContestData; onSaved: () =>
   }
 
   return (
-    <form onSubmit={submit} className={cn(shell, "grid gap-6")} noValidate>
+    <form onSubmit={submit} onFocusCapture={() => trackContest("form")} className={cn(shell, "grid gap-6")} noValidate>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="m-0 font-display font-extrabold text-3xl leading-none">{mine ? "Your entry" : "Enter the contest"}</h3>
         {mine && <span className="ct-stamp is-done">Saved</span>}

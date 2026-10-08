@@ -5,6 +5,7 @@ import { patchedMarketAbi } from "@patched/shared";
 import { MARKET, serverClient } from "@/lib/config";
 import type { SessionUser } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { contestFunnel } from "@/lib/server/contest";
 
 export const runtime = "nodejs";
 
@@ -42,7 +43,11 @@ export async function GET(req: Request) {
   const { data } = await supabaseAdmin().from("contest_entries")
     .select("id, x_handle, email, telegram, tracks, post_url, feedback_url, feedback_text, valid, created_at, updated_at")
     .eq("contest", CONTEST).order("created_at").order("id").limit(5000);
-  return Response.json({ entries: data ?? [] }, { headers: { "cache-control": "no-store" } });
+  const [funnel, { data: joined }] = await Promise.all([
+    contestFunnel(),
+    supabaseAdmin().from("contest_signups").select("x_handle, wallet, created_at").eq("contest", CONTEST).order("created_at", { ascending: false }).limit(1000),
+  ]);
+  return Response.json({ entries: data ?? [], funnel, joined: joined ?? [] }, { headers: { "cache-control": "no-store" } });
 }
 
 /**

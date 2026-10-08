@@ -7,6 +7,9 @@ import { useAuthedFetch } from "@/lib/authedFetch";
 import { TRACKS } from "@/lib/contest";
 import { cn } from "@/lib/utils";
 
+interface Funnel { views: number; joinTaps: number; joined: number; formStarts: number; entries: number; valid: number }
+interface Joined { x_handle: string | null; wallet: string | null; created_at: string }
+
 interface Row {
   id: string; x_handle: string; email: string | null; telegram: string; tracks: string[]; post_url: string | null;
   feedback_url: string | null; feedback_text: string | null; valid: boolean | null; created_at: string;
@@ -18,13 +21,19 @@ export function ContestAdmin() {
   const authedFetch = useAuthedFetch();
   // null until the server says this person is on the team (it refuses everyone else).
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [funnel, setFunnel] = useState<Funnel | null>(null);
+  const [joined, setJoined] = useState<Joined[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [w, setW] = useState({ track: "post", handle: "", note: "", tx: "" });
 
   const load = useCallback(async () => {
     const res = await authedFetch("/api/contest/admin", { cache: "no-store" });
-    if (res.ok) setRows(((await res.json()) as { entries: Row[] }).entries);
-    else setRows(null);
+    if (res.ok) {
+      const j = (await res.json()) as { entries: Row[]; funnel: Funnel; joined: Joined[] };
+      setRows(j.entries);
+      setFunnel(j.funnel);
+      setJoined(j.joined);
+    } else setRows(null);
   }, [authedFetch]);
   useEffect(() => {
     if (authenticated) void load();
@@ -41,7 +50,39 @@ export function ContestAdmin() {
   if (!authenticated || rows === null) return null;
   return (
     <section className="grid gap-5 rounded-[24px] border-2 border-dashed border-[var(--ink)] p-5 bg-[var(--card)]" aria-label="Contest admin">
-      <h2 className="m-0 font-display font-extrabold text-2xl">Team only: entries ({rows.length})</h2>
+      <h2 className="m-0 font-display font-extrabold text-2xl">Team only: the numbers</h2>
+      {funnel && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {([
+            ["Visitors", funnel.views, "opened this page"],
+            ["Tapped Count me in", funnel.joinTaps, "signed in or not"],
+            ["Joined", funnel.joined, "signed in and counted"],
+            ["Started the form", funnel.formStarts, "touched a field"],
+            ["Entries", funnel.entries, "sent the form"],
+            ["Valid", funnel.valid, "you ticked them"],
+          ] as const).map(([k, v, hint]) => (
+            <div key={k} className="rounded-2xl border-2 border-[var(--ink)] bg-[var(--paper)] p-3 grid gap-0.5">
+              <span className="font-display font-extrabold text-3xl leading-none tabular-nums">{v}</span>
+              <span className="text-[13px] font-semibold">{k}</span>
+              <span className="text-[11px] text-[var(--muted)]">{hint}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {joined.length > 0 && (
+        <details className="rounded-2xl border-2 border-[var(--soft)] p-3">
+          <summary className="cursor-pointer font-semibold text-sm">Everyone who joined ({joined.length})</summary>
+          <ul className="m-0 mt-2 p-0 list-none grid sm:grid-cols-2 gap-1 text-[13px]">
+            {joined.map((p, i) => (
+              <li key={i} className="flex justify-between gap-3 border-b border-[var(--soft)] py-1">
+                <span className="font-semibold truncate">{p.x_handle ? `@${p.x_handle}` : p.wallet ? `${p.wallet.slice(0, 6)}…${p.wallet.slice(-4)}` : "no X, no wallet"}</span>
+                <span className="text-[var(--muted)] font-mono text-[11px] flex-none">{new Date(p.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <h3 className="m-0 font-display font-extrabold text-xl">Entries ({rows.length})</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px] border-collapse min-w-[760px]">
           <thead>
