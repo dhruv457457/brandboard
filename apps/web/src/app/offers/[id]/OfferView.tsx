@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData, erc20Abi } from "viem";
@@ -14,6 +14,7 @@ import { friendlyError } from "@/lib/market/useBid";
 import { EXPLORER, USDC } from "@/lib/config";
 import { formatShortAddress, formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { markOfferSeen } from "@/components/market/OffersForYou";
 
 export interface OfferInfo {
   id: string;
@@ -48,6 +49,8 @@ const STATUS: Record<OfferInfo["status"], { label: string; bg: string }> = {
 
 /** One offer: who it's for, the money, the claim button for them, and the share tools for the brand. */
 export function OfferView({ offer: o }: { offer: OfferInfo }) {
+  // Once you have looked at an offer, Home stops nudging you about it.
+  useEffect(() => markOfferSeen(o.id), [o.id]);
   const router = useRouter();
   const { authenticated, walletAddress, xHandle, login } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
