@@ -6,6 +6,7 @@ import { SurfaceDefs } from "@/components/surface/SurfaceDefs";
 import { Toaster } from "@/components/ui/Toast";
 import { AddMoneyHost } from "@/components/wallet/AddMoney";
 import { BrandSetupHost } from "@/components/market/BrandSetup";
+import { Analytics } from "@vercel/analytics/next";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -97,6 +98,7 @@ export default function RootLayout({
             </ProfileProvider>
           </PrivyAuthProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
