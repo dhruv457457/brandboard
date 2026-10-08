@@ -12,11 +12,37 @@ export const PAGE_ACCENTS = {
 } as const;
 export type PageAccent = keyof typeof PAGE_ACCENTS;
 
+/** What sits behind the outfit, car or hoodie on the page and in the feed: a colour, a photo, or a photo over a colour. */
+export interface PageStage {
+  color?: string;
+  image?: string;
+}
+
+/** Ready-made backgrounds, light to bold. The first is the app's own. */
+export const STAGE_PRESETS = [
+  { color: "#F1EFE8", label: "Paper" },
+  { color: "#FFE3D6", label: "Peach" },
+  { color: "#DCEBFF", label: "Sky" },
+  { color: "#E3F7EC", label: "Mint" },
+  { color: "#F1ECFF", label: "Lilac" },
+  { color: "#FFE9A8", label: "Sun" },
+  { color: "#FF5A1F", label: "Orange" },
+  { color: "#0B0B0C", label: "Ink" },
+] as const;
+
+/** Inline style for a stage box. Empty when the creator picked nothing, so the app's own colour stays. */
+export function stageStyle(stage?: PageStage | null): { background?: string } {
+  if (!stage || (!stage.color && !stage.image)) return {};
+  const layers = [stage.image ? `url("${stage.image}") center / cover no-repeat` : null, stage.color ?? null].filter(Boolean);
+  return { background: layers.join(", ") };
+}
+
 export interface ListingPage {
   headline?: string;
   intro?: string;
   story?: string;
   accent?: PageAccent;
+  stage?: PageStage;
   /** Section titles the creator renamed. */
   titles?: Partial<Record<"spots" | "sponsors" | "how" | "story" | "faq", string>>;
   faq?: { q: string; a: string }[];
@@ -42,6 +68,14 @@ export function sanitizePage(input: unknown, patchCount = 16): ListingPage {
   if (intro) out.intro = intro;
   if (story) out.story = story;
   if (typeof p.accent === "string" && p.accent in PAGE_ACCENTS) out.accent = p.accent as PageAccent;
+  if (p.stage && typeof p.stage === "object") {
+    const st = p.stage as Record<string, unknown>;
+    const stage: PageStage = {};
+    if (typeof st.color === "string" && /^#[0-9a-fA-F]{6}$/.test(st.color)) stage.color = st.color;
+    // Only pictures from our own storage: a page can't point visitors at a tracking pixel somewhere else.
+    if (typeof st.image === "string" && st.image.length < 600 && /^https:\/\/[^/]+\/storage\/v1\/object\/public\//.test(st.image) && !/["')\s]/.test(st.image)) stage.image = st.image;
+    if (stage.color || stage.image) out.stage = stage;
+  }
   if (p.titles && typeof p.titles === "object") {
     const t: ListingPage["titles"] = {};
     for (const k of ["spots", "sponsors", "how", "story", "faq"] as const) {

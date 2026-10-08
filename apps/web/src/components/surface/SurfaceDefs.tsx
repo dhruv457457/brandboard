@@ -58,11 +58,8 @@ export function SurfaceDefs() {
         </filter>
         {/* Ink on fabric: the print follows the weave a little and is slightly worn, so a logo reads as printed, not stuck on. */}
         <filter id="fPrint" x="-4%" y="-4%" width="108%" height="108%" colorInterpolationFilters="sRGB">
-          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="3" result="warp" />
-          <feDisplacementMap in="SourceGraphic" in2="warp" scale="3" xChannelSelector="R" yChannelSelector="G" result="bent" />
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="grain" />
-          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.8 1.3" result="wear" />
-          <feComposite in="bent" in2="wear" operator="in" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3" result="warp" />
+          <feDisplacementMap in="SourceGraphic" in2="warp" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </defs>
     </svg>

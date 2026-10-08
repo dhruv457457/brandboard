@@ -6,7 +6,7 @@ import { parseDisputeReason, type DisputeReason } from "./dispute";
 import { supabase } from "@/lib/supabase";
 import { slotFor } from "./layouts";
 import { defaultTiers } from "./tiers";
-import { sanitizePage, type PageAccent } from "./page";
+import { sanitizePage, type PageAccent, type PageStage } from "./page";
 import { SURFACES, type BidEvent, type ListingView, type LivePatch } from "./types";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -171,6 +171,8 @@ export interface ListingCard {
   creatorVerified: boolean;
   /** The creator's headline: page layer first, then the listing metadata. */
   headline: string | null;
+  /** Background the creator chose for the photo, if any. */
+  stage: PageStage | null;
   /** Page colour the creator picked (orange when never set). */
   accent: PageAccent;
   createdBlock: number;
@@ -252,6 +254,7 @@ export async function fetchListingCards(opts: { creator?: string; limit?: number
       creatorVerified: Boolean(r.creator_verified),
       headline: page.headline ?? metadata?.headline ?? null,
       accent: page.accent ?? "orange",
+      stage: page.stage ?? null,
       createdBlock: Number(r.created_block),
       createdAt: new Date(r.created_at).getTime(),
       creator: r.creator,

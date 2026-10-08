@@ -17,7 +17,8 @@ import { supabase } from "@/lib/supabase";
 import { formatCountdown, formatTimeAgo, formatUsdc } from "@/lib/format";
 import { fromWire, type SurfaceKind, type Wire } from "@/lib/market/types";
 import type { ListingCard } from "@/lib/market/server";
-import { PAGE_ACCENTS } from "@/lib/market/page";
+import { PAGE_ACCENTS, stageStyle } from "@/lib/market/page";
+import { isPrintedStatus } from "@/lib/market/listingStatus";
 import { useIndexerSync } from "@/lib/market/useIndexerSync";
 
 export interface FeedStats {
@@ -302,15 +303,16 @@ function Stage({ card, className, pad = "p-3" }: { card: ListingCard; className?
       c: PASTELS[p.id % PASTELS.length], bought: p.bought,
     }));
   const wide = card.surface === "car";
+  const printed = isPrintedStatus(card.status, card.biddingEndsAt <= Date.now());
   return (
-    <div className={cn("relative overflow-hidden", className)} style={{ background: accent.soft }}>
+    <div className={cn("relative overflow-hidden", className)} style={{ background: accent.soft, ...stageStyle(card.stage) }}>
       <div className={cn("absolute inset-0 flex items-center justify-center transition-transform duration-500 group-hover:scale-[1.04]", pad)}>
         {wide ? (
           <div className="w-full">
-            <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy />
+            <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy printed={printed} />
           </div>
         ) : (
-          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy className="!w-auto h-full" />
+          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} patches={patches} mode="static" showPrices={false} lazy printed={printed} className="!w-auto h-full" />
         )}
       </div>
     </div>

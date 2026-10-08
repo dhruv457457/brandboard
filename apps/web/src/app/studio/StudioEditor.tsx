@@ -11,6 +11,8 @@ import { Seg } from "@/components/ui/Seg";
 import { toast } from "@/components/ui/Toast";
 import { formatUsdc } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { StagePicker } from "@/components/market/StagePicker";
+import { stageStyle, type PageStage } from "@/lib/market/page";
 import { CHAIN_ID } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
@@ -178,6 +180,8 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [headline, setHeadline] = useState("");
   const [story, setStory] = useState("");
+  // What sits behind the photo on the page and in the feed. Saved with the page once the listing exists.
+  const [stage, setStage] = useState<PageStage | undefined>(undefined);
   const [faq, setFaq] = useState<{ q: string; a: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [stepIdx, setStepIdx] = useState(0);
@@ -427,6 +431,9 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
       deadlines: plan.map((m) => Math.floor(m.deadline / 1000)),
     });
     if (id) {
+      if (stage) {
+        await authedFetch(`/api/listings/${id}/page`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ stage }) }).catch(() => {});
+      }
       toast("Listing created. It is live and open for bids.");
       router.push(`/${walletAddress?.toLowerCase()}/${id}`);
     }
@@ -693,6 +700,11 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
                   <input className={INPUT} maxLength={80} value={headline} onChange={(e) => setHeadline(e.target.value)}
                     placeholder={person ? "Walking billboard for your brand" : "Your logo, driving around Bengaluru"} />
                 </Field>
+                <div className="grid gap-1.5">
+                  <span className="field-label">Background behind the photo</span>
+                  <p className="text-xs text-[var(--muted)]">Shows on your page and in the feed. Pick a colour or use your own picture; you can change it later with Edit page.</p>
+                  <StagePicker value={stage} onChange={setStage} />
+                </div>
                 <Field label="Your story">
                   <textarea className={AREA} rows={4} maxLength={800} value={story} onChange={(e) => setStory(e.target.value)}
                     placeholder="Who you are, why you're doing this, and what brands get from you." />
@@ -748,7 +760,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
         <aside className="grid gap-3 lg:sticky lg:top-6">
           <span className="eyebrow">What brands see</span>
           <div className={cn(PANEL, "overflow-hidden")}>
-            <div className="bg-[var(--stage)] h-[240px] p-4 flex items-center justify-center overflow-hidden">
+            <div className="bg-[var(--stage)] h-[240px] p-4 flex items-center justify-center overflow-hidden" style={stageStyle(stage)}>
               <SurfaceFigure surface={surface} imageUrl={views[0]?.image ?? null} patches={previewPatches} mode="static" showPrices={false}
                 className={surface === "car" ? "w-full" : "h-full !w-auto max-w-full"} />
             </div>

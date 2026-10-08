@@ -107,7 +107,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
   }));
 
   // Printed: only the mark, without its flat background box (falls back to the original image if it can't be read).
-  const knocked = useKnockout(printed ? patch.logo : null);
+  const art = useKnockout(printed ? patch.logo : null);
   const isFilled = Boolean(
     patch.brand ||
     (patch.top && Number(patch.top) > 0) ||
@@ -154,6 +154,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
           selected && !printed && "focus",
           preview && "preview",
           printed && "printed",
+          printed && art.light && "light",
           animDelay != null && "drop",
           animDelay != null && isFilled && "sewn",
           animClass,
@@ -186,9 +187,9 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
             {patch.logo ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={(printed && knocked) || patch.logo}
+                src={(printed && art.src) || patch.logo}
                 alt={patch.brand || "Brand logo"}
-                className={cn("absolute select-none pointer-events-none", printed ? "inset-0 w-full h-full object-contain" : "inset-[2px] w-[calc(100%-4px)] h-[calc(100%-4px)] rounded-[6px] object-cover")}
+                className={cn("absolute select-none pointer-events-none", printed ? "inset-0 w-full h-full object-contain rounded-[10%]" : "inset-[2px] w-[calc(100%-4px)] h-[calc(100%-4px)] rounded-[6px] object-cover")}
               />
             ) : (
               <span

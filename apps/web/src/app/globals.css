@@ -209,6 +209,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .patch.printed::after { display: none; }
 
+/* A white or very light mark would vanish on a white garment when multiplied, so it is laid on with a soft shadow instead. */
+.patch.printed.light {
+  mix-blend-mode: normal;
+  filter: url(#fPrint) drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.45));
+  opacity: 0.96;
+}
+
 /* Soft folds across the print, so the lighting of the fabric shows through it. */
 .patch.printed::before,
 .patch.printed.locked::before {

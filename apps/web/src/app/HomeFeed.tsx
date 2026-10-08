@@ -1,11 +1,14 @@
 "use client";
 
+import { stageStyle } from "@/lib/market/page";
+import { isPrintedStatus } from "@/lib/market/listingStatus";
 import { useEffect, useMemo, useState } from "react";
 import { publicUrl } from "@/lib/handles";
 import { MonadLogo, PrivyLogo } from "@/components/brand/PartnerLogos";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
+import { BadgeCheck, CalendarDays, Network, Rows3, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { OffersForYou } from "@/components/market/OffersForYou";
 import { FundYourWallet } from "@/components/wallet/FundYourWallet";
@@ -22,7 +25,14 @@ import type { FeedEvent, FeedItem } from "@/lib/market/feed";
 import { cn } from "@/lib/utils";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { ReactionBar } from "@/components/social/SpottedWall";
+import { Seg } from "@/components/ui/Seg";
 import type { SpottedPost } from "@/lib/spotted";
+
+// The graph (d3, canvas) only loads when someone switches to it, so the feed stays as light as before.
+const Patchwork = dynamic(() => import("@/components/graph/Patchwork").then((m) => m.Patchwork), {
+  ssr: false,
+  loading: () => <div className="min-h-dvh grid place-items-center text-[var(--muted)] font-semibold">Loading the graph…</div>,
+});
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
 const SURFACE_LABEL = { outfit: "Outfit", car: "Vehicle", hoodie: "Team hoodie" } as const;
@@ -39,6 +49,37 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
   const byId = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Feed or Patchwork. Kept in the URL (?view=patchwork&event=2) so a view can be shared and survives a refresh.
+  const [view, setView] = useState<"feed" | "patchwork">("feed");
+  const [graphEvent, setGraphEvent] = useState<number | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("view") !== "patchwork") return;
+    setView("patchwork");
+    const e = q.get("event");
+    if (e !== null && /^\d{1,9}$/.test(e)) setGraphEvent(Number(e));
+  }, []);
+  const updateUrl = (change: (u: URL) => void) => {
+    const u = new URL(window.location.href);
+    change(u);
+    window.history.replaceState(null, "", u);
+  };
+  const switchView = (v: "feed" | "patchwork") => {
+    setView(v);
+    updateUrl((u) => (v === "patchwork" ? u.searchParams.set("view", "patchwork") : (u.searchParams.delete("view"), u.searchParams.delete("event"))));
+  };
+  const viewSwitch = (
+    <Seg
+      ariaLabel="Home view"
+      value={view}
+      onChange={switchView}
+      items={[
+        { value: "feed", label: "Feed", icon: <Rows3 size={15} /> },
+        { value: "patchwork", label: "Patchwork", icon: <Network size={15} /> },
+      ]}
+    />
+  );
 
   // "Following": only moments from creators and events you follow.
   const { authenticated, ready } = usePatchedAuth();
@@ -82,12 +123,27 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     .sort((a, b) => a.biddingEndsAt - b.biddingEndsAt)
     .slice(0, 4);
 
+  if (view === "patchwork") {
+    return (
+      <Patchwork
+        eventId={graphEvent}
+        lead={viewSwitch}
+        onEvent={(id) => {
+          setGraphEvent(id);
+          updateUrl((u) => u.searchParams.set("event", String(id)));
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex">
       <section className="flex-1 min-w-0 max-w-[640px] lg:border-r-[1.5px] lg:border-[var(--soft)] min-h-dvh">
         <header className="hidden md:flex sticky top-0 z-20 h-[56px] items-center px-5 bg-[var(--paper)]/90 backdrop-blur-md border-b-[1.5px] border-[var(--soft)]">
           <h1 className="text-xl font-extrabold">Home</h1>
+          <div className="ml-auto">{viewSwitch}</div>
         </header>
+        <div className="md:hidden flex justify-end px-5 pt-3">{viewSwitch}</div>
 
         <Composer />
         <FundYourWallet />
@@ -284,8 +340,8 @@ function ListingPost({ card, time, mounted }: { card: ListingCard; time: number;
             )}
           </p>
         </div>
-        <div className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--stage)] h-[340px] p-5 flex items-center justify-center overflow-hidden">
-          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} lazy patches={figurePatches(card)} mode="static" showPrices={false}
+        <div className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--stage)] h-[340px] p-5 flex items-center justify-center overflow-hidden" style={stageStyle(card.stage)}>
+          <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} lazy patches={figurePatches(card)} mode="static" showPrices={false} printed={isPrintedStatus(card.status, cd.hasEnded)}
             className={card.surface === "car" ? "w-full" : "h-full !w-auto max-w-full"} />
           <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] border-[1.5px] border-[var(--line)] px-2.5 py-1 text-xs font-semibold">
             {live ? <><span className="dot live" /> Live auction</> : card.status === 1 ? "Bidding ended" : "Sold, delivering"}

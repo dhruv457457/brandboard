@@ -38,7 +38,9 @@ import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst } from "@/components/market/SpotBubble";
 import { ListingTools } from "@/components/market/ListingTools";
 import { EditableText } from "@/components/market/EditableText";
-import { PAGE_ACCENTS, PAGE_SECTIONS, type ListingPage, type PageAccent, type PageSection } from "@/lib/market/page";
+import { isPrintedStatus } from "@/lib/market/listingStatus";
+import { StagePicker } from "@/components/market/StagePicker";
+import { PAGE_ACCENTS, PAGE_SECTIONS, stageStyle, type ListingPage, type PageAccent, type PageSection } from "@/lib/market/page";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { Eye, EyeOff, Pencil, RotateCcw as ResetIcon, Save } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
@@ -168,7 +170,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const ago = (t: number) => (mounted ? formatTimeAgo(t) : "");
   const biddingOpen = status === 1 && !countdown.hasEnded;
   // Time is up: the winning brands are printed on the photo like they will be on the real thing.
-  const printed = (status === 1 && countdown.hasEnded) || status === 2 || status === 3 || status === 4;
+  const printed = isPrintedStatus(status, countdown.hasEnded);
   const escrow = patches.reduce((s, p) => s + p.topBid, 0n);
   const withBids = patches.filter((p) => p.topBidder).length;
   // The anti-snipe window: any bid now adds 5 minutes.
@@ -370,7 +372,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       {/* ── The auction room: the photo on one side, every spot's live price and leader on the other ── */}
       <section className="wrap mt-6 grid gap-8 lg:gap-12 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] items-start">
         <div id="stage" className="lg:sticky lg:top-6 grid gap-3 scroll-mt-6">
-          <div className="rounded-[28px] bg-[var(--stage)] p-4 sm:p-6 grid gap-3" onMouseEnter={() => setStageHover(true)} onMouseLeave={() => setStageHover(false)}>
+          <div className="rounded-[28px] bg-[var(--stage)] p-4 sm:p-6 grid gap-3" style={stageStyle(pg.stage)} onMouseEnter={() => setStageHover(true)} onMouseLeave={() => setStageHover(false)}>
             {listing.views.length > 1 && (
               <div className="flex justify-center items-center gap-2">
                 <div className="grid gap-1 min-w-0">
@@ -945,6 +947,12 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               />
             ))}
           </div>
+          <details className="relative">
+            <summary className="btn-base btn-small cursor-pointer list-none">Background</summary>
+            <div className="absolute bottom-full mb-2 left-0 w-[300px] card-surface p-3 z-10">
+              <StagePicker value={draft.stage} onChange={(stage) => setDraft((d) => ({ ...d, stage }))} />
+            </div>
+          </details>
           <div className="flex items-center gap-1.5 flex-wrap">
             {PAGE_SECTIONS.map((sec) => (
               <button key={sec} onClick={() => toggleSection(sec)}
