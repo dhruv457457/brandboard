@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { cn, formatUsdc } from "@/lib/utils";
+import { useKnockout } from "@/lib/useKnockout";
 
 export interface PatchData {
   id: string | number;
@@ -46,6 +47,8 @@ export interface PatchProps {
   mode?: "static" | "interactive" | "editable";
   selected?: boolean;
   preview?: boolean;
+  /** Bidding is over: show the brand as ink printed on the fabric instead of a box on top of it, and hide unsold spots. */
+  printed?: boolean;
   animDelay?: number;
   showPrices?: boolean;
   onClick?: () => void;
@@ -62,6 +65,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
     mode = "static",
     selected = false,
     preview = false,
+    printed = false,
     animDelay,
     showPrices = true,
     onClick,
@@ -102,6 +106,8 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
     },
   }));
 
+  // Printed: only the mark, without its flat background box (falls back to the original image if it can't be read).
+  const knocked = useKnockout(printed ? patch.logo : null);
   const isFilled = Boolean(
     patch.brand ||
     (patch.top && Number(patch.top) > 0) ||
@@ -112,6 +118,10 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
   const pastelColor = patch.c || patch.color || "p1";
   const topVal = patch.top ? Number(patch.top) : patch.topBid ? Number(patch.topBid) : 0;
   const floorVal = patch.floor ? Number(patch.floor) : 0;
+
+  if (printed && !isFilled) return null;
+  // On a body the fabric curves away, so a print near a side is squeezed a little.
+  const ry = Math.max(-26, Math.min(26, ((50 - (patch.x + patch.w / 2)) / 50) * 26));
 
   return (
     <>
@@ -141,8 +151,9 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
           isLocked && "locked",
           mode === "interactive" && !isLocked && "interactive",
           mode === "editable" && "cursor-grab touch-none",
-          selected && "focus",
+          selected && !printed && "focus",
           preview && "preview",
+          printed && "printed",
           animDelay != null && "drop",
           animDelay != null && isFilled && "sewn",
           animClass,
@@ -157,10 +168,11 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
             "--r": `${rot}deg`,
             "--d": animDelay != null ? `${animDelay}s` : undefined,
             "--pc": `var(--${pastelColor})`,
+            "--ry": `${ry.toFixed(1)}deg`,
           } as React.CSSProperties
         }
       >
-        {patch.number != null && (
+        {!printed && patch.number != null && (
           <span
             aria-hidden="true"
             className={cn("absolute top-[2px] left-[4px] font-bold leading-none opacity-80", patch.logo && isFilled && "z-10 rounded bg-[var(--paper)]/80 px-0.5 text-[var(--ink)] opacity-100")}
@@ -174,9 +186,9 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
             {patch.logo ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={patch.logo}
+                src={(printed && knocked) || patch.logo}
                 alt={patch.brand || "Brand logo"}
-                className="absolute inset-[2px] w-[calc(100%-4px)] h-[calc(100%-4px)] rounded-[6px] object-cover select-none pointer-events-none"
+                className={cn("absolute select-none pointer-events-none", printed ? "inset-0 w-full h-full object-contain" : "inset-[2px] w-[calc(100%-4px)] h-[calc(100%-4px)] rounded-[6px] object-cover")}
               />
             ) : (
               <span
@@ -189,7 +201,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
                 {patch.brand}
               </span>
             )}
-            {showPrices && topVal > 0 && (
+            {showPrices && !printed && topVal > 0 && (
               <span
                 className={cn(
                   "pr font-semibold mt-0.5 leading-none",
@@ -227,7 +239,7 @@ export const Patch = forwardRef<PatchHandle, PatchProps>(function Patch(
           </>
         )}
 
-        {isLocked && <span className="stamp-sold">SOLD</span>}
+        {isLocked && !printed && <span className="stamp-sold">SOLD</span>}
 
         {mode === "editable" && (
           <span

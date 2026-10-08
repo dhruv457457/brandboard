@@ -167,6 +167,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const countdown = formatCountdown(endsAt);
   const ago = (t: number) => (mounted ? formatTimeAgo(t) : "");
   const biddingOpen = status === 1 && !countdown.hasEnded;
+  // Time is up: the winning brands are printed on the photo like they will be on the real thing.
+  const printed = (status === 1 && countdown.hasEnded) || status === 2 || status === 3 || status === 4;
   const escrow = patches.reduce((s, p) => s + p.topBid, 0n);
   const withBids = patches.filter((p) => p.topBidder).length;
   // The anti-snipe window: any bid now adds 5 minutes.
@@ -391,6 +393,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                 onHover={(id) => setHoverId(id === null ? null : Number(id))}
                 patchRefs={patchRefs}
                 animateDrop={intro}
+                printed={printed}
               />
               <SpotHover open={biddingOpen} patch={hoverId === null ? null : figurePatches.find((x) => x.id === hoverId) ?? null} live={hoverId === null ? null : patches.find((x) => x.id === hoverId) ?? null} next={hoverId === null ? null : (() => { const lp = patches.find((x) => x.id === hoverId); return lp ? minNext(lp) : null; })()} />
               <Burst key={burst?.n} x={burst?.x ?? 50} y={burst?.y ?? 50} show={!!burst} />
@@ -398,9 +401,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             </AnimatePresence>
           </div>
           <div className="flex gap-4 justify-center flex-wrap text-[13px] text-[var(--muted)]">
-            <span className="inline-flex items-center gap-1.5"><i className="sw-legend filled" />Has a bid</span>
-            <span className="inline-flex items-center gap-1.5"><i className="sw-legend open" />Open</span>
-            {biddingOpen && <span>Tap a spot to bid</span>}
+            {printed ? <span>Bidding is over. The winning brands are printed on the {surfaceWord}.</span> : (
+              <>
+                <span className="inline-flex items-center gap-1.5"><i className="sw-legend filled" />Has a bid</span>
+                <span className="inline-flex items-center gap-1.5"><i className="sw-legend open" />Open</span>
+                {biddingOpen && <span>Tap a spot to bid</span>}
+              </>
+            )}
           </div>
         </div>
 

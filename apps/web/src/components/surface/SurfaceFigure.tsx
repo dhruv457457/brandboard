@@ -19,6 +19,8 @@ interface SurfaceFigureProps {
   previewId?: string | number | null;
   showPrices?: boolean;
   animateDrop?: boolean;
+  /** Bidding is over: brands show as ink printed on the photo, and unsold spots disappear. */
+  printed?: boolean;
   /** A creator's AI canvas photo. When set, it replaces the generic drawing and sets the aspect ratio. */
   imageUrl?: string | null;
   /** Card grids: let the browser load the photo only when it's about to scroll into view. */
@@ -172,6 +174,7 @@ export function SurfaceFigure({
   previewId,
   showPrices = true,
   animateDrop = false,
+  printed = false,
   imageUrl,
   lazy = false,
   className,
@@ -274,6 +277,7 @@ export function SurfaceFigure({
             mode={mode}
             selected={selectedId === p.id}
             preview={previewId === p.id}
+            printed={printed}
             animDelay={animateDrop ? 0.15 + idx * 0.08 : undefined}
             showPrices={showPrices}
             onClick={() => onSelect?.(p.id)}

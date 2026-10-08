@@ -47,9 +47,9 @@ export function WalletPanel({ onNavigate }: { onNavigate?: () => void }) {
       <div className="grid gap-0.5 border-t-[1.5px] border-[var(--soft)] pt-2">
         <Link href={`${me}?tab=bids`} onClick={go} className={ROW}><Gavel size={17} /> My bids</Link>
         <Link href={`${me}?tab=sponsoring`} onClick={go} className={ROW}><Stamp size={17} /> Patch NFTs</Link>
-        <Link href="/automate" onClick={go} className={ROW}><Bot size={17} /> Automate</Link>
-        <Link href={`${me}?tab=campaigns`} onClick={go} className={ROW}><Megaphone size={17} /> Campaigns</Link>
-        <Link href={`${me}?tab=earnings`} onClick={go} className={ROW}><LayoutDashboard size={17} /> Earnings</Link>
+        <Link href="/automate" onClick={go} className={`${ROW} md:hidden`}><Bot size={17} /> Automate</Link>
+        <Link href={`${me}?tab=campaigns`} onClick={go} className={`${ROW} md:hidden`}><Megaphone size={17} /> Campaigns</Link>
+        <Link href={`${me}?tab=earnings`} onClick={go} className={`${ROW} md:hidden`}><LayoutDashboard size={17} /> Earnings</Link>
         <Link href="/settings" onClick={go} className={ROW}><Settings size={17} /> Settings</Link>
         {(isAdmin || OPEN_ADMIN) && <Link href="/admin" onClick={go} className={ROW}><ShieldHalf size={17} /> Admin</Link>}
         <button onClick={toggleTheme} className={ROW}>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { isHome } from "@/lib/routes";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, CalendarDays, Home, LogIn, MoreHorizontal, Plus, Search, UserRound, type LucideIcon } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Bell, Bot, CalendarDays, CircleDollarSign, Home, LogIn, Megaphone, MoreHorizontal, Plus, Search, UserRound, type LucideIcon } from "lucide-react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
 import { useBalances } from "@/lib/useBalances";
@@ -13,6 +13,7 @@ import { Logo, LogoMark } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "./WalletPanel";
+import { NetworkToggle } from "./NetworkSwitch";
 
 export interface NavItem {
   href: string;
@@ -77,12 +78,15 @@ export function Sidebar() {
         ))}
       </nav>
 
+      {authenticated && <Suspense fallback={null}><AccountNav /></Suspense>}
+
       <Link href="/studio" className="btn-base btn-primary mt-4 h-[50px] w-[50px] xl:w-full justify-center !rounded-full !px-0 text-[17px]" aria-label="Create a listing">
         <Plus size={22} className="xl:hidden" />
         <span className="hidden xl:inline">Create</span>
       </Link>
 
-      <div className="mt-auto">
+      <div className="mt-auto grid gap-1">
+        <NetworkToggle />
         {!ready ? (
           <span className="block h-[60px] rounded-full bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
         ) : authenticated ? (
@@ -95,6 +99,40 @@ export function Sidebar() {
         )}
       </div>
     </aside>
+  );
+}
+
+/** Your own places, kept in the sidebar so they are one click away: auto mode, campaigns and earnings. */
+function AccountNav() {
+  const pathname = usePathname();
+  const tab = useSearchParams().get("tab");
+  const { walletAddress } = usePatchedAuth();
+  const { profile } = useProfile();
+  const me = `/${profile?.handle ?? walletAddress?.toLowerCase() ?? ""}`;
+  const onMe = pathname === me;
+  const items = [
+    { href: "/automate", label: "Automate", icon: Bot, active: pathname.startsWith("/automate") },
+    { href: `${me}?tab=campaigns`, label: "Campaigns", icon: Megaphone, active: onMe && tab === "campaigns" },
+    { href: `${me}?tab=earnings`, label: "Earnings", icon: CircleDollarSign, active: onMe && tab === "earnings" },
+  ];
+  return (
+    <nav className="grid gap-1 mt-2 pt-2 border-t-[1.5px] border-[var(--soft)]" aria-label="Your tools">
+      {items.map((it) => (
+        <Link
+          key={it.label}
+          href={it.href}
+          aria-current={it.active ? "page" : undefined}
+          title={it.label}
+          className={cn(
+            "flex items-center gap-4 h-[46px] px-3 rounded-full no-underline text-[var(--ink)] text-[17px] transition-colors hover:bg-[var(--soft)] self-start xl:pr-6",
+            it.active ? "font-extrabold" : "font-medium",
+          )}
+        >
+          <it.icon size={24} strokeWidth={it.active ? 2.6 : 2} />
+          <span className="hidden xl:inline">{it.label}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }
 
