@@ -33,6 +33,7 @@ import { DisputeSheet } from "@/components/market/DisputeSheet";
 import { AutoBidPanel } from "@/components/market/AutoBidPanel";
 import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { SpottedWall } from "@/components/social/SpottedWall";
+import { Comments } from "@/components/social/Comments";
 import { openAddMoney } from "@/components/wallet/AddMoney";
 import { SweepPanel } from "@/components/market/SweepPanel";
 import { Burst } from "@/components/market/SpotBubble";
@@ -833,6 +834,13 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       <div className="wrap mt-20">
         <SpottedWall listingId={listing.id} choices={isCreator || status === 0 ? [] : [{ listingId: listing.id, label: creatorLabel }]} />
       </div>
+
+      {/* ── Comments: free, one line each ── */}
+      {status !== 0 && status !== 6 && (
+        <div className="wrap mt-16 max-w-[720px]">
+          <Comments listingId={listing.id} isCreator={isCreator} spots={patches.map((p) => ({ id: p.id, label: p.label }))} />
+        </div>
+      )}
 
       {/* ── How it works ── */}
       {shown("how") && (

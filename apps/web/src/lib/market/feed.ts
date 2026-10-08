@@ -7,7 +7,7 @@ import { fetchListingCards, type ListingCard } from "./server";
 /** One moment in the Home feed. Listings are referenced by id; the cards travel alongside. */
 export type FeedItem =
   | { kind: "listing"; key: string; time: number; listingId: number }
-  | { kind: "bid"; key: string; time: number; listingId: number; patchId: number; wallet: string; who: string; verified: boolean; logo: string | null; amount: number; buyNow: boolean }
+  | { kind: "bid"; key: string; time: number; listingId: number; patchId: number; wallet: string; who: string; verified: boolean; logo: string | null; amount: number; buyNow: boolean; unseated: { wallet: string; who: string } | null }
   | { kind: "proof"; key: string; time: number; listingId: number; milestone: number; milestoneName: string; files: string[]; note: string | null }
   | { kind: "spotted"; key: string; time: number; listingId: number; postId: string; photo: string; caption: string | null; by: string; byHandle: string | null };
 
@@ -56,7 +56,17 @@ export async function fetchHomeFeed(): Promise<HomeFeedData> {
       : Promise.resolve({ data: [] as { id: string; listing_id: number; body: string; media: unknown; created_at: string; author: string }[] }),
   ]);
 
-  const bidders = [...new Set((bids ?? []).map((b) => b.bidder))];
+  // Who held each spot just before a bid: the next older bid on it by a different wallet ("Nike unseated Kite").
+  const list = bids ?? [];
+  const previousOf = (index: number) => {
+    const b = list[index];
+    for (let j = index + 1; j < list.length; j++) {
+      const o = list[j];
+      if (o.listing_id === b.listing_id && o.patch_id === b.patch_id) return o.bidder === b.bidder ? null : o.bidder;
+    }
+    return null;
+  };
+  const bidders = [...new Set(list.flatMap((b, i) => [b.bidder, previousOf(i)].filter((w): w is string => !!w)))];
   const { data: brands } = bidders.length
     ? await db.from("profiles").select("wallet, brand_name, brand_logo_url, brand_verified_domain").in("wallet", bidders)
     : { data: [] as { wallet: string; brand_name: string | null; brand_logo_url: string | null; brand_verified_domain: string | null }[] };
@@ -65,7 +75,7 @@ export async function fetchHomeFeed(): Promise<HomeFeedData> {
 
   // A bidding war would flood the feed: keep only the newest bid per spot.
   const seen = new Set<string>();
-  for (const b of bids ?? []) {
+  for (const [index, b] of list.entries()) {
     const spot = `${b.listing_id}:${b.patch_id}`;
     if (seen.has(spot)) continue;
     seen.add(spot);
@@ -82,6 +92,12 @@ export async function fetchHomeFeed(): Promise<HomeFeedData> {
       logo: brand?.brand_logo_url ?? null,
       amount: Number(b.amount) / 1e6,
       buyNow: b.is_buy_now,
+      unseated: (() => {
+        const prev = previousOf(index);
+        if (!prev) return null;
+        const pb = brands?.find((x) => x.wallet === prev);
+        return { wallet: prev, who: pb?.brand_name ?? formatShortAddress(prev) };
+      })(),
     });
   }
 

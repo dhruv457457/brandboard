@@ -378,7 +378,7 @@ function BidPost({ item, card, mounted }: { item: Extract<FeedItem, { kind: "bid
         <p className="text-[15px] leading-snug">
           <b>{item.who}</b>
           {item.verified && <BadgeCheck size={14} className="inline -mt-0.5 ml-1 text-[var(--accent-text)]" aria-label="Verified brand" />}
-          {" "}{item.buyNow ? "bought" : "took"}{" "}
+          {" "}{item.unseated ? <><span className="font-semibold">unseated</span> <b>{item.unseated.who}</b> and </> : null}{item.buyNow ? "bought" : "took"}{" "}
           <span className="inline-block rounded-md px-1.5 font-semibold border-[1.5px] border-[var(--line)] text-[#0B0B0C]" style={{ background: `var(--${PASTELS[item.patchId % PASTELS.length]})` }}>{patch?.label ?? `Spot ${item.patchId + 1}`}</span>
           {" "}on <Link href={card.href} className="font-semibold no-underline text-[var(--ink)] hover:underline">{card.title}</Link>
           <span className="text-[var(--muted)]"> · {mounted ? formatTimeAgo(item.time) : ""}</span>
