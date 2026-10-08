@@ -17,6 +17,7 @@ import { GAS_SPONSORED, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
 import { useBalances } from "@/lib/useBalances";
 import { openAddMoney } from "@/components/wallet/AddMoney";
 import { cn } from "@/lib/utils";
+import { HandNote } from "@/components/brand/HandNote";
 import { toast } from "@/components/ui/Toast";
 
 type Role = "creator" | "brand" | "both";
@@ -257,11 +258,14 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
         <p className="text-sm text-[var(--muted)]">Sign in and your wallet is ready. No app, no seed phrase.</p>
       </div>
 
-      <button onClick={() => run("x", loginWithX)} disabled={!!busy}
-        className="h-12 rounded-full bg-[var(--ink)] text-[var(--paper)] font-bold flex items-center justify-center gap-2.5 hover:opacity-90 disabled:opacity-60">
-        {busy === "x" ? <Loader2 size={16} className="animate-spin" /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg>}
-        Continue with X
-      </button>
+      <div className="relative mt-8">
+        <button onClick={() => run("x", loginWithX)} disabled={!!busy}
+          className="h-12 w-full rounded-full bg-[var(--ink)] text-[var(--paper)] font-bold flex items-center justify-center gap-2.5 hover:opacity-90 disabled:opacity-60">
+          {busy === "x" ? <Loader2 size={16} className="animate-spin" /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg>}
+          Continue with X
+        </button>
+        <HandNote>Recommended</HandNote>
+      </div>
 
       <div className="flex items-center gap-3 text-xs text-[var(--muted)]"><span className="h-px flex-1 bg-[var(--soft)]" />or<span className="h-px flex-1 bg-[var(--soft)]" /></div>
 
