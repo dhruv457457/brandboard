@@ -197,7 +197,7 @@ Reverts: `NotSpottable` (listing not Active or Delivering), `OwnListing` (the cr
 
 The web app pins the photo and a small record to IPFS (`POST /api/spotted/pin`), sends `spot` (gas-sponsored for Patched wallets), then posts the photo with the transaction hash (`POST /api/spotted` checks the `Spotted` log before showing it). The indexer copies `Spotted` into `public.spots`; the Patchwork graph draws each one as a thread from the spotter to the creator. Until an address is in `DEPLOYMENTS[chain].spotter`, spotting works as before, without a transaction, and the graph marks those threads off-chain.
 
-Deploy (needs `DEPLOYER_PRIVATE_KEY` and `MARKET_ADDRESS`), then put the printed address and block into `packages/shared/src/addresses.ts` (`spotter`, `spotterBlock`):
+Deployed 2026-10-08: testnet `0x0C063771aFEe7f391DC4E851A39ba092ba3f3A44` (block 69228493), mainnet (the TestUSD run) `0x3dfA83743C76Ce6bd9A4948Ee0E12D0ECabd4e65` (block 111583524); both in `packages/shared/src/addresses.ts`. To deploy again (needs `DEPLOYER_PRIVATE_KEY` and `MARKET_ADDRESS`):
 
 ```bash
 forge script script/DeploySpotter.s.sol --rpc-url $MONAD_TESTNET_RPC_URL --broadcast

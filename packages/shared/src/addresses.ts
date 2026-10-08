@@ -41,6 +41,8 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     autoBidder: "0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c",
     autoBidderBlock: 66627730,
     sweeper: "0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B",
+    spotter: "0x0C063771aFEe7f391DC4E851A39ba092ba3f3A44",
+    spotterBlock: 69228493,
     approvals: true,
   },
   // Monad mainnet, test run with TestUSD (tUSD, faucet token), deployed 2026-09-24, verified on Sourcify.
@@ -54,6 +56,8 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     autoBidder: "0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1",
     autoBidderBlock: 107531645,
     sweeper: "0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba",
+    spotter: "0x3dfA83743C76Ce6bd9A4948Ee0E12D0ECabd4e65",
+    spotterBlock: 111583524,
     testToken: true,
   },
 };

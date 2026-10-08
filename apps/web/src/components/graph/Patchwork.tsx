@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Camera, Users, ChevronDown, Crosshair, ExternalLink, Gavel, List, Network, Pause, Play, Receipt, Share2, Square, Undo2, X, Zap, Stamp, UserPlus } from "lucide-react";
+import { BadgeCheck, Camera, Download, Users, ChevronDown, Crosshair, ExternalLink, Gavel, List, Network, Pause, Play, Receipt, Share2, Square, Undo2, X, Zap, Stamp, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -154,13 +154,15 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
     }
   };
 
+  // "Post my spot": an X post whose link previews as the share card (see app/share/patchwork).
   const shareHref = useMemo(() => {
-    if (!graph || !me || typeof window === "undefined") return null;
-    const link = `${window.location.origin}/?view=patchwork&event=${graph.event.id}`;
-    const text = `I'm in the ${graph.event.name} patchwork on @patchedapp: ${engine?.degree(me)} threads, #${engine?.rankOf(me)} most connected.`;
+    if (!graph || !me?.wallet || typeof window === "undefined") return null;
+    const link = `${window.location.origin}/share/patchwork/${graph.event.id}/${me.wallet}`;
+    const text = `I'm in the ${graph.event.name} patchwork on Patched: #${engine?.rankOf(me)} most connected with ${engine?.degree(me)} threads, all on Monad.`;
     return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, me, selected]);
+  const cardHref = graph && me?.wallet ? `/share/patchwork/${graph.event.id}/${me.wallet}/card.png?download=1` : null;
 
   return (
     <div className="flex flex-col md:h-dvh md:min-h-[480px]">
@@ -320,6 +322,7 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
               <Stats items={[{ v: String(engine.degree(me)), k: "threads" }, { v: usd(me.total), k: "locked" }, { v: String(engine.degree(me, "spotted")), k: "spotted" }]} />
               <div className="flex gap-2 mt-3 flex-wrap">
                 {shareHref && <a href={shareHref} target="_blank" rel="noopener noreferrer" className="btn-base btn-primary btn-small"><Share2 size={15} /> Post my spot</a>}
+                {cardHref && <a href={cardHref} download className="btn-base btn-small"><Download size={15} /> Image</a>}
                 <button onClick={findMe} className="btn-base btn-small"><Crosshair size={15} /> Find me</button>
               </div>
             </Card>

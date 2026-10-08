@@ -1,6 +1,6 @@
 # Patchwork: the live on-chain graph of an event (plan, 2026-10-08)
 
-Status: **built** (2026-10-08): graph, live updates, Find me, Replay, pictures (profile, logo, NFT, event banner), `PatchSpotter` (12 tests), migration 0026, indexer `Spotted` and payees, spot-on-chain flow. Still to do: deploy `PatchSpotter` (testnet, then mainnet) and fill `DEPLOYMENTS[...].spotter`, the share image, `/e/[slug]/patchwork`. Prototype: [docs/prototype/patchwork-graph.html](prototype/patchwork-graph.html) (open it in a browser; it runs on mock data).
+Status: **built** (2026-10-08): graph, live updates, Find me, Replay, pictures (profile, logo, NFT, event banner), `PatchSpotter` (12 tests), migration 0026, indexer `Spotted` and payees, spot-on-chain flow. `PatchSpotter` is deployed on testnet and mainnet, and "Post my spot" shares a 1200x630 card (`/share/patchwork/<event>/<wallet>`, image at `/card.png`). Still to do: `/e/[slug]/patchwork`. Prototype: [docs/prototype/patchwork-graph.html](prototype/patchwork-graph.html) (open it in a browser; it runs on mock data).
 
 ## The idea in one line
 
