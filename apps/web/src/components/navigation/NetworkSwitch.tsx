@@ -66,7 +66,7 @@ export function NetworkOptions({ onPick }: { onPick?: () => void }) {
   );
 }
 
-/** The warning before a visitor moves to mainnet: it is a test run, so some things may not work yet. */
+/** The warning before a visitor moves to mainnet: real USDC, an MVP, so small amounts. */
 export function MainnetNotice({ href, onClose }: { href: string; onClose: () => void }) {
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -78,10 +78,10 @@ export function MainnetNotice({ href, onClose }: { href: string; onClose: () => 
       <div role="dialog" aria-modal="true" aria-labelledby="mainnet-title" onMouseDown={(e) => e.stopPropagation()}
         className="card-surface w-full max-w-[420px] p-6 grid gap-3">
         <span className="w-10 h-10 rounded-full grid place-items-center bg-[var(--accent-soft)] text-[var(--accent-text)]"><TriangleAlert size={20} /></span>
-        <h2 id="mainnet-title" className="text-xl font-extrabold">Mainnet is a test run</h2>
+        <h2 id="mainnet-title" className="text-xl font-extrabold">Mainnet uses real USDC</h2>
         <p className="text-sm text-[var(--muted)]">
-          Patched is an MVP. On mainnet it runs with the TestUSD token, and several things probably still don&apos;t work: some pages, bids or payouts may fail or look empty.
-          Testnet is where everything is built and tested first.
+          Patched is an MVP and the contracts are unaudited, so use small amounts. Every bid, stake and payout here is real USDC on Monad mainnet.
+          Testnet has free test money if you just want to try things.
         </p>
         <div className="grid gap-2 sm:grid-cols-2 mt-1">
           <button type="button" onClick={onClose} className="btn-base btn-primary justify-center">Stay on testnet</button>
@@ -109,7 +109,7 @@ export function NetworkToggle({ compact }: { compact?: boolean }) {
         role="switch"
         aria-checked={onMainnet}
         aria-label={onMainnet ? "On mainnet. Switch to testnet" : "On testnet. Switch to mainnet"}
-        title={onMainnet ? "Mainnet (test run). Switch to testnet" : "Testnet. Switch to mainnet"}
+        title={onMainnet ? "Mainnet (real USDC). Switch to testnet" : "Testnet. Switch to mainnet"}
         onClick={() => (onMainnet ? window.location.assign(href) : setAsking(true))}
         className={cn("flex items-center gap-2 rounded-full hover:bg-[var(--soft)] px-2 h-10 w-full", compact ? "justify-center" : "xl:px-3 justify-center xl:justify-start")}
       >

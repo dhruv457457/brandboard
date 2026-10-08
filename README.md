@@ -278,7 +278,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Indexer.** Syncs every contract event into Supabase: bids, patches, receipts, payouts and notifications. It's rate-limited when called from the app.
 - **Server-side AI.** All AI runs on the server through OpenRouter, with the cheapest model that does each job.
 - **Themes and motion.** Light and dark themes. Every animation respects reduced-motion settings.
-- **USDC only.** No banks or fiat anywhere: wallets hold USDC, and a test run on mainnet uses a TestUSD token with a daily faucet.
+- **USDC only.** No banks or fiat anywhere: wallets hold USDC. Mainnet runs on real USDC; testnet uses test USDC.
 
 </details>
 
@@ -291,19 +291,19 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 | `PatchRenderer` | Draws each NFT's SVG and metadata from the market's state. Swappable, so the art can be fixed without touching a token. |
 | `PatchAutoBidder` | Holds each brand's auto-bid maximum and bids for them. It never goes above the maximum. |
 | `PatchSweeper` | Bids on several patches in one transaction, all or nothing. |
-| `TestUSD` | A USDC-style test token with permit and a daily faucet, for the mainnet test run. |
 
-| Contract | Monad testnet (10143) | Monad mainnet (143, TestUSD run) |
+| Contract | Monad testnet (10143) | Monad mainnet (143, real USDC) |
 |---|---|---|
-| PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xcBE6fA620fc6F61192a94CFbd33aae7893579a56` |
-| PatchReceipt, Living Patch (listings 11 and later) | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` | not upgraded yet |
-| PatchRenderer | `0xE0369f8e0cddf96Ad069A413D3a53f7109c9826d` | not upgraded yet |
-| PatchReceipt, first version (listings 1 to 10) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` | `0x18Cb49292c1562932a1EdcC6674a30Fd71b27F97` |
-| PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0x0e59Ab0DE6b61874B6aA728806433c2eB3D362C1` |
-| PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba` |
-| TestUSD (faucet token) | – | `0xB0fabbBc9a26dC78b200a36b2344cAc2518D0e3f` |
+| PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xf10a7E612579456401E4d59df7d446158FE7ee9F` (proxy) |
+| PatchReceipt, Living Patch | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` (listings 11 and later) | `0x6a8CD838489dbafB974A2cB08C86847BE55ea95c` |
+| PatchRenderer | `0xE0369f8e0cddf96Ad069A413D3a53f7109c9826d` | `0x655477765425bd1A2E1289af9760836E22eD4209` |
+| PatchReceipt, first version | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` (listings 1 to 10) | – |
+| PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0xD0779dC4E1EE6626E76ec54E7A356877bfc0F47a` |
+| PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0xB508530bC1752583E6A04b1A9d6c82d9dd7eA4C5` |
+| PatchSpotter | `0x0C063771aFEe7f391DC4E851A39ba092ba3f3A44` | `0x6388BDAc2b256Df65CF0f29DFd946Fa2479f32DA` |
+| USDC | Monad's test USDC `0x534b…43A3` | Circle USDC `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` |
 
-The mainnet contracts are verified on Monad's Sourcify; the testnet ones are not yet. Testnet uses Monad's native USDC. The earlier testnet market (v2, not upgradeable) was `0xd3808dE425493934f036f8E77ef5a4de332e9552`. Details: [docs/contracts.md](docs/contracts.md).
+The new mainnet contracts (real USDC, deployed 2026-10-08) are not verified on a block explorer yet. Testnet uses Monad's test USDC. The earlier testnet market (v2, not upgradeable) was `0xd3808dE425493934f036f8E77ef5a4de332e9552`. Details: [docs/contracts.md](docs/contracts.md).
 
 ## Tech stack
 
