@@ -8,6 +8,8 @@ import { Chip } from "@/components/ui/Chip";
 import { formatCountdown, formatShortAddress, formatUsdc } from "@/lib/format";
 import type { ListingCard } from "@/lib/market/server";
 import { stageStyle } from "@/lib/market/page";
+import { Road } from "@/components/surface/Road";
+import { cn } from "@/lib/utils";
 import { isPrintedStatus } from "@/lib/market/listingStatus";
 
 const PASTELS = ["p2", "p3", "p1", "p4", "p5"] as const;
@@ -35,7 +37,8 @@ export function ListingCardView({ card, mounted }: { card: ListingCard; mounted:
       className="card-surface p-3.5 flex flex-col gap-3 no-underline text-[var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
     >
       {/* Fixed-height stage so every card lines up; tall people shots fit by height, cars by width. */}
-      <div className="rounded-xl bg-[var(--stage)] h-[300px] p-4 flex items-center justify-center overflow-hidden" style={stageStyle(card.stage)}>
+      <div className={cn("relative rounded-xl bg-[var(--stage)] h-[300px] p-4 flex items-center justify-center overflow-hidden", card.surface === "car" && "pb-12")} style={stageStyle(card.stage)}>
+        {card.surface === "car" && <Road />}
         <SurfaceFigure
           printed={isPrintedStatus(card.status, countdown.hasEnded)}
           surface={card.surface}

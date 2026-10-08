@@ -1,6 +1,7 @@
 "use client";
 
 import { stageStyle } from "@/lib/market/page";
+import { Road } from "@/components/surface/Road";
 import { isPrintedStatus } from "@/lib/market/listingStatus";
 import { useEffect, useMemo, useState } from "react";
 import { publicUrl } from "@/lib/handles";
@@ -340,7 +341,8 @@ function ListingPost({ card, time, mounted }: { card: ListingCard; time: number;
             )}
           </p>
         </div>
-        <div className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--stage)] h-[340px] p-5 flex items-center justify-center overflow-hidden" style={stageStyle(card.stage)}>
+        <div className={cn("relative rounded-2xl border-2 border-[var(--line)] bg-[var(--stage)] h-[340px] p-5 flex items-center justify-center overflow-hidden", card.surface === "car" && "pb-12")} style={stageStyle(card.stage)}>
+          {card.surface === "car" && <Road />}
           <SurfaceFigure surface={card.surface} imageUrl={card.canvasImage} lazy patches={figurePatches(card)} mode="static" showPrices={false} printed={isPrintedStatus(card.status, cd.hasEnded)}
             className={card.surface === "car" ? "w-full" : "h-full !w-auto max-w-full"} />
           <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] border-[1.5px] border-[var(--line)] px-2.5 py-1 text-xs font-semibold">
