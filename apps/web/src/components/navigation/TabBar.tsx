@@ -69,7 +69,10 @@ export function MobileTopBar() {
   return (
     <>
       <header className="md:hidden sticky top-0 z-40 bg-[var(--paper)]/92 backdrop-blur-md border-b-[1.5px] border-[var(--soft)] px-4 h-[54px] flex items-center justify-between">
-        <Link href="/" aria-label="Patched home" className="no-underline"><LogoMark size={30} /></Link>
+        <Link href="/" aria-label="patched.world home" className="no-underline inline-flex items-center gap-2 text-[var(--ink)]">
+          <LogoMark size={30} />
+          <span className="font-display font-extrabold text-[20px] leading-none tracking-tight">patched<span className="text-[var(--muted)]">.world</span></span>
+        </Link>
         {!ready ? (
           <span className="w-9 h-9 rounded-full bg-[var(--soft)]" aria-hidden="true" />
         ) : authenticated ? (
