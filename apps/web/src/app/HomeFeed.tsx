@@ -135,7 +135,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
           <h1 className="text-xl font-extrabold">Home</h1>
           <div className="ml-auto">{viewSwitch()}</div>
         </header>
-        <div className="md:hidden px-4 pt-3 pb-1">{viewSwitch(true)}</div>
+        <div className="md:hidden px-4 pt-3 pb-1"><ViewSwitch value={view} onChange={switchView} className="w-fit !shadow-none" /></div>
 
         <ContestBanner />
         <Composer />
@@ -228,7 +228,7 @@ function Composer() {
     { label: "Your own idea", icon: Zap },
   ];
   return (
-    <div className="flex gap-3 px-4 sm:px-5 py-4 border-b-[1.5px] border-[var(--soft)]">
+    <div className="hidden md:flex gap-3 px-4 sm:px-5 py-4 border-b-[1.5px] border-[var(--soft)]">
       {authenticated && <Avatar src={profile?.avatar_url} name={profile?.display_name ?? xHandle} wallet={walletAddress} size={44} />}
       <div className="flex-1 min-w-0 grid gap-3">
         <Link href="/studio" className="text-[19px] text-[var(--muted)] no-underline py-2 hover:text-[var(--ink)]">
@@ -259,21 +259,21 @@ function EventsStrip({ events }: { events: FeedEvent[] }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   return (
-    <div className="border-b-[1.5px] border-[var(--soft)] py-4">
-      <div className="flex items-center justify-between px-4 sm:px-5 mb-3">
+    <div className="border-b-[1.5px] border-[var(--soft)] py-3 md:py-4">
+      <div className="flex items-center justify-between px-4 sm:px-5 mb-2 md:mb-3">
         <h2 className="text-lg font-extrabold">Coming up</h2>
         <Link href="/events" className="text-sm font-semibold no-underline text-[var(--accent-text)] hover:underline">All events</Link>
       </div>
       <div className="flex gap-3 overflow-x-auto px-4 sm:px-5 pb-1 snap-x">
         {events.map((e) => (
-          <Link key={e.id} href={e.href} className="snap-start flex-none w-[240px] rounded-2xl border-2 border-[var(--line)] overflow-hidden no-underline text-[var(--ink)] bg-[var(--card)] hover:-translate-y-0.5 transition-transform">
+          <Link key={e.id} href={e.href} className="snap-start flex-none w-[210px] sm:w-[240px] rounded-2xl border-2 border-[var(--line)] overflow-hidden no-underline text-[var(--ink)] bg-[var(--card)] hover:-translate-y-0.5 transition-transform">
             {/* The event's cover, or the designed patch pattern in its own pastels when it has none yet. */}
-            <EventCover name={e.name} banner={e.banner} seed={e.id} variant="card" className="!border-b-0 !aspect-[2.6/1]">
+            <EventCover name={e.name} banner={e.banner} seed={e.id} variant="card" className="!border-b-0 !aspect-[3.4/1] sm:!aspect-[2.6/1]">
               <span className="absolute left-2.5 bottom-2 inline-flex items-center gap-1.5 rounded-full bg-[#0B0B0C]/80 text-[#FAFAF7] px-2.5 py-1 text-[11px] font-semibold">
                 <CalendarDays size={12} /> {mounted ? eventWhen(e) : "Upcoming"}
               </span>
             </EventCover>
-            <span className="grid gap-0.5 p-3">
+            <span className="grid gap-0.5 p-2.5 sm:p-3">
               <b className="truncate">{e.name}</b>
               <span className="text-[13px] text-[var(--muted)] flex items-center gap-2">
                 {e.city && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {e.city}</span>}

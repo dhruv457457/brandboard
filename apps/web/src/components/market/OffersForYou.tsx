@@ -34,13 +34,13 @@ export function OffersForYou() {
 
   if (!offers.length) return null;
   return (
-    <section aria-label="Offers for you" className="px-4 sm:px-5 py-4 border-b-[1.5px] border-[var(--soft)] grid gap-2">
+    <section aria-label="Offers for you" className="px-4 sm:px-5 py-2.5 md:py-4 border-b-[1.5px] border-[var(--soft)] grid gap-2">
       {offers.map((o) => (
-        <Link key={o.id} href={`/offers/${o.id}`} className="flex items-center gap-3 rounded-2xl bg-[var(--accent-soft)] p-3.5 hover:brightness-[0.98]">
-          <span className="w-10 h-10 rounded-xl bg-[var(--accent)] grid place-items-center flex-none"><Gift size={19} className="text-[#0B0B0C]" /></span>
+        <Link key={o.id} href={`/offers/${o.id}`} className="flex items-center gap-3 rounded-2xl bg-[var(--accent-soft)] p-2.5 md:p-3.5 hover:brightness-[0.98]">
+          <span className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-[var(--accent)] grid place-items-center flex-none"><Gift size={18} className="text-[#0B0B0C]" /></span>
           <span className="grid min-w-0">
             <b>A brand wants to patch you: ${(Number(o.budget) / 1e6).toLocaleString("en-US")}</b>
-            <span className="text-sm truncate">{o.message ?? "Open the offer to claim it and list a spot."}</span>
+            <span className="text-sm truncate hidden sm:block">{o.message ?? "Open the offer to claim it and list a spot."}</span>
           </span>
         </Link>
       ))}
