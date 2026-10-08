@@ -71,6 +71,25 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     setView(v);
     updateUrl((u) => (v === "patchwork" ? u.searchParams.set("view", "patchwork") : (u.searchParams.delete("view"), u.searchParams.delete("event"))));
   };
+  // Keep the feed fresh without a reload: fetch it again when the page opens (so coming back to Home isn't stale), every
+  // 20 seconds while it is on screen, and the moment the tab is looked at again.
+  const router = useRouter();
+  useEffect(() => {
+    if (view !== "feed") return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    refresh();
+    const timer = setInterval(refresh, 20_000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [view, router]);
+
   const viewSwitch = (wide?: boolean) => <ViewSwitch value={view} onChange={switchView} className={wide ? "w-full" : undefined} />;
 
   // "Following": only moments from creators and events you follow.
