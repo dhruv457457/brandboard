@@ -153,7 +153,7 @@ export default async function PatchPage({ params }: Params) {
                 ["Surface", t.surface],
                 ["Event", t.eventName || "None"],
                 ["Shape", f.shape],
-                ["Fabric", f.fabric],
+                ["Art", f.fabric],
                 ["Winning bid", formatUsdc(t.amount)],
                 ["Proofs", `${t.proofsDone} of ${t.milestoneCount}`],
               ].map(([k, v]) => (

@@ -210,3 +210,46 @@ This fits if comments shrink to a simple version (listing comments only) on Oct 
 - Pinning service: **QuickNode IPFS**, set up and tested 2026-10-04. Public gateway `https://figure-wash-outside.quicknode-ipfs.com`; the IPFS-only key is in the root `.env.local` as `QUICKNODE_IPFS_API_KEY`. A test upload through `put-object` returned a CIDv0 (`Qm…`) with status `pinned` and loaded through the gateway at once. The storage behind it is Filebase. Still to do: add both variables in Vercel.
 - Transfers: **decided 2026-10-04, keep them market-only** (no free transfers, even after delivery). Revisit after the hackathon.
 - Should creators also get their own token (a "creator pass" with total sponsors and delivered runs)? Recommended: **not before Oct 12**; the Sponsors wall shows the same thing from existing data.
+
+## 8. Design v3: the trading card (chosen by the user, 2026-10-09)
+The dark denim card (v2, live on testnet now) is replaced. The user wants a bright, on-brand collectible.
+
+**References:**
+- `docs/nft-design/trading-card-states.png`: every state.
+- `docs/nft-design/directions-v3.png`: the three directions considered (A paper, B card, C sticker); **B** won.
+- **Source of truth:** the `tcg()` function in `docs/nft-design/trading-card.mjs`. It uses system fonts only (Arial Black, Arial, Courier New), plain SVG patterns and gradients, and no images, so it ports straight into `PatchRenderer`.
+
+**Layout (1000×1000):**
+- **Background:** paper `#FAFAF7` with a dot grid.
+- **Card:** at (70,40), 860×930, rx 44, an 8px ink border and a hard 14px ink shadow.
+- **Frame = thread tier:**
+  - Cotton (under $100): near-black gradient.
+  - Silk ($100–999): `#836EF9` → `#FF8AD8` → `#7FD3FF`.
+  - Gold ($1,000 and up): a gold gradient plus a white sheen.
+- **Inner panel:** cream `#F4EFE3`.
+- **Header:**
+  - The brand name in Arial Black, sized to fit.
+  - An orange price coin top-right ("$420 / USDC").
+- **Art window:**
+  - Background pastel by surface: Outfit lilac, Car sky, Team hoodie butter, with a white halftone.
+  - The garment drawn in ink: a tee for Outfit, a hoodie for Team hoodie, a side-view car for Car.
+  - The embroidered patch on it: shape by `patchId % 5`, pastel satin, a merrowed edge in the tier thread, and a stitched ring.
+- **Stamps inside the window:**
+  - PRINTED (orange, round) once milestone 1 is proven.
+  - SEEN (purple, round) once the next is proven.
+  - DELIVERED (orange, rectangular) when the listing completes.
+- **Type line (white pill):** `OUTFIT · CHEST POCKET · ETHGLOBAL MUMBAI`.
+- **Flavour line (italic):** "The first brand to back @mira." for sponsor #1, otherwise "Sponsor #N of @creator."
+- **Track:** 4 numbered circles (Won, Printed, Seen, Delivered), orange when done.
+- **Footer:** `No.001` · `GOLD THREAD` · `PATCHED · MONAD`.
+
+**States:**
+- **Refunded:** the whole card is desaturated. The patch is replaced by its dashed stitch holes (unpicked), with an ink "REFUNDED $85" stamp. The track shows Won only.
+- **Disputed:** yellow/black hazard tape reading "PROOF DISPUTED" across the window. The track stops at Printed.
+
+**Work for the coding session:**
+1. Port `tcg()` into a new `PatchRenderer` (Solidity string building, same as today).
+2. Run `forge test` and deploy the renderer.
+3. Point the receipt at it with the existing swap-renderer script (`setRenderer`, admin only). Existing tokens redraw automatically; emit the ERC-4906 refresh.
+4. Use the same design for the `/patch/[tokenId]` page, OG images and the Collection/Sponsors tabs.
+5. The server-composed photo card for proof stages (section 4.1b) is dropped. Proof photos stay on IPFS and are linked from the token page, not drawn into the card.

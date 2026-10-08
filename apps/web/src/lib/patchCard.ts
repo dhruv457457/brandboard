@@ -1,6 +1,7 @@
-// The Living Patch card: an embroidered patch sewn onto the creator's fabric, with a woven label that carries the
-// facts and a passport stamp for every proven step. docs/nft-design/mockups-v2.html is the design;
-// contracts/src/PatchRenderer.sol draws the same card on-chain (system fonts, no photo). Keep the two in step.
+// The patch NFT card: a collectible trading card. A thread-coloured frame shows the price tier, the art window shows the
+// garment with the embroidered patch sewn on, passport stamps pile up as the creator proves each step, and a four-step
+// track runs along the bottom. docs/nft-plan.md section 8 is the design; contracts/src/PatchRenderer.sol draws the same
+// card on-chain (system fonts). Keep the two in step.
 //
 // Pure string building, so it runs in the browser, in a route handler and in a script.
 
@@ -29,7 +30,7 @@ export interface CardInput {
   /** Unix seconds when the first proof and the newest later proof were posted. */
   printedAt?: number;
   seenAt?: number;
-  /** The proof photo (data: or https: URL). Only the website uses it; the on-chain card has none. */
+  /** Not drawn into the card any more: proof photos live on IPFS and show on the token page. Kept for callers. */
   photo?: string;
   /** System fonts only: what a marketplace shows without web fonts. */
   system?: boolean;
@@ -37,26 +38,41 @@ export interface CardInput {
 
 const PASTEL = ["#BDEBD3", "#D9CCFF", "#FFE58F", "#BFE3FF", "#FFC9DA"];
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const INK = "#0B0B0C";
+const ORANGE = "#FF5A1F";
 
-/** Fabric the patch is sewn onto, one per surface. */
-export const FABRIC: Record<CardSurface, { name: string; base: string; hi: string; text: string }> = {
-  Outfit: { name: "Denim", base: "#22385C", hi: "#2F4C78", text: "#F4EFE3" },
-  Car: { name: "Racing paint", base: "#1D5A45", hi: "#2B7A5E", text: "#F4EFE3" },
-  "Team hoodie": { name: "Fleece", base: "#24212E", hi: "#353046", text: "#F4EFE3" },
+/** What the card draws for each surface (the "Art" trait) and the colour of its art window. */
+export const FABRIC: Record<CardSurface, { name: string; window: string }> = {
+  Outfit: { name: "Tee", window: "#D9CCFF" },
+  Car: { name: "Car", window: "#BFE3FF" },
+  "Team hoodie": { name: "Hoodie", window: "#FFE58F" },
 };
 
-/** The five patch outlines, centred on (500, 430). `inner` is the width the brand name may use. */
-const SHAPES: { name: string; inner: number; d: string }[] = [
-  { name: "Rounded", inner: 470, d: "M280 260 H720 A70 70 0 0 1 790 330 V530 A70 70 0 0 1 720 600 H280 A70 70 0 0 1 210 530 V330 A70 70 0 0 1 280 260 Z" },
-  { name: "Round", inner: 350, d: "M265 430 a235 235 0 1 0 470 0 a235 235 0 1 0 -470 0 Z" },
-  { name: "Shield", inner: 360, d: "M275 225 Q500 180 725 225 V435 Q725 605 500 685 Q275 605 275 435 Z" },
-  { name: "Hexagon", inner: 310, d: "M720.8 557.5 L500.0 685.0 L279.2 557.5 L279.2 302.5 L500.0 175.0 L720.8 302.5 Z" },
+/** The five patch outlines, centred on (0, 0). `maxW` is the width the brand name may use. */
+const SHAPES: { name: string; maxW: number; d: string }[] = [
+  { name: "Rounded", maxW: 420, d: "M-216.5 -175 H216.5 A73.5 73.5 0 0 1 290 -101.5 V101.5 A73.5 73.5 0 0 1 216.5 175 H-216.5 A73.5 73.5 0 0 1 -290 101.5 V-101.5 A73.5 73.5 0 0 1 -216.5 -175 Z" },
+  { name: "Round", maxW: 262, d: "M-175 0 a175 175 0 1 0 350 0 a175 175 0 1 0 -350 0 Z" },
+  { name: "Shield", maxW: 330, d: "M-226.2 -175 Q0 -206.5 226.2 -175 V8.8 Q226.2 122.5 0 183.8 Q-226.2 122.5 -226.2 8.8 Z" },
+  { name: "Hexagon", maxW: 330, d: "M-290 0 L-145 -175 L145 -175 L290 0 L145 175 L-145 175 Z" },
   {
     name: "Scalloped",
-    inner: 330,
-    d: "M715.0 430.0 A39.5 39.5 0 0 1 702.0 503.5 A39.5 39.5 0 0 1 664.7 568.2 A39.5 39.5 0 0 1 607.5 616.2 A39.5 39.5 0 0 1 537.3 641.7 A39.5 39.5 0 0 1 462.7 641.7 A39.5 39.5 0 0 1 392.5 616.2 A39.5 39.5 0 0 1 335.3 568.2 A39.5 39.5 0 0 1 298.0 503.5 A39.5 39.5 0 0 1 285.0 430.0 A39.5 39.5 0 0 1 298.0 356.5 A39.5 39.5 0 0 1 335.3 291.8 A39.5 39.5 0 0 1 392.5 243.8 A39.5 39.5 0 0 1 462.7 218.3 A39.5 39.5 0 0 1 537.3 218.3 A39.5 39.5 0 0 1 607.5 243.8 A39.5 39.5 0 0 1 664.7 291.8 A39.5 39.5 0 0 1 702.0 356.5 A39.5 39.5 0 0 1 715.0 430.0 Z",
+    maxW: 230,
+    d: "M160 0 A34.4 34.4 0 0 1 147.8 61.2 A34.4 34.4 0 0 1 113.1 113.1 A34.4 34.4 0 0 1 61.2 147.8 A34.4 34.4 0 0 1 0 160 A34.4 34.4 0 0 1 -61.2 147.8 A34.4 34.4 0 0 1 -113.1 113.1 A34.4 34.4 0 0 1 -147.8 61.2 A34.4 34.4 0 0 1 -160 0 A34.4 34.4 0 0 1 -147.8 -61.2 A34.4 34.4 0 0 1 -113.1 -113.1 A34.4 34.4 0 0 1 -61.2 -147.8 A34.4 34.4 0 0 1 0 -160 A34.4 34.4 0 0 1 61.2 -147.8 A34.4 34.4 0 0 1 113.1 -113.1 A34.4 34.4 0 0 1 147.8 -61.2 A34.4 34.4 0 0 1 160 0 Z",
   },
 ];
+
+/** The garment for each surface, in the art window's coordinates. */
+const GARMENT: Record<CardSurface, string> = {
+  Outfit: `<g transform="translate(500 215) scale(.62)"><path d="M-110 0 Q0 60 110 0 L250 90 L300 290 L215 320 L180 210 L180 600 L-180 600 L-180 210 L-215 320 L-300 290 L-250 90 Z" fill="#fff" stroke="${INK}" stroke-width="9" stroke-linejoin="round"/><path d="M-110 0 Q0 60 110 0" fill="none" stroke="${INK}" stroke-width="8"/></g>`,
+  Car: `<g transform="translate(500 300) scale(.95)"><path d="M-330 200 Q-330 130 -260 115 L-170 30 Q-145 5 -100 5 L110 5 Q150 5 175 30 L255 115 Q330 130 330 200 L330 260 L-330 260 Z" fill="#fff" stroke="${INK}" stroke-width="9" stroke-linejoin="round"/><path d="M-150 110 L-95 40 L-10 40 L-10 110 Z M20 110 L20 40 L100 40 L160 110 Z" fill="#E8F2FF" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/><circle cx="-190" cy="262" r="58" fill="${INK}"/><circle cx="-190" cy="262" r="24" fill="#fff"/><circle cx="190" cy="262" r="58" fill="${INK}"/><circle cx="190" cy="262" r="24" fill="#fff"/></g>`,
+  "Team hoodie": `<g transform="translate(500 205) scale(.66)"><path d="M-120 40 Q-60 -10 0 -10 Q60 -10 120 40 L240 120 L300 330 L220 360 L180 230 L180 600 L-180 600 L-180 230 L-220 360 L-300 330 L-240 120 Z" fill="#fff" stroke="${INK}" stroke-width="9" stroke-linejoin="round"/><path d="M-95 30 Q0 140 95 30" fill="none" stroke="${INK}" stroke-width="8" stroke-linecap="round"/><path d="M-30 95 L-38 190 M30 95 L38 190" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M-110 470 Q0 500 110 470 L110 560 L-110 560 Z" fill="none" stroke="${INK}" stroke-width="7" stroke-linejoin="round"/></g>`,
+};
+
+const TIER_FRAME: Record<Tier, string> = {
+  Cotton: `<stop offset="0" stop-color="#2A2A2A"/><stop offset="1" stop-color="${INK}"/>`,
+  Silk: `<stop offset="0" stop-color="#836EF9"/><stop offset=".5" stop-color="#FF8AD8"/><stop offset="1" stop-color="#7FD3FF"/>`,
+  Gold: `<stop offset="0" stop-color="#8A6100"/><stop offset=".3" stop-color="#F7D774"/><stop offset=".55" stop-color="#B8860B"/><stop offset=".8" stop-color="#FFF0A8"/><stop offset="1" stop-color="#8A6100"/>`,
+};
 
 export const shapeName = (patchId: number) => SHAPES[patchId % 5]!.name;
 
@@ -84,11 +100,6 @@ export function shortAddress(a: string): string {
   return `${a.slice(0, 6)}..${a.slice(-4)}`.toLowerCase();
 }
 
-function stamp(id: string, cx: number, cy: number, r: number, rot: number, color: string, rim: string, word: string, sub: string, F: Fonts) {
-  const rr = r - 24;
-  return `<g transform="rotate(${rot} ${cx} ${cy})" opacity=".92"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#000" fill-opacity=".22" stroke="${color}" stroke-width="7"/><circle cx="${cx}" cy="${cy}" r="${r - 44}" fill="none" stroke="${color}" stroke-width="2.5"/><path id="rim-${id}" d="M${cx - rr} ${cy} a${rr} ${rr} 0 1 1 ${2 * rr} 0 a${rr} ${rr} 0 1 1 -${2 * rr} 0" fill="none"/><text font-family="${F.mono}" font-weight="600" font-size="15" letter-spacing="2" fill="${color}"><textPath href="#rim-${id}" startOffset="2%">${esc(rim)}</textPath></text><text x="${cx}" y="${cy + 6}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${word.length > 6 ? 24 : 32}" fill="${color}">${esc(word)}</text><text x="${cx}" y="${cy + 30}" text-anchor="middle" font-family="${F.mono}" font-weight="600" font-size="16" fill="${color}">${esc(sub)}</text></g>`;
-}
-
 interface Fonts {
   display: string;
   body: string;
@@ -106,65 +117,79 @@ const SYSTEM_FONTS: Fonts = {
   mono: "Courier New, monospace",
 };
 
+/** A font size that fits `text` in `maxW` (about 0.66 em per character), capped at `max`. Same maths on-chain. */
+const fit = (text: string, maxW: number, max: number) => Math.min(max, Math.floor((maxW * 100) / (Math.max(text.length, 3) * 66)));
+
+/** How many of the four steps (won, printed, seen, delivered) are lit. */
+const DONE: Record<PatchStage, number> = { won: 1, refunded: 1, printed: 2, disputed: 2, seen: 3, delivered: 4 };
+
+function roundStamp(key: string, cx: number, cy: number, r: number, rot: number, color: string, word: string, wordSize: number, sub: string, F: Fonts) {
+  return `<g id="${key}" transform="rotate(${rot} ${cx} ${cy})" opacity=".88"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="6"/><circle cx="${cx}" cy="${cy}" r="${r - 12}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="5 5"/><text x="${cx}" y="${cy + 6}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${wordSize}" fill="${color}">${word}</text><text x="${cx}" y="${cy + 32}" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="16" fill="${color}">${esc(sub)}</text></g>`;
+}
+
+function rectStamp(key: string, x: number, y: number, w: number, size: number, rot: number, color: string, word: string, F: Fonts) {
+  const h = Math.floor((size * 18) / 10);
+  return `<g id="${key}" transform="rotate(${rot} ${x + Math.floor(w / 2)} ${y + 40})" opacity=".9"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="none" stroke="${color}" stroke-width="7"/><rect x="${x + 10}" y="${y + 10}" width="${w - 20}" height="${h - 20}" rx="5" fill="none" stroke="${color}" stroke-width="2.5"/><text x="${x + Math.floor(w / 2)}" y="${y + Math.floor((size * 125) / 100)}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${size}" letter-spacing="3" fill="${color}">${esc(word)}</text></g>`;
+}
+
 export function patchCard(o: CardInput): string {
   const F = o.system ? SYSTEM_FONTS : WEB_FONTS;
   const id = o.id;
-  const fab = FABRIC[o.surface];
   const tier = tierOf(o.amount);
-  const fill = PASTEL[o.patchId % 5]!;
   const stage = o.stage;
-  const progressed = stage === "printed" || stage === "seen" || stage === "delivered";
-  const photo = progressed && !!o.photo;
-  const unpicked = stage === "refunded";
-  const price = fmtUsd(o.amount);
-
-  // With a photo the patch shrinks to a sticker in the lower left. Without one it moves left to make room for the
-  // stamps. Won, refunded and disputed show it at full size.
-  const S = photo
-    ? { scale: 0.56, tx: -255, ty: 215 }
-    : progressed
-      ? { scale: 0.74, tx: -90, ty: 36 }
-      : { scale: 1, tx: 0, ty: 0 };
+  const done = DONE[stage];
   const sh = SHAPES[o.patchId % 5]!;
-  const n = Math.max(o.brand.length, 4);
-  const size = Math.min(112, Math.floor((sh.inner * 10) / (n * 6)));
-  const tierStroke = { Cotton: "#0B0B0C", Silk: `url(#silk-${id})`, Gold: `url(#gold-${id})` }[tier];
+  const price = `$${fmtUsd(o.amount)}`;
+  const at = o.surface === "Car" ? "translate(500 430) scale(.36) rotate(-3)" : "translate(500 380) scale(.36) rotate(-3)";
 
-  const defs = `<defs><pattern id="twill-${id}" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="14" height="14" fill="${fab.base}"/><rect width="6" height="14" fill="${fab.hi}" opacity=".55"/></pattern><pattern id="satin-${id}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="4" height="9" fill="#fff" opacity=".22"/></pattern><pattern id="thread-${id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-50)"><rect width="6" height="6" fill="#0B0B0C"/><rect width="2" height="6" fill="#fff" opacity=".18"/></pattern><linearGradient id="gold-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7A5300"/><stop offset=".3" stop-color="#F7D774"/><stop offset=".55" stop-color="#B8860B"/><stop offset=".8" stop-color="#FFF0A8"/><stop offset="1" stop-color="#8A6100"/></linearGradient><linearGradient id="silk-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#836EF9"/><stop offset=".5" stop-color="#FF8AD8"/><stop offset="1" stop-color="#7FD3FF"/></linearGradient><linearGradient id="fade-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".35" stop-color="#000" stop-opacity="0"/><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".7"/></linearGradient><linearGradient id="sheen-${id}" x1="0" y1="0" x2="1" y2="0"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".45"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/></linearGradient><filter id="lift-${id}" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="#000" flood-opacity=".5"/></filter><filter id="grey-${id}"><feColorMatrix type="saturate" values="0"/></filter><clipPath id="clip-${id}"><path d="${sh.d}"/></clipPath></defs>`;
+  const defs = `<defs><linearGradient id="tier-${id}" x1="0" y1="0" x2="1" y2="1">${TIER_FRAME[tier]}</linearGradient>${tier === "Gold" ? `<linearGradient id="sheen-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient>` : ""}<pattern id="satin-${id}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="3.5" height="9" fill="#fff" opacity=".28"/></pattern><pattern id="dots-${id}" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.2" fill="#E2DDD0"/></pattern><pattern id="half-${id}" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="9" cy="9" r="3" fill="#fff" opacity=".45"/></pattern>${stage === "refunded" ? `<filter id="grey-${id}"><feColorMatrix type="saturate" values="0.1"/></filter>` : ""}</defs>`;
 
-  const bg = photo
-    ? `<image href="${esc(o.photo!)}" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/><rect width="1000" height="1000" fill="url(#fade-${id})"/>`
-    : `<rect width="1000" height="1000" fill="url(#twill-${id})"${unpicked ? ` filter="url(#grey-${id})"` : ""}/><rect x="0" y="0" width="1000" height="1000" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="40"/>${o.surface === "Car" ? `<rect x="330" y="0" width="70" height="1000" fill="#F4EFE3" opacity=".9"/><rect x="600" y="0" width="70" height="1000" fill="#F4EFE3" opacity=".9"/>` : ""}`;
+  // The card: hard shadow, thread-coloured frame, cream panel, brand name and the price coin.
+  const frame = `<rect x="70" y="40" width="860" height="930" rx="44" fill="${INK}" transform="translate(14 14)"/><rect x="70" y="40" width="860" height="930" rx="44" fill="url(#tier-${id})" stroke="${INK}" stroke-width="8"/>${tier === "Gold" ? `<rect x="70" y="40" width="860" height="930" rx="44" fill="url(#sheen-${id})"/>` : ""}<rect x="100" y="70" width="800" height="870" rx="28" fill="#F4EFE3" stroke="${INK}" stroke-width="5"/><text x="130" y="140" font-family="${F.display}" font-weight="800" font-size="${fit(o.brand, 480, 60)}" fill="${INK}">${esc(o.brand)}</text><circle cx="815" cy="118" r="56" fill="${ORANGE}" stroke="${INK}" stroke-width="5"/><text x="815" y="114" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${price.length <= 4 ? 32 : price.length <= 6 ? 26 : 20}" fill="#fff">${price}</text><text x="815" y="140" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="15" fill="#fff">USDC</text>`;
 
-  const patch = unpicked
-    ? `<path d="${sh.d}" fill="#000" fill-opacity=".18"/><path d="${sh.d}" fill="none" stroke="#F4EFE3" stroke-opacity=".75" stroke-width="5" stroke-dasharray="3 13" stroke-linecap="round"/><path d="${sh.d}" transform="translate(500 430) scale(.9) translate(-500 -430)" fill="none" stroke="#F4EFE3" stroke-opacity=".45" stroke-width="4" stroke-dasharray="2 11" stroke-linecap="round"/>`
-    : `<g filter="url(#lift-${id})"><path d="${sh.d}" fill="${fill}"/><path d="${sh.d}" fill="url(#satin-${id})"/><g clip-path="url(#clip-${id})"><rect x="0" y="0" width="1000" height="390" fill="#fff" opacity=".18"/></g><path d="${sh.d}" fill="none" stroke="${tierStroke}" stroke-width="26"/><path d="${sh.d}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="26" stroke-dasharray="2.5 4.5"/>${tier === "Gold" ? `<path d="${sh.d}" fill="none" stroke="url(#sheen-${id})" stroke-width="26"/>` : ""}<path d="${sh.d}" transform="translate(500 430) scale(.86) translate(-500 -430)" fill="none" stroke="#0B0B0C" stroke-opacity=".55" stroke-width="5" stroke-dasharray="13 9"/><text x="500" y="${430 + Math.floor((size * 35) / 100)}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${size}" letter-spacing="-0.02em" fill="url(#thread-${id})" stroke="#0B0B0C" stroke-width="2">${esc(o.brand)}</text></g>`;
+  // The art window: the garment, and the patch sewn on (or unpicked after a refund).
+  const size = fit(o.brand, sh.maxW, 108);
+  const patch =
+    stage === "refunded"
+      ? `<path d="${sh.d}" transform="${at}" fill="none" stroke="${INK}" stroke-opacity=".6" stroke-width="10" stroke-dasharray="4 16" stroke-linecap="round"/>`
+      : `<g transform="${at}"><path d="${sh.d}" transform="translate(14 16)" fill="${INK}"/><path d="${sh.d}" fill="${PASTEL[o.patchId % 5]}"/><path d="${sh.d}" fill="url(#satin-${id})"/><path d="${sh.d}" fill="none" stroke="url(#tier-${id})" stroke-width="22"/><path d="${sh.d}" fill="none" stroke="${INK}" stroke-opacity=".35" stroke-width="22" stroke-dasharray="2.5 4.5"/><path d="${sh.d}" transform="scale(.84)" fill="none" stroke="${INK}" stroke-opacity=".55" stroke-width="4" stroke-dasharray="12 8"/><text x="0" y="${Math.floor((size * 35) / 100)}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${size}" fill="${INK}">${esc(o.brand)}</text></g>`;
+  const window = `<rect x="130" y="180" width="740" height="430" rx="18" fill="${FABRIC[o.surface].window}" stroke="${INK}" stroke-width="5"/><rect x="130" y="180" width="740" height="430" rx="18" fill="url(#half-${id})"/>${GARMENT[o.surface]}${patch}`;
 
-  const rimEvent = o.event.toUpperCase();
-  const stamps: string[] = [];
-  if (progressed) stamps.push(stamp(`${id}a`, 795, 245, 105, -14, "#FF7A45", "PATCHED · PRINTED · PATCHED · ", "PRINTED", o.printedAt ? fmtDay(o.printedAt) : "", F));
-  if ((stage === "seen" || stage === "delivered") && o.seen > 0) {
-    stamps.push(stamp(`${id}b`, 820, 500, 95, 11, "#C9BCFF", `${rimEvent} · SEEN · `, "SEEN", o.seenAt ? fmtDay(o.seenAt) : "", F));
-  }
-  const delivered =
-    stage === "delivered"
-      ? `<g transform="rotate(-10 640 680)"><rect x="470" y="618" width="380" height="118" rx="14" fill="none" stroke="#FF5A1F" stroke-width="9"/><rect x="484" y="632" width="352" height="90" rx="8" fill="none" stroke="#FF5A1F" stroke-width="3"/><text x="660" y="696" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="56" letter-spacing="0.05em" fill="#FF5A1F">DELIVERED</text></g>`
-      : "";
-  const refunded = unpicked
-    ? `<g transform="rotate(-9 500 430)"><rect x="235" y="372" width="530" height="118" rx="14" fill="none" stroke="#F4EFE3" stroke-width="8"/><text x="500" y="452" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="54" fill="#F4EFE3">REFUNDED $${price}</text></g>`
-    : "";
-  const disputed =
-    stage === "disputed"
-      ? `<g transform="rotate(-8 500 420)"><rect x="-60" y="380" width="1120" height="74" fill="#FFD400"/><g fill="#0B0B0C">${Array.from({ length: 28 }, (_, k) => `<path d="M${-60 + k * 44} 380 l24 0 -30 74 -24 0z"/>`).join("")}</g><rect x="250" y="388" width="500" height="58" fill="#FFD400"/><text x="500" y="428" text-anchor="middle" font-family="${F.body}" font-weight="600" font-size="30" letter-spacing="0.14em" fill="#0B0B0C">PROOF DISPUTED</text></g>`
-      : "";
+  // Passport stamps, one per proven step; then the refund stamp or the dispute tape over the window.
+  const stamps = [
+    done >= 2 ? roundStamp(`stamp-printed-${id}`, 235, 290, 62, -14, ORANGE, "PRINTED", 22, o.printedAt ? fmtDay(o.printedAt) : "", F) : "",
+    done >= 3 ? roundStamp(`stamp-seen-${id}`, 770, 300, 58, 12, "#836EF9", "SEEN", 28, o.seenAt ? fmtDay(o.seenAt) : "", F) : "",
+    done >= 4 ? rectStamp(`stamp-delivered-${id}`, 530, 500, 310, 38, -8, ORANGE, "DELIVERED", F) : "",
+  ].join("");
+  const overlay =
+    stage === "refunded"
+      ? rectStamp(`stamp-refunded-${id}`, 240, 330, 520, 46, -9, INK, `REFUNDED ${price}`, F)
+      : stage === "disputed"
+        ? `<g transform="rotate(-9 500 400)"><rect x="90" y="360" width="820" height="70" fill="#FFD400" stroke="${INK}" stroke-width="4"/><g fill="${INK}">${Array.from({ length: 20 }, (_, k) => `<path d="M${90 + k * 42} 360 l22 0 -26 70 -22 0z"/>`).join("")}</g><rect x="300" y="368" width="400" height="54" fill="#FFD400"/><text x="500" y="406" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="30" fill="${INK}">PROOF DISPUTED</text></g>`
+        : "";
 
-  const first = o.sponsorNo === 1;
-  const header = `<text x="64" y="118" font-family="${F.display}" font-weight="800" font-size="76" letter-spacing="-0.04em" fill="${fab.text}">${o.sponsorNo > 0 ? `No.${String(o.sponsorNo).padStart(3, "0")}` : `#${o.listing}.${o.patchId + 1}`}</text><text x="68" y="158" font-family="${F.mono}" font-weight="600" font-size="22" letter-spacing="2" fill="${first ? "#FFB08F" : fab.text}" opacity="${first ? 1 : 0.8}">${first ? "FIRST SPONSOR OF" : "SPONSOR OF"} @${esc(o.creator.toUpperCase())}</text><g transform="translate(872 64) rotate(-8 25 25) scale(1.5)"><rect x="6" y="6" width="31" height="31" rx="9" fill="#0B0B0C"/><rect x="3.5" y="3.5" width="31" height="31" rx="9" fill="#FF5A1F" stroke="#0B0B0C" stroke-width="2.4"/><rect x="7.8" y="7.8" width="22.4" height="22.4" rx="5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2.4"/><path d="M15.5 28V12.5h5.2a4.4 4.4 0 0 1 0 8.8h-5.2" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  // "OUTFIT · CHEST POCKET · ETHGLOBAL MUMBAI": no event means the event is the surface name, so it is left out.
+  const hasEvent = o.event !== o.surface;
+  const typeText = `${o.surface} · ${o.label}${hasEvent ? ` · ${o.event}` : ""}`.toUpperCase();
+  const typeSize = typeText.length <= 52 ? 22 : Math.floor((22 * 52) / typeText.length);
+  const typeLine = `<rect x="130" y="630" width="740" height="56" rx="12" fill="#fff" stroke="${INK}" stroke-width="4"/><text x="150" y="668" font-family="${F.mono}" font-weight="700" font-size="${typeSize}" fill="${INK}">${esc(typeText)}</text>`;
 
-  const done = { won: 1, printed: 2, seen: 3, delivered: 4, refunded: 0, disputed: 2 }[stage];
-  const stageWord = { won: "WON", printed: "PRINTED", seen: `SEEN ${o.seen}/${o.seenOf}`, delivered: "DELIVERED", refunded: "REFUNDED", disputed: "IN REVIEW" }[stage];
-  const stageColor = stage === "refunded" ? "#5F5B53" : stage === "disputed" ? "#B42318" : "#E0430B";
-  const label = `<rect x="52" y="800" width="896" height="150" rx="8" fill="#000" opacity=".3" transform="translate(0 8)"/><rect x="52" y="800" width="896" height="150" rx="8" fill="#F4EFE3"/><rect x="52" y="800" width="896" height="150" rx="8" fill="url(#satin-${id})" opacity=".35"/><line x1="76" y1="812" x2="76" y2="938" stroke="#0B0B0C" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 6"/><line x1="924" y1="812" x2="924" y2="938" stroke="#0B0B0C" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 6"/><text x="100" y="862" font-family="${F.display}" font-weight="800" font-size="42" letter-spacing="-0.03em" fill="#0B0B0C">${esc(o.label)}</text><text x="100" y="903" font-family="${F.mono}" font-weight="500" font-size="23" fill="#5F5B53">${esc(o.event)} · $${price} USDC · ${tier.toUpperCase()}</text><text x="100" y="932" font-family="${F.mono}" font-weight="500" font-size="19" fill="#5F5B53" opacity=".85">PATCHED ON MONAD · #${o.listing}-${o.patchId}</text><text x="900" y="862" text-anchor="end" font-family="${F.display}" font-weight="800" font-size="34" fill="${stageColor}">${stageWord}</text>${[0, 1, 2, 3].map((k) => `<rect x="${740 + k * 42}" y="890" width="32" height="14" rx="7" fill="${k < done ? "#FF5A1F" : "#0B0B0C"}" fill-opacity="${k < done ? 1 : 0.15}"/>`).join("")}`;
+  const who = `@${o.creator}`;
+  const flavourText = o.sponsorNo === 1 ? `The first brand to back ${who}.` : o.sponsorNo > 1 ? `Sponsor #${o.sponsorNo} of ${who}.` : `A spot on ${who}.`;
+  const flavour = `<text x="130" y="742" font-family="${F.body}" font-style="italic" font-size="26" fill="#5F5B53">${esc(flavourText)}</text>`;
 
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.brand)} patch, ${stage}">${defs}${bg}<g transform="translate(${S.tx} ${S.ty}) translate(500 430) scale(${S.scale}) translate(-500 -430)">${patch}</g>${stamps.join("")}${delivered}${refunded}${disputed}${header}${label}</svg>`;
+  const steps = ["WON", "PRINTED", stage === "seen" ? `SEEN ${o.seen}/${o.seenOf}` : "SEEN", "DELIVERED"];
+  const track = steps
+    .map((label, i) => {
+      const x = 175 + i * 220;
+      const on = i < done;
+      return `<circle cx="${x}" cy="820" r="32" fill="${on ? ORANGE : "#fff"}" stroke="${INK}" stroke-width="4"/><text x="${x}" y="831" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="28" fill="${on ? "#fff" : "#B5AFA3"}">${i + 1}</text><text x="${x}" y="876" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="19" fill="${on ? INK : "#8A857B"}">${label}</text>`;
+    })
+    .join("");
+
+  // Receipts minted before sponsor numbers existed have none: show which spot it is instead.
+  const num = o.sponsorNo > 0 ? `No.${String(o.sponsorNo).padStart(3, "0")}` : `#${o.listing}.${o.patchId + 1}`;
+  const footer = `<text x="130" y="922" font-family="${F.mono}" font-weight="700" font-size="20" fill="${INK}">${num}</text><text x="500" y="922" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="20" fill="#8A857B">${tier.toUpperCase()} THREAD</text><text x="870" y="922" text-anchor="end" font-family="${F.mono}" font-weight="700" font-size="20" fill="${INK}">PATCHED · MONAD</text>`;
+
+  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.brand)} patch, ${stage}">${defs}<rect width="1000" height="1000" fill="#FAFAF7"/><rect width="1000" height="1000" fill="url(#dots-${id})"/><g${stage === "refunded" ? ` filter="url(#grey-${id})" opacity=".8"` : ""}>${frame}${window}${stamps}${overlay}${typeLine}${flavour}${track}${footer}</g></svg>`;
 }

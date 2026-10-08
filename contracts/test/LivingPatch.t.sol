@@ -70,8 +70,8 @@ contract LivingPatchTest is BaseTest {
         string memory won = _svg(id, 0);
         assertTrue(_has(won, ">WON</text>"));
         assertTrue(_has(won, "Nodeflux"));
-        assertTrue(_has(won, "FIRST SPONSOR OF @MIRA"));
-        assertFalse(_has(won, "PRINTED"));
+        assertTrue(_has(won, "The first brand to back @mira."));
+        assertFalse(_has(won, 'id="stamp-printed"')); // no stamp before a proof
 
         _submit(id, 0);
         PatchedMarket.TokenView memory v = _tv(id, 0);
@@ -80,6 +80,8 @@ contract LivingPatchTest is BaseTest {
         assertEq(v.proofURI, "ipfs://proof");
         string memory printed = _svg(id, 0);
         assertTrue(_has(printed, ">PRINTED</text>"));
+        assertTrue(_has(printed, 'id="stamp-printed"'));
+        assertFalse(_has(printed, 'id="stamp-seen"'));
         assertEq(market.proofURIOf(id, 0), "ipfs://proof");
         assertEq(market.proofAt(id, 0), block.timestamp);
 
@@ -96,6 +98,7 @@ contract LivingPatchTest is BaseTest {
         assertEq(_tv(id, 0).stage, market.STAGE_DELIVERED());
         string memory done = _svg(id, 0);
         assertTrue(_has(done, ">DELIVERED</text>"));
+        assertTrue(_has(done, 'id="stamp-delivered"'));
         assertTrue(_has(done, ">SEEN</text>")); // the seen stamp stays on the delivered card
     }
 
@@ -158,8 +161,10 @@ contract LivingPatchTest is BaseTest {
         vm.prank(alice);
         market.setBrandName("Patched Test Brand Studio Ltd");
         uint256 id = _delivering();
-        // 29 characters on the rounded patch (470 wide): 4700 / 174 = 27px
-        assertTrue(_has(_svg(id, 0), 'font-size="27"'));
+        string memory svg = _svg(id, 0);
+        // 29 characters: on the rounded patch (420 wide) 42000 / (29 * 66) = 21px, in the card header (480 wide) 25px.
+        assertTrue(_has(svg, 'font-size="21"'));
+        assertTrue(_has(svg, 'font-size="25"'));
     }
 
     function test_names_keep_their_case_in_the_metadata() public {
@@ -196,7 +201,9 @@ contract LivingPatchTest is BaseTest {
     function test_no_event_does_not_repeat_the_surface() public {
         uint256 id = _delivering(); // _params uses eventId 0
         assertEq(_tv(id, 0).eventName, bytes32(0));
-        assertTrue(_has(_svg(id, 0), "Outfit &#183; $200 USDC &#183; SILK"));
+        string memory svg = _svg(id, 0);
+        assertTrue(_has(svg, '">OUTFIT &#183; '));
+        assertFalse(_has(svg, "&#183; OUTFIT<"));
     }
 
     function test_tiers_follow_the_winning_bid() public {
@@ -217,7 +224,7 @@ contract LivingPatchTest is BaseTest {
         assertTrue(_has(_svg(id, 1), "SILK"));
         string memory gold = _svg(id, 2);
         assertTrue(_has(gold, "GOLD"));
-        assertTrue(_has(gold, "1,000 USDC"));
+        assertTrue(_has(gold, ">$1,000<"));
         assertTrue(_has(gold, 'id="sheen"'));
     }
 

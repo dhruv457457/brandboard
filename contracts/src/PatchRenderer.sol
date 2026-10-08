@@ -26,10 +26,11 @@ struct PatchCard {
 }
 
 /// @title PatchArt
-/// @notice The Living Patch card as an SVG string: an embroidered patch sewn onto the creator's fabric, a woven label
-///         with the facts, and a passport stamp for every proven step. It is the on-chain twin of
-///         apps/web/src/lib/patchCard.ts (no photo, system fonts only), so keep the two in step.
-///         Plain SVG only: patterns, gradients, one drop shadow, clip paths and text on a path. No images, no scripts.
+/// @notice The patch NFT as a collectible trading card (design: docs/nft-plan.md section 8). A thread-coloured frame
+///         shows the price tier, the art window shows the garment with the embroidered patch sewn on, passport stamps
+///         pile up as the creator proves each step, and a four-step track runs along the bottom. It is the on-chain twin
+///         of apps/web/src/lib/patchCard.ts, so keep the two in step.
+///         Plain SVG only: patterns, gradients and one colour filter. System fonts, no images, no scripts.
 library PatchArt {
     using Strings for uint256;
 
@@ -43,316 +44,276 @@ library PatchArt {
     string internal constant DISPLAY = "Arial Black, Arial, Helvetica, sans-serif";
     string internal constant BODY = "Arial, Helvetica, sans-serif";
     string internal constant MONO = "Courier New, monospace";
+    string internal constant INK = "#0B0B0C";
+    string internal constant ORANGE = "#FF5A1F";
 
     function render(PatchCard memory c) internal pure returns (string memory) {
-        bool progressed = c.stage == PRINTED || c.stage == SEEN || c.stage == DELIVERED;
-        bool unpicked = c.stage == REFUNDED;
-        (string memory d, uint256 inner) = _shape(c.patchId);
         uint256 tier = c.amount >= 1_000e6 ? 2 : c.amount >= 100e6 ? 1 : 0; // cotton, silk, gold
-
-        // The patch moves left to make room for the stamps once there is something to stamp.
-        string memory move = progressed
-            ? "translate(-90 36) translate(500 430) scale(.74) translate(-500 -430)"
-            : "translate(0 0) translate(500 430) scale(1) translate(-500 -430)";
-
+        uint256 done = _done(c.stage);
         return string.concat(
             '<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img">',
-            _defs(c.surface, tier, unpicked, d),
-            _background(c.surface, unpicked),
-            '<g transform="',
-            move,
-            '">',
-            unpicked ? _unpicked(d) : _patch(c, d, inner, tier),
-            "</g>",
-            _stamps(c, progressed),
-            _banner(c),
-            _header(c),
-            _label(c, tier)
+            _defs(tier, c.stage == REFUNDED),
+            '<rect width="1000" height="1000" fill="#FAFAF7"/><rect width="1000" height="1000" fill="url(#dots)"/>',
+            c.stage == REFUNDED ? '<g filter="url(#grey)" opacity=".8">' : "<g>",
+            _frame(c, tier),
+            _window(c),
+            _stamps(c, done),
+            _overlay(c),
+            _typeLine(c),
+            _flavour(c),
+            _track(c, done),
+            _footer(c, tier),
+            "</g></svg>"
         );
+    }
+
+    /// @dev How many of the four steps (won, printed, seen, delivered) are lit.
+    function _done(uint8 stage) internal pure returns (uint256) {
+        if (stage == WON || stage == REFUNDED) return 1;
+        if (stage == PRINTED || stage == DISPUTED) return 2;
+        if (stage == SEEN) return 3;
+        return 4;
     }
 
     // ───────────────────────────── Shapes ─────────────────────────────
 
-    /// @dev The five outlines, centred on (500, 430), and the width the brand name may use. Chosen by patch number.
-    function _shape(uint8 patchId) private pure returns (string memory d, uint256 inner) {
+    /// @dev The five patch outlines, centred on (0, 0), and the width the brand name may use. Chosen by patch number.
+    function _shape(uint8 patchId) private pure returns (string memory d, uint256 maxW) {
         uint8 i = patchId % 5;
         if (i == 0) {
             return (
-                "M280 260 H720 A70 70 0 0 1 790 330 V530 A70 70 0 0 1 720 600 H280 A70 70 0 0 1 210 530 V330 A70 70 0 0 1 280 260 Z",
-                470
+                "M-216.5 -175 H216.5 A73.5 73.5 0 0 1 290 -101.5 V101.5 A73.5 73.5 0 0 1 216.5 175 H-216.5 A73.5 73.5 0 0 1 -290 101.5 V-101.5 A73.5 73.5 0 0 1 -216.5 -175 Z",
+                420
             );
         }
-        if (i == 1) return ("M265 430 a235 235 0 1 0 470 0 a235 235 0 1 0 -470 0 Z", 350);
-        if (i == 2) return ("M275 225 Q500 180 725 225 V435 Q725 605 500 685 Q275 605 275 435 Z", 360);
-        if (i == 3) {
-            return (
-                "M720.8 557.5 L500.0 685.0 L279.2 557.5 L279.2 302.5 L500.0 175.0 L720.8 302.5 Z", 310
-            );
+        if (i == 1) return ("M-175 0 a175 175 0 1 0 350 0 a175 175 0 1 0 -350 0 Z", 262);
+        if (i == 2) {
+            return ("M-226.2 -175 Q0 -206.5 226.2 -175 V8.8 Q226.2 122.5 0 183.8 Q-226.2 122.5 -226.2 8.8 Z", 330);
         }
+        if (i == 3) return ("M-290 0 L-145 -175 L145 -175 L290 0 L145 175 L-145 175 Z", 330);
         return (
             string.concat(
-                "M715.0 430.0 A39.5 39.5 0 0 1 702.0 503.5 A39.5 39.5 0 0 1 664.7 568.2 A39.5 39.5 0 0 1 607.5 616.2 ",
-                "A39.5 39.5 0 0 1 537.3 641.7 A39.5 39.5 0 0 1 462.7 641.7 A39.5 39.5 0 0 1 392.5 616.2 ",
-                "A39.5 39.5 0 0 1 335.3 568.2 A39.5 39.5 0 0 1 298.0 503.5 A39.5 39.5 0 0 1 285.0 430.0 ",
-                "A39.5 39.5 0 0 1 298.0 356.5 A39.5 39.5 0 0 1 335.3 291.8 A39.5 39.5 0 0 1 392.5 243.8 ",
-                "A39.5 39.5 0 0 1 462.7 218.3 A39.5 39.5 0 0 1 537.3 218.3 A39.5 39.5 0 0 1 607.5 243.8 ",
-                "A39.5 39.5 0 0 1 664.7 291.8 A39.5 39.5 0 0 1 702.0 356.5 A39.5 39.5 0 0 1 715.0 430.0 Z"
+                "M160 0 A34.4 34.4 0 0 1 147.8 61.2 A34.4 34.4 0 0 1 113.1 113.1 A34.4 34.4 0 0 1 61.2 147.8 ",
+                "A34.4 34.4 0 0 1 0 160 A34.4 34.4 0 0 1 -61.2 147.8 A34.4 34.4 0 0 1 -113.1 113.1 ",
+                "A34.4 34.4 0 0 1 -147.8 61.2 A34.4 34.4 0 0 1 -160 0 A34.4 34.4 0 0 1 -147.8 -61.2 ",
+                "A34.4 34.4 0 0 1 -113.1 -113.1 A34.4 34.4 0 0 1 -61.2 -147.8 A34.4 34.4 0 0 1 0 -160 ",
+                "A34.4 34.4 0 0 1 61.2 -147.8 A34.4 34.4 0 0 1 113.1 -113.1 A34.4 34.4 0 0 1 147.8 -61.2 ",
+                "A34.4 34.4 0 0 1 160 0 Z"
             ),
-            330
+            230
         );
+    }
+
+    /// @dev A font size that fits `text` in `maxW` (Arial Black runs about 0.66 em per character), capped at `max`.
+    function _fit(string memory text, uint256 maxW, uint256 max) private pure returns (uint256 size) {
+        uint256 n = bytes(text).length;
+        if (n < 3) n = 3;
+        size = (maxW * 100) / (n * 66);
+        if (size > max) size = max;
     }
 
     // ───────────────────────────── Parts ─────────────────────────────
 
-    function _defs(uint8 surface, uint256 tier, bool unpicked, string memory d) private pure returns (string memory) {
-        (string memory base, string memory hi) = surface == 0
-            ? ("#22385C", "#2F4C78")
-            : surface == 1 ? ("#1D5A45", "#2B7A5E") : ("#24212E", "#353046");
-        string memory thread = tier == 2
-            ? '<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7A5300"/><stop offset=".3" stop-color="#F7D774"/><stop offset=".55" stop-color="#B8860B"/><stop offset=".8" stop-color="#FFF0A8"/><stop offset="1" stop-color="#8A6100"/></linearGradient><linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".45"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    function _defs(uint256 tier, bool grey) private pure returns (string memory) {
+        string memory frame = tier == 2
+            ? '<linearGradient id="tier" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A6100"/><stop offset=".3" stop-color="#F7D774"/><stop offset=".55" stop-color="#B8860B"/><stop offset=".8" stop-color="#FFF0A8"/><stop offset="1" stop-color="#8A6100"/></linearGradient><linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient>'
             : tier == 1
-                ? '<linearGradient id="silk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#836EF9"/><stop offset=".5" stop-color="#FF8AD8"/><stop offset="1" stop-color="#7FD3FF"/></linearGradient>'
-                : "";
+                ? '<linearGradient id="tier" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#836EF9"/><stop offset=".5" stop-color="#FF8AD8"/><stop offset="1" stop-color="#7FD3FF"/></linearGradient>'
+                : '<linearGradient id="tier" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A2A2A"/><stop offset="1" stop-color="#0B0B0C"/></linearGradient>';
         return string.concat(
-            '<defs><pattern id="twill" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="14" height="14" fill="',
-            base,
-            '"/><rect width="6" height="14" fill="',
-            hi,
-            '" opacity=".55"/></pattern>',
-            '<pattern id="satin" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="4" height="9" fill="#fff" opacity=".22"/></pattern>',
-            '<pattern id="thread" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-50)"><rect width="6" height="6" fill="#0B0B0C"/><rect width="2" height="6" fill="#fff" opacity=".18"/></pattern>',
-            thread,
-            '<filter id="lift" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="#000" flood-opacity=".5"/></filter>',
-            unpicked ? '<filter id="grey"><feColorMatrix type="saturate" values="0"/></filter>' : "",
-            '<clipPath id="clip"><path d="',
-            d,
-            '"/></clipPath></defs>'
+            "<defs>",
+            frame,
+            '<pattern id="satin" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="3.5" height="9" fill="#fff" opacity=".28"/></pattern>',
+            '<pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.2" fill="#E2DDD0"/></pattern>',
+            '<pattern id="half" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="9" cy="9" r="3" fill="#fff" opacity=".45"/></pattern>',
+            grey ? '<filter id="grey"><feColorMatrix type="saturate" values="0.1"/></filter>' : "",
+            "</defs>"
         );
     }
 
-    function _background(uint8 surface, bool unpicked) private pure returns (string memory) {
+    /// @dev The card: hard shadow, thread-coloured frame, cream panel, brand name and the price coin.
+    function _frame(PatchCard memory c, uint256 tier) private pure returns (string memory) {
+        string memory price = string.concat("$", _usd(c.amount));
+        uint256 n = bytes(price).length;
         return string.concat(
-            '<rect width="1000" height="1000" fill="url(#twill)"',
-            unpicked ? ' filter="url(#grey)"' : "",
-            '/><rect x="0" y="0" width="1000" height="1000" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="40"/>',
-            surface == 1
-                ? '<rect x="330" y="0" width="70" height="1000" fill="#F4EFE3" opacity=".9"/><rect x="600" y="0" width="70" height="1000" fill="#F4EFE3" opacity=".9"/>'
-                : ""
+            '<rect x="70" y="40" width="860" height="930" rx="44" fill="#0B0B0C" transform="translate(14 14)"/><rect x="70" y="40" width="860" height="930" rx="44" fill="url(#tier)" stroke="#0B0B0C" stroke-width="8"/>',
+            tier == 2 ? '<rect x="70" y="40" width="860" height="930" rx="44" fill="url(#sheen)"/>' : "",
+            '<rect x="100" y="70" width="800" height="870" rx="28" fill="#F4EFE3" stroke="#0B0B0C" stroke-width="5"/><text x="130" y="140" font-family="',
+            DISPLAY,
+            '" font-size="',
+            _fit(c.brand, 480, 60).toString(),
+            '" fill="#0B0B0C">',
+            c.brand,
+            '</text><circle cx="815" cy="118" r="56" fill="#FF5A1F" stroke="#0B0B0C" stroke-width="5"/><text x="815" y="114" text-anchor="middle" font-family="',
+            DISPLAY,
+            '" font-size="',
+            n <= 4 ? "32" : n <= 6 ? "26" : "20",
+            '" fill="#fff">',
+            price,
+            '</text><text x="815" y="140" text-anchor="middle" font-family="',
+            MONO,
+            '" font-weight="700" font-size="15" fill="#fff">USDC</text>'
         );
     }
 
-    /// @dev A refunded patch is unpicked: only the stitch holes stay.
-    function _unpicked(string memory d) private pure returns (string memory) {
+    /// @dev The art window: a pastel halftone, the garment for the surface, and the patch sewn on (or unpicked).
+    function _window(PatchCard memory c) private pure returns (string memory) {
+        string memory fill = c.surface == 0 ? "#D9CCFF" : c.surface == 1 ? "#BFE3FF" : "#FFE58F";
         return string.concat(
-            '<path d="',
-            d,
-            '" fill="#000" fill-opacity=".18"/><path d="',
-            d,
-            '" fill="none" stroke="#F4EFE3" stroke-opacity=".75" stroke-width="5" stroke-dasharray="3 13" stroke-linecap="round"/><path d="',
-            d,
-            '" transform="translate(500 430) scale(.9) translate(-500 -430)" fill="none" stroke="#F4EFE3" stroke-opacity=".45" stroke-width="4" stroke-dasharray="2 11" stroke-linecap="round"/>'
+            '<rect x="130" y="180" width="740" height="430" rx="18" fill="',
+            fill,
+            '" stroke="#0B0B0C" stroke-width="5"/><rect x="130" y="180" width="740" height="430" rx="18" fill="url(#half)"/>',
+            _garment(c.surface),
+            c.stage == REFUNDED ? _unpicked(c) : _patch(c)
         );
     }
 
-    /// @dev Pastel satin fill, a merrowed edge in the tier's thread, a stitch ring and the brand name.
-    function _patch(PatchCard memory c, string memory d, uint256 inner, uint256 tier)
-        private
-        pure
-        returns (string memory)
-    {
+    function _garment(uint8 surface) private pure returns (string memory) {
+        if (surface == 1) {
+            return '<g transform="translate(500 300) scale(.95)"><path d="M-330 200 Q-330 130 -260 115 L-170 30 Q-145 5 -100 5 L110 5 Q150 5 175 30 L255 115 Q330 130 330 200 L330 260 L-330 260 Z" fill="#fff" stroke="#0B0B0C" stroke-width="9" stroke-linejoin="round"/><path d="M-150 110 L-95 40 L-10 40 L-10 110 Z M20 110 L20 40 L100 40 L160 110 Z" fill="#E8F2FF" stroke="#0B0B0C" stroke-width="6" stroke-linejoin="round"/><circle cx="-190" cy="262" r="58" fill="#0B0B0C"/><circle cx="-190" cy="262" r="24" fill="#fff"/><circle cx="190" cy="262" r="58" fill="#0B0B0C"/><circle cx="190" cy="262" r="24" fill="#fff"/></g>';
+        }
+        if (surface == 2) {
+            return '<g transform="translate(500 205) scale(.66)"><path d="M-120 40 Q-60 -10 0 -10 Q60 -10 120 40 L240 120 L300 330 L220 360 L180 230 L180 600 L-180 600 L-180 230 L-220 360 L-300 330 L-240 120 Z" fill="#fff" stroke="#0B0B0C" stroke-width="9" stroke-linejoin="round"/><path d="M-95 30 Q0 140 95 30" fill="none" stroke="#0B0B0C" stroke-width="8" stroke-linecap="round"/><path d="M-30 95 L-38 190 M30 95 L38 190" stroke="#0B0B0C" stroke-width="7" stroke-linecap="round"/><path d="M-110 470 Q0 500 110 470 L110 560 L-110 560 Z" fill="none" stroke="#0B0B0C" stroke-width="7" stroke-linejoin="round"/></g>';
+        }
+        return '<g transform="translate(500 215) scale(.62)"><path d="M-110 0 Q0 60 110 0 L250 90 L300 290 L215 320 L180 210 L180 600 L-180 600 L-180 210 L-215 320 L-300 290 L-250 90 Z" fill="#fff" stroke="#0B0B0C" stroke-width="9" stroke-linejoin="round"/><path d="M-110 0 Q0 60 110 0" fill="none" stroke="#0B0B0C" stroke-width="8"/></g>';
+    }
+
+    /// @dev Where the patch sits on the garment: chest for clothes, the door for a car.
+    function _at(uint8 surface) private pure returns (string memory) {
+        return surface == 1 ? "translate(500 430) scale(.36) rotate(-3)" : "translate(500 380) scale(.36) rotate(-3)";
+    }
+
+    /// @dev Embroidered: hard shadow, pastel satin, a merrowed edge in the tier's thread, a stitch ring, the name.
+    function _patch(PatchCard memory c) private pure returns (string memory) {
         string[5] memory pastels = ["#BDEBD3", "#D9CCFF", "#FFE58F", "#BFE3FF", "#FFC9DA"];
-        uint256 n = bytes(c.brand).length;
-        if (n < 4) n = 4;
-        uint256 size = (inner * 10) / (n * 6);
-        if (size > 112) size = 112;
-        string memory stroke = tier == 2 ? "url(#gold)" : tier == 1 ? "url(#silk)" : "#0B0B0C";
-
+        (string memory d, uint256 maxW) = _shape(c.patchId);
+        uint256 size = _fit(c.brand, maxW, 108);
         return string.concat(
-            '<g filter="url(#lift)"><path d="',
+            '<g transform="',
+            _at(c.surface),
+            '"><path d="',
+            d,
+            '" transform="translate(14 16)" fill="#0B0B0C"/><path d="',
             d,
             '" fill="',
             pastels[c.patchId % 5],
             '"/><path d="',
             d,
-            '" fill="url(#satin)"/><g clip-path="url(#clip)"><rect x="0" y="0" width="1000" height="390" fill="#fff" opacity=".18"/></g>',
-            _edge(d, stroke, tier == 2),
-            '<path d="',
-            d,
-            '" transform="translate(500 430) scale(.86) translate(-500 -430)" fill="none" stroke="#0B0B0C" stroke-opacity=".55" stroke-width="5" stroke-dasharray="13 9"/>',
-            _brandText(c.brand, size),
-            "</g>"
-        );
-    }
-
-    function _edge(string memory d, string memory stroke, bool gold) private pure returns (string memory) {
-        return string.concat(
-            '<path d="',
-            d,
-            '" fill="none" stroke="',
-            stroke,
-            '" stroke-width="26"/><path d="',
-            d,
-            '" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="26" stroke-dasharray="2.5 4.5"/>',
-            gold ? string.concat('<path d="', d, '" fill="none" stroke="url(#sheen)" stroke-width="26"/>') : ""
-        );
-    }
-
-    function _brandText(string memory brand, uint256 size) private pure returns (string memory) {
-        return string.concat(
-            '<text x="500" y="',
-            (430 + (size * 35) / 100).toString(),
+            '" fill="url(#satin)"/>',
+            _edge(d),
+            '<text x="0" y="',
+            ((size * 35) / 100).toString(),
             '" text-anchor="middle" font-family="',
             DISPLAY,
-            '" font-weight="800" font-size="',
+            '" font-size="',
             size.toString(),
-            '" letter-spacing="-0.02em" fill="url(#thread)" stroke="#0B0B0C" stroke-width="2">',
-            brand,
-            "</text>"
+            '" fill="#0B0B0C">',
+            c.brand,
+            "</text></g>"
         );
     }
 
-    function _stamps(PatchCard memory c, bool progressed) private pure returns (string memory out) {
-        if (!progressed) return "";
-        out = _stamp(
-            "a", "795", "245", "-14", "105", "61", "714", "81", "162", "#FF7A45",
-            "PATCHED &#183; PRINTED &#183; PATCHED &#183; ", "PRINTED", "24", _day(c.printedAt)
+    function _edge(string memory d) private pure returns (string memory) {
+        return string.concat(
+            '<path d="',
+            d,
+            '" fill="none" stroke="url(#tier)" stroke-width="22"/><path d="',
+            d,
+            '" fill="none" stroke="#0B0B0C" stroke-opacity=".35" stroke-width="22" stroke-dasharray="2.5 4.5"/><path d="',
+            d,
+            '" transform="scale(.84)" fill="none" stroke="#0B0B0C" stroke-opacity=".55" stroke-width="4" stroke-dasharray="12 8"/>'
         );
-        if ((c.stage == SEEN || c.stage == DELIVERED) && c.seen > 0) {
+    }
+
+    /// @dev A refunded patch is unpicked: only its stitch holes are left on the garment.
+    function _unpicked(PatchCard memory c) private pure returns (string memory) {
+        (string memory d,) = _shape(c.patchId);
+        return string.concat(
+            '<path d="',
+            d,
+            '" transform="',
+            _at(c.surface),
+            '" fill="none" stroke="#0B0B0C" stroke-opacity=".6" stroke-width="10" stroke-dasharray="4 16" stroke-linecap="round"/>'
+        );
+    }
+
+    /// @dev Passport stamps in the window, one per proven step.
+    function _stamps(PatchCard memory c, uint256 done) private pure returns (string memory out) {
+        if (done >= 2) {
+            out = _roundStamp("printed", "235", "290", "62", "-14", ORANGE, "PRINTED", "22", _day(c.printedAt));
+        }
+        if (done >= 3) {
             out = string.concat(
-                out,
-                _stamp(
-                    "b", "820", "500", "11", "95", "51", "749", "71", "142", "#C9BCFF",
-                    string.concat(_upper(c.eventStr), " &#183; SEEN &#183; "), "SEEN", "32", _day(c.seenAt)
-                )
+                out, _roundStamp("seen", "770", "300", "58", "12", "#836EF9", "SEEN", "28", _day(c.seenAt))
             );
+        }
+        if (done >= 4) {
+            out = string.concat(out, _rectStamp("delivered", 530, 500, 310, 38, "-8", ORANGE, "DELIVERED"));
         }
     }
 
-    /// @dev A round passport stamp with text on its rim. All positions are fixed, so they arrive as ready strings.
-    function _stamp(
+    function _roundStamp(
         string memory k,
         string memory cx,
         string memory cy,
-        string memory rot,
         string memory r,
-        string memory rInner,
-        string memory pathStart,
-        string memory rr,
-        string memory rrDouble,
+        string memory rot,
         string memory color,
-        string memory rim,
-        string memory word,
-        string memory wordSize,
-        string memory sub
-    ) private pure returns (string memory) {
-        return string.concat(
-            '<g transform="rotate(',
-            rot,
-            " ",
-            cx,
-            " ",
-            cy,
-            ')" opacity=".92"><circle cx="',
-            cx,
-            '" cy="',
-            cy,
-            '" r="',
-            r,
-            '" fill="#000" fill-opacity=".22" stroke="',
-            color,
-            '" stroke-width="7"/><circle cx="',
-            cx,
-            '" cy="',
-            cy,
-            '" r="',
-            rInner,
-            '" fill="none" stroke="',
-            color,
-            '" stroke-width="2.5"/>',
-            _stampText(k, cx, cy, pathStart, rr, rrDouble, color, rim, word, wordSize, sub)
-        );
-    }
-
-    function _stampText(
-        string memory k,
-        string memory cx,
-        string memory cy,
-        string memory pathStart,
-        string memory rr,
-        string memory rrDouble,
-        string memory color,
-        string memory rim,
         string memory word,
         string memory wordSize,
         string memory sub
     ) private pure returns (string memory) {
         uint256 y = _toUint(cy);
-        return string.concat(
-            '<path id="rim-',
+        string memory open = string.concat(
+            '<g id="stamp-',
             k,
-            '" d="M',
-            pathStart,
+            '" transform="rotate(',
+            rot,
+            " ",
+            cx,
             " ",
             cy,
-            " a",
-            rr,
-            " ",
-            rr,
-            " 0 1 1 ",
-            rrDouble,
-            " 0 a",
-            rr,
-            " ",
-            rr,
-            " 0 1 1 -",
-            rrDouble,
-            _rim(k, color, rim),
-            _stampWords(cx, y, color, word, wordSize, sub)
-        );
-    }
-
-    function _rim(string memory k, string memory color, string memory rim) private pure returns (string memory) {
-        return string.concat(
-            ' 0" fill="none"/><text font-family="',
-            MONO,
-            '" font-weight="600" font-size="15" letter-spacing="2" fill="',
+            ')" opacity=".88"><circle cx="',
+            cx,
+            '" cy="',
+            cy,
+            '" r="',
+            r,
+            '" fill="none" stroke="',
             color,
-            '"><textPath href="#rim-',
-            k,
-            '" startOffset="2%">',
-            rim,
-            "</textPath></text>"
+            '" stroke-width="6"/><circle cx="',
+            cx,
+            '" cy="',
+            cy,
+            '" r="',
+            (_toUint(r) - 12).toString()
         );
-    }
-
-    function _stampWords(
-        string memory cx,
-        uint256 y,
-        string memory color,
-        string memory word,
-        string memory wordSize,
-        string memory sub
-    ) private pure returns (string memory) {
-        return string.concat(
-            '<text x="',
+        string memory middle = string.concat(
+            '" fill="none" stroke="',
+            color,
+            '" stroke-width="2" stroke-dasharray="5 5"/><text x="',
             cx,
             '" y="',
             (y + 6).toString(),
             '" text-anchor="middle" font-family="',
             DISPLAY,
-            '" font-weight="800" font-size="',
+            '" font-size="',
             wordSize,
             '" fill="',
             color,
             '">',
-            word,
+            word
+        );
+        return string.concat(
+            open,
+            middle,
             '</text><text x="',
             cx,
             '" y="',
-            (y + 30).toString(),
+            (y + 32).toString(),
             '" text-anchor="middle" font-family="',
             MONO,
-            '" font-weight="600" font-size="16" fill="',
+            '" font-weight="700" font-size="16" fill="',
             color,
             '">',
             sub,
@@ -360,137 +321,193 @@ library PatchArt {
         );
     }
 
-    /// @dev The big stamp or tape over the whole card: DELIVERED, REFUNDED $x or PROOF DISPUTED.
-    function _banner(PatchCard memory c) private pure returns (string memory) {
-        if (c.stage == DELIVERED) {
-            return string.concat(
-                '<g transform="rotate(-10 640 680)"><rect x="470" y="618" width="380" height="118" rx="14" fill="none" stroke="#FF5A1F" stroke-width="9"/><rect x="484" y="632" width="352" height="90" rx="8" fill="none" stroke="#FF5A1F" stroke-width="3"/><text x="660" y="696" text-anchor="middle" font-family="',
-                DISPLAY,
-                '" font-weight="800" font-size="56" letter-spacing="0.05em" fill="#FF5A1F">DELIVERED</text></g>'
-            );
-        }
-        if (c.stage == REFUNDED) {
-            return string.concat(
-                '<g transform="rotate(-9 500 430)"><rect x="235" y="372" width="530" height="118" rx="14" fill="none" stroke="#F4EFE3" stroke-width="8"/><text x="500" y="452" text-anchor="middle" font-family="',
-                DISPLAY,
-                '" font-weight="800" font-size="54" fill="#F4EFE3">REFUNDED $',
-                _usd(c.amount),
-                "</text></g>"
-            );
-        }
-        if (c.stage == DISPUTED) {
-            bytes memory stripes;
-            for (uint256 k; k < 28; ++k) {
-                stripes = abi.encodePacked(
-                    stripes, '<path d="M', Strings.toStringSigned(int256(k) * 44 - 60), ' 380 l24 0 -30 74 -24 0z"/>'
-                );
-            }
-            return string.concat(
-                '<g transform="rotate(-8 500 420)"><rect x="-60" y="380" width="1120" height="74" fill="#FFD400"/><g fill="#0B0B0C">',
-                string(stripes),
-                '</g><rect x="250" y="388" width="500" height="58" fill="#FFD400"/><text x="500" y="428" text-anchor="middle" font-family="',
-                BODY,
-                '" font-weight="600" font-size="30" letter-spacing="0.14em" fill="#0B0B0C">PROOF DISPUTED</text></g>'
-            );
-        }
-        return "";
-    }
-
-    function _header(PatchCard memory c) private pure returns (string memory) {
-        bool first = c.sponsorNo == 1;
-        // Receipts minted before sponsor numbers existed have none: show which spot it is instead.
-        string memory num = c.sponsorNo > 0
-            ? string.concat("No.", _pad3(c.sponsorNo))
-            : string.concat("#", uint256(c.listingId).toString(), ".", (uint256(c.patchId) + 1).toString());
-        return string.concat(
-            '<text x="64" y="118" font-family="',
-            DISPLAY,
-            '" font-weight="800" font-size="76" letter-spacing="-0.04em" fill="#F4EFE3">',
-            num,
-            '</text><text x="68" y="158" font-family="',
-            MONO,
-            '" font-weight="600" font-size="22" letter-spacing="2" fill="',
-            first ? "#FFB08F" : "#F4EFE3",
-            '" opacity="',
-            first ? "1" : "0.8",
-            '">',
-            first ? "FIRST SPONSOR OF" : "SPONSOR OF",
-            " @",
-            _upper(c.creator),
-            '</text><g transform="translate(872 64) rotate(-8 25 25) scale(1.5)"><rect x="6" y="6" width="31" height="31" rx="9" fill="#0B0B0C"/><rect x="3.5" y="3.5" width="31" height="31" rx="9" fill="#FF5A1F" stroke="#0B0B0C" stroke-width="2.4"/><rect x="7.8" y="7.8" width="22.4" height="22.4" rx="5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2.4"/><path d="M15.5 28V12.5h5.2a4.4 4.4 0 0 1 0 8.8h-5.2" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>'
+    /// @dev A rectangular rubber stamp with a double border.
+    function _rectStamp(
+        string memory k,
+        uint256 x,
+        uint256 y,
+        uint256 w,
+        uint256 size,
+        string memory rot,
+        string memory color,
+        string memory word
+    ) private pure returns (string memory) {
+        uint256 h = (size * 18) / 10;
+        string memory outer = string.concat(
+            '<g id="stamp-',
+            k,
+            '" transform="rotate(',
+            rot,
+            " ",
+            (x + w / 2).toString(),
+            " ",
+            (y + 40).toString(),
+            ')" opacity=".9"><rect x="',
+            x.toString(),
+            '" y="',
+            y.toString(),
+            '" width="',
+            w.toString(),
+            '" height="',
+            h.toString(),
+            '" rx="10" fill="none" stroke="',
+            color,
+            '" stroke-width="7"/>'
         );
-    }
-
-    /// @dev The woven label: the facts on the left, the stage and four progress pills on the right.
-    function _label(PatchCard memory c, uint256 tier) private pure returns (string memory) {
-        string memory tierName = tier == 2 ? "GOLD" : tier == 1 ? "SILK" : "COTTON";
-        return string.concat(
-            '<rect x="52" y="800" width="896" height="150" rx="8" fill="#000" opacity=".3" transform="translate(0 8)"/><rect x="52" y="800" width="896" height="150" rx="8" fill="#F4EFE3"/><rect x="52" y="800" width="896" height="150" rx="8" fill="url(#satin)" opacity=".35"/><line x1="76" y1="812" x2="76" y2="938" stroke="#0B0B0C" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 6"/><line x1="924" y1="812" x2="924" y2="938" stroke="#0B0B0C" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 6"/><text x="100" y="862" font-family="',
-            DISPLAY,
-            '" font-weight="800" font-size="42" letter-spacing="-0.03em" fill="#0B0B0C">',
-            c.label,
-            '</text><text x="100" y="903" font-family="',
-            MONO,
-            '" font-weight="500" font-size="23" fill="#5F5B53">',
-            c.eventStr,
-            " &#183; $",
-            _usd(c.amount),
-            " USDC &#183; ",
-            tierName,
-            _labelRight(c)
+        string memory inner = string.concat(
+            '<rect x="',
+            (x + 10).toString(),
+            '" y="',
+            (y + 10).toString(),
+            '" width="',
+            (w - 20).toString(),
+            '" height="',
+            (h - 20).toString(),
+            '" rx="5" fill="none" stroke="',
+            color,
+            '" stroke-width="2.5"/>'
         );
-    }
-
-    function _labelRight(PatchCard memory c) private pure returns (string memory) {
-        (string memory word, string memory color, uint256 done) = _stageWord(c);
-        bytes memory pills;
-        for (uint256 k; k < 4; ++k) {
-            pills = abi.encodePacked(
-                pills,
-                '<rect x="',
-                (740 + k * 42).toString(),
-                '" y="890" width="32" height="14" rx="7" fill="',
-                k < done ? "#FF5A1F" : "#0B0B0C",
-                '" fill-opacity="',
-                k < done ? "1" : "0.15",
-                '"/>'
-            );
-        }
         return string.concat(
-            '</text><text x="100" y="932" font-family="',
-            MONO,
-            '" font-weight="500" font-size="19" fill="#5F5B53" opacity=".85">PATCHED ON MONAD &#183; #',
-            c.listingId.toString(),
-            "-",
-            uint256(c.patchId).toString(),
-            '</text><text x="900" y="862" text-anchor="end" font-family="',
+            outer,
+            inner,
+            '<text x="',
+            (x + w / 2).toString(),
+            '" y="',
+            (y + (size * 125) / 100).toString(),
+            '" text-anchor="middle" font-family="',
             DISPLAY,
-            '" font-weight="800" font-size="34" fill="',
+            '" font-size="',
+            size.toString(),
+            '" letter-spacing="3" fill="',
             color,
             '">',
             word,
-            "</text>",
-            string(pills),
-            "</svg>"
+            "</text></g>"
         );
     }
 
-    function _stageWord(PatchCard memory c)
-        internal
-        pure
-        returns (string memory word, string memory color, uint256 done)
-    {
-        color = "#E0430B";
-        if (c.stage == WON) return ("WON", color, 1);
-        if (c.stage == PRINTED) return ("PRINTED", color, 2);
-        if (c.stage == SEEN) {
-            return (
-                string.concat("SEEN ", uint256(c.seen).toString(), "/", uint256(c.seenOf).toString()), color, 3
-            );
+    /// @dev Over the window: an ink REFUNDED stamp, or hazard tape while a proof is disputed.
+    function _overlay(PatchCard memory c) private pure returns (string memory) {
+        if (c.stage == REFUNDED) {
+            return _rectStamp("refunded", 240, 330, 520, 46, "-9", INK, string.concat("REFUNDED $", _usd(c.amount)));
         }
-        if (c.stage == DELIVERED) return ("DELIVERED", color, 4);
-        if (c.stage == REFUNDED) return ("REFUNDED", "#5F5B53", 0);
-        return ("IN REVIEW", "#B42318", 2);
+        if (c.stage != DISPUTED) return "";
+        bytes memory stripes;
+        for (uint256 k; k < 20; ++k) {
+            stripes = abi.encodePacked(stripes, '<path d="M', (90 + k * 42).toString(), ' 360 l22 0 -26 70 -22 0z"/>');
+        }
+        return string.concat(
+            '<g transform="rotate(-9 500 400)"><rect x="90" y="360" width="820" height="70" fill="#FFD400" stroke="#0B0B0C" stroke-width="4"/><g fill="#0B0B0C">',
+            string(stripes),
+            '</g><rect x="300" y="368" width="400" height="54" fill="#FFD400"/><text x="500" y="406" text-anchor="middle" font-family="',
+            DISPLAY,
+            '" font-size="30" fill="#0B0B0C">PROOF DISPUTED</text></g>'
+        );
+    }
+
+    /// @dev "OUTFIT · CHEST POCKET · ETHGLOBAL MUMBAI". With no event the card's event is the surface name, so it is
+    ///      left out instead of repeating. Long lines get a smaller font.
+    function _typeLine(PatchCard memory c) private pure returns (string memory) {
+        string memory surface = c.surface == 0 ? "Outfit" : c.surface == 1 ? "Car" : "Team hoodie";
+        bool hasEvent = keccak256(bytes(c.eventStr)) != keccak256(bytes(surface));
+        string memory line = string.concat(
+            _upper(surface),
+            " &#183; ",
+            _upper(c.label),
+            hasEvent ? string.concat(" &#183; ", _upper(c.eventStr)) : ""
+        );
+        // Each "&#183;" is six bytes that draw one character.
+        uint256 n = bytes(line).length - (hasEvent ? 10 : 5);
+        uint256 size = n <= 52 ? 22 : (22 * 52) / n;
+        return string.concat(
+            '<rect x="130" y="630" width="740" height="56" rx="12" fill="#fff" stroke="#0B0B0C" stroke-width="4"/><text x="150" y="668" font-family="',
+            MONO,
+            '" font-weight="700" font-size="',
+            size.toString(),
+            '" fill="#0B0B0C">',
+            line,
+            "</text>"
+        );
+    }
+
+    function _flavour(PatchCard memory c) private pure returns (string memory) {
+        string memory who = string.concat("@", c.creator);
+        string memory line;
+        if (c.sponsorNo == 1) line = string.concat("The first brand to back ", who, ".");
+        else if (c.sponsorNo > 1) line = string.concat("Sponsor #", uint256(c.sponsorNo).toString(), " of ", who, ".");
+        else line = string.concat("A spot on ", who, ".");
+        return string.concat(
+            '<text x="130" y="742" font-family="',
+            BODY,
+            '" font-style="italic" font-size="26" fill="#5F5B53">',
+            line,
+            "</text>"
+        );
+    }
+
+    /// @dev Four numbered steps: won, printed, seen, delivered. Lit steps are orange.
+    function _track(PatchCard memory c, uint256 done) private pure returns (string memory out) {
+        for (uint256 i; i < 4; ++i) {
+            out = string.concat(out, _step(i, i < done, i == 2 ? _seenLabel(c) : _stepName(i)));
+        }
+    }
+
+    function _stepName(uint256 i) private pure returns (string memory) {
+        return i == 0 ? "WON" : i == 1 ? "PRINTED" : i == 2 ? "SEEN" : "DELIVERED";
+    }
+
+    function _step(uint256 i, bool on, string memory label) private pure returns (string memory) {
+        string memory x = (175 + i * 220).toString();
+        return string.concat(
+            string.concat(
+                '<circle cx="',
+                x,
+                '" cy="820" r="32" fill="',
+                on ? ORANGE : "#fff",
+                '" stroke="#0B0B0C" stroke-width="4"/><text x="',
+                x,
+                '" y="831" text-anchor="middle" font-family="',
+                DISPLAY,
+                '" font-size="28" fill="',
+                on ? "#fff" : "#B5AFA3",
+                '">',
+                (i + 1).toString()
+            ),
+            '</text><text x="',
+            x,
+            '" y="876" text-anchor="middle" font-family="',
+            MONO,
+            '" font-weight="700" font-size="19" fill="',
+            on ? INK : "#8A857B",
+            '">',
+            label,
+            "</text>"
+        );
+    }
+
+    function _seenLabel(PatchCard memory c) private pure returns (string memory) {
+        if (c.stage != SEEN) return "SEEN";
+        return string.concat("SEEN ", uint256(c.seen).toString(), "/", uint256(c.seenOf).toString());
+    }
+
+    function _footer(PatchCard memory c, uint256 tier) private pure returns (string memory) {
+        // Receipts minted before sponsor numbers existed have none: show which spot it is instead.
+        string memory num = c.sponsorNo > 0
+            ? string.concat("No.", _pad3(c.sponsorNo))
+            : string.concat("#", c.listingId.toString(), ".", (uint256(c.patchId) + 1).toString());
+        return string.concat(
+            '<text x="130" y="922" font-family="',
+            MONO,
+            '" font-weight="700" font-size="20" fill="#0B0B0C">',
+            num,
+            '</text><text x="500" y="922" text-anchor="middle" font-family="',
+            MONO,
+            '" font-weight="700" font-size="20" fill="#8A857B">',
+            tier == 2 ? "GOLD" : tier == 1 ? "SILK" : "COTTON",
+            ' THREAD</text><text x="870" y="922" text-anchor="end" font-family="',
+            MONO,
+            '" font-weight="700" font-size="20" fill="#0B0B0C">PATCHED &#183; MONAD</text>'
+        );
     }
 
     // ───────────────────────────── Text helpers ─────────────────────────────
@@ -654,9 +671,10 @@ contract PatchRenderer is Ownable, IPatchRenderer {
     }
 
     function _traits(PatchCard memory c, PatchedMarket.TokenView memory v) internal pure returns (string memory) {
-                string memory fabric = v.surface == PatchedMarket.Surface.Outfit
-            ? "Denim"
-            : v.surface == PatchedMarket.Surface.Car ? "Racing paint" : "Fleece";
+        // What the card draws for the surface.
+        string memory art = v.surface == PatchedMarket.Surface.Outfit
+            ? "Tee"
+            : v.surface == PatchedMarket.Surface.Car ? "Car" : "Hoodie";
         string memory thread = v.amount >= 1_000e6 ? "Gold" : v.amount >= 100e6 ? "Silk" : "Cotton";
         string[5] memory shapes = ["Rounded", "Round", "Shield", "Hexagon", "Scalloped"];
         return string.concat(
@@ -680,7 +698,7 @@ contract PatchRenderer is Ownable, IPatchRenderer {
             ",",
             _trait("Shape", shapes[v.patchId % 5]),
             ",",
-            _trait("Fabric", fabric),
+            _trait("Art", art),
             ",",
             _num("Listing", v.listingId)
         );
