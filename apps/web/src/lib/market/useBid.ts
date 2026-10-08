@@ -8,6 +8,8 @@ import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 import { usePermitOrApprove } from "@/lib/market/permit";
 import { useEnsureOnchainName } from "@/lib/market/useOnchainName";
+import { useProfile } from "@/lib/profile";
+import { brandIncomplete, requireBrand } from "@/components/market/BrandSetup";
 
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
 
@@ -52,6 +54,7 @@ export function useBid() {
   const authorize = usePermitOrApprove();
   const stepUp = useStepUp();
   const ensureName = useEnsureOnchainName();
+  const { profile } = useProfile();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hash, setHash] = useState<`0x${string}` | null>(null);
@@ -61,6 +64,8 @@ export function useBid() {
       login();
       return false;
     }
+    // No brand yet: ask for the logo and name first, in a window on this page, then carry on with the bid.
+    if (brandIncomplete(profile) && !(await requireBrand())) return false;
     setError(null);
     setHash(null);
     try {

@@ -19,17 +19,20 @@ export function useEnsureOnchainName() {
   const { walletAddress, isEmbeddedWallet, sendTransaction } = usePatchedAuth();
   const { profile } = useProfile();
 
-  return async function ensureOnchainName(prefer: "brand" | "creator") {
+  return async function ensureOnchainName(prefer: "brand" | "creator", nameOverride?: string) {
     try {
       if (!walletAddress || !isEmbeddedWallet || !GAS_SPONSORED) return;
-      const name =
-        prefer === "brand"
+      const name = nameOverride
+        ? clean(nameOverride)
+        : prefer === "brand"
           ? clean(profile?.brand_name) || clean(profile?.display_name) || clean(profile?.handle) || clean(profile?.x_handle)
           : clean(profile?.handle) || clean(profile?.x_handle) || clean(profile?.display_name);
       if (!name) return;
       const current = await publicClient.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "brandName", args: [walletAddress] });
-      if (current !== "0x0000000000000000000000000000000000000000000000000000000000000000") return;
-      const data = encodeFunctionData({ abi: patchedMarketAbi, functionName: "setBrandName", args: [stringToHex(name, { size: 32 })] });
+      const next = stringToHex(name, { size: 32 });
+      // A name the person just chose replaces the old one; the automatic fallback only fills an empty one.
+      if (nameOverride ? current.toLowerCase() === next.toLowerCase() : current !== "0x0000000000000000000000000000000000000000000000000000000000000000") return;
+      const data = encodeFunctionData({ abi: patchedMarketAbi, functionName: "setBrandName", args: [next] });
       const { hash } = await sendTransaction({ to: MARKET, data, chainId: CHAIN_ID }, { sponsor: true });
       await publicClient.waitForTransactionReceipt({ hash });
     } catch (err) {
