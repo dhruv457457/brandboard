@@ -17,7 +17,7 @@ import { useTx } from "@/lib/market/useTx";
 import { useStepUp } from "@/lib/market/stepUp";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
-import { brandIncomplete, requireBrand } from "@/components/market/BrandSetup";
+import { requireBrand, shouldAskBrand } from "@/components/market/BrandSetup";
 
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
 
@@ -55,8 +55,8 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
   async function sweep() {
     if (!authenticated) return login();
     if (chosen.length < 2) return;
-    // No brand yet: ask for the logo and name first.
-    if (brandIncomplete(profile) && !(await requireBrand())) return;
+    // No brand yet, or the first bid on this listing: ask first.
+    if (shouldAskBrand(profile, listingId, walletAddress) && !(await requireBrand(listingId))) return;
     setBusy(true);
     setError(null);
     try {
