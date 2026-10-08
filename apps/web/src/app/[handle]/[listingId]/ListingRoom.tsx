@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppHref } from "@/lib/appHref";
 import { publicUrl } from "@/lib/handles";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy } from "lucide-react";
+import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy, ChevronDown } from "lucide-react";
 import NumberFlow from "@number-flow/react";
 import { LogoMark } from "@/components/brand/Logo";
 import { Avatar as WalletAvatar } from "@/components/ui/Avatar";
@@ -337,6 +337,10 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     persist(page, previous);
   }
 
+  const sharePath = `/${listing.creatorHandle ?? listing.creator}/${listing.id}`;
+  const [shareLink, setShareLink] = useState("");
+  useEffect(() => setShareLink(publicUrl(sharePath)), [sharePath]);
+
   return (
     <MotionConfig reducedMotion="user">
     <main
@@ -350,10 +354,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
         </Link>
         <span className="ml-auto text-xs font-semibold text-[var(--muted)] hidden sm:inline-flex items-center gap-1.5">USDC on <MonadMark size={13} /> Monad</span>
         <button
-          className="h-8 px-3 rounded-full border-[1.5px] border-[var(--soft)] bg-[var(--card)] text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--line)] ml-auto sm:ml-0"
-          onClick={() => navigator.clipboard.writeText(publicUrl(`/${listing.creatorHandle ?? listing.creator}/${listing.id}`)).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {})}
+          className="h-8 max-w-[min(60vw,340px)] px-3 rounded-full border-[1.5px] border-[var(--soft)] bg-[var(--card)] text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--line)] ml-auto sm:ml-0"
+          onClick={() => navigator.clipboard.writeText(shareLink || publicUrl(sharePath)).then(() => toast("Link copied. Paste it anywhere.")).catch(() => {})}
+          aria-label={`Copy link${shareLink ? `: ${shareLink}` : ""}`}
+          title={shareLink || undefined}
         >
-          <Link2 size={13} /> Copy link
+          <Link2 size={13} className="flex-none" />
+          {/* The creator's own address (shaurya.monad.patched.world/16) once the browser knows it; "Copy link" until then. */}
+          <span className="truncate font-mono">{shareLink ? shareLink.replace(/^https?:\/\//, "") : "Copy link"}</span>
         </button>
         {!isCreator && <ReportButton kind="listing" id={listing.id} />}
       </div>
@@ -633,8 +641,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                                       )}
                                       {authenticated && (
                                         <details className="group">
-                                          <summary className="text-sm font-semibold cursor-pointer list-none inline-flex items-center gap-1.5">
-                                            <Repeat size={14} /> Auto-bid: stay on top
+                                          <summary className="flex items-center justify-between gap-2 h-11 px-4 rounded-full border-[1.5px] border-[var(--line)] bg-[var(--card)] text-sm font-bold cursor-pointer list-none hover:bg-[var(--soft)] [&::-webkit-details-marker]:hidden">
+                                            <span className="inline-flex items-center gap-2"><Repeat size={16} className="text-[var(--accent-text)]" /> Auto-bid <span className="font-medium text-[var(--muted)]">· stay on top</span></span>
+                                            <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
                                           </summary>
                                           <div className="mt-3">
                                             <AutoBidPanel listingId={listing.id} patchId={p.id} label={p.label} minNext={minNext(p)} buyNow={p.buyNow} disabled={busy} />

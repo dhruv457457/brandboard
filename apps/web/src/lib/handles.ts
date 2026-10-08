@@ -16,12 +16,23 @@ export function handleProblem(h: string): string | null {
 }
 
 /**
+ * The creator-subdomain base: NEXT_PUBLIC_HANDLE_DOMAIN, or (in the browser, when that wasn't set at build time) the live
+ * site's own domain, so monad.patched.world and dhruv.monad.patched.world both share dhruv.monad.patched.world links.
+ */
+function handleDomain(): string | undefined {
+  const env = process.env.NEXT_PUBLIC_HANDLE_DOMAIN?.toLowerCase();
+  if (env) return env;
+  if (typeof window === "undefined") return undefined;
+  return window.location.hostname.toLowerCase().match(/(?:^|\.)([a-z0-9-]+\.patched\.world)$/)?.[1];
+}
+
+/**
  * The address to share for an in-app path. Creator pages ("/dhruv", "/dhruv/6") become the creator's own subdomain
  * ("https://dhruv.monad.patched.world/6") when NEXT_PUBLIC_HANDLE_DOMAIN is set (the same value as HANDLE_DOMAIN, which
  * the middleware uses to serve them) and the handle works as a subdomain. Anything else stays on `origin`.
  */
 export function publicUrl(path: string, origin = typeof window === "undefined" ? "" : window.location.origin): string {
-  const domain = process.env.NEXT_PUBLIC_HANDLE_DOMAIN?.toLowerCase();
+  const domain = handleDomain();
   const m = path.match(/^\/([^/?#]+)(.*)$/);
   const handle = m?.[1].toLowerCase();
   // Subdomains only take letters, digits and dashes; wallet addresses keep the long form.
