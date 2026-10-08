@@ -57,6 +57,8 @@ Written by the **app** (server routes, RLS by wallet/user):
 | `signer_auto_bids` | `chain_id`, `wallet`, `listing_id`, `patch_id`, `max_amount`, `active`: auto-bids through Privy signers (Patched wallets). The wallet's Privy policy is narrowed from its active rows; a row only turns on or goes up once the wallet approves a new policy (`signer_pending_raises`). Public read. |
 | `signer_pending_raises` | `wallet` (one per wallet), `policy_id`, `chain_id`, `listing_id`, `patch_id`, `max_amount`: a new spot or higher maximum waiting for the brand's wallet to put our signer on its new policy. Service role only. |
 | `signer_delegations` | `wallet`, `privy_did`, `privy_wallet_id`, `policy_id`, `signer_added_at`, `revoked_at`: whether our key quorum is a signer on the wallet, and with which policy. Service role only. |
+| `spots` | `chain_id`, `tx_hash`, `log_index`, `event_id`, `listing_id`, `spotter`, `creator`, `photo_hash`, `photo_uri`, `block_time`: PatchSpotter's `Spotted` events (written by the indexer, public read). `posts.spot_tx` links a spotted photo to its spot. |
+| `listing_payees` | `chain_id`, `listing_id`, `payee`, `share_bps`: who is paid with the creator on a team hoodie (from `getPayees`, written by the indexer, public read). |
 | `brand_logos` | `wallet`, `listing_id`, `patch_id`, `logo_url` (logos shown on patches) |
 
 Storage buckets: `canvases`, `logos`, `proofs`, `avatars`.

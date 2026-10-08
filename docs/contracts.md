@@ -184,6 +184,25 @@ Bid on several patches of one listing in one transaction, all or nothing. Source
 
 Holds no funds; bids, receipts and refunds belong to the caller. Deployed with `script/DeploySweeper.s.sol`: testnet `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` (v3; v2 was `0x65f0e25e5D503FCc5549624D6f9B138b17A3054f`), mainnet `0x1fe99eb81EDF35699c3FA6BE3cb5D6749084A9ba`.
 
+## PatchSpotter (on-chain "spotted")
+
+"I saw this creator wearing their patches": a wallet posts a photo of a creator, and the spot is recorded on-chain. Source: `contracts/src/PatchSpotter.sol`, tests in `test/PatchSpotter.t.sol` (12, incl. a fuzz). It holds no funds and has no role on the market; it only reads `getListing` and `getPayees`. Deployed with `script/DeploySpotter.s.sol`.
+
+| Function | Who | What |
+|---|---|---|
+| `spot(listingId, photoHash, photoURI)` | anyone | Records one spot. `photoURI` is `ipfs://<record>` (at most 160 bytes) and `photoHash` is `keccak256` of that record's exact bytes (same pattern as `submitProof`). Emits `Spotted(eventId, listingId, spotter, creator, photoHash, photoURI)`. |
+| `hasSpotted(spotter, listingId)`, `spotCount(listingId)`, `spotsBy(spotter)` | view | One spot per wallet per listing. |
+
+Reverts: `NotSpottable` (listing not Active or Delivering), `OwnListing` (the creator or one of their payees), `AlreadySpotted`, `BadPhoto` (zero hash, empty or over-long URI).
+
+The web app pins the photo and a small record to IPFS (`POST /api/spotted/pin`), sends `spot` (gas-sponsored for Patched wallets), then posts the photo with the transaction hash (`POST /api/spotted` checks the `Spotted` log before showing it). The indexer copies `Spotted` into `public.spots`; the Patchwork graph draws each one as a thread from the spotter to the creator. Until an address is in `DEPLOYMENTS[chain].spotter`, spotting works as before, without a transaction, and the graph marks those threads off-chain.
+
+Deploy (needs `DEPLOYER_PRIVATE_KEY` and `MARKET_ADDRESS`), then put the printed address and block into `packages/shared/src/addresses.ts` (`spotter`, `spotterBlock`):
+
+```bash
+forge script script/DeploySpotter.s.sol --rpc-url $MONAD_TESTNET_RPC_URL --broadcast
+```
+
 ## Timing and settings (what changes under a running deal)
 
 Found by a mentor review (2026-10-02) and covered by `test/Timeline.t.sol`:

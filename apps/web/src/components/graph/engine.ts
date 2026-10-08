@@ -32,6 +32,8 @@ export interface RThread {
   amount: number;
   tx: string | null;
   photo: string | null;
+  /** spotted: recorded on-chain by PatchSpotter. */
+  onchain: boolean;
   visible: boolean;
   born: number;
 }
@@ -47,7 +49,7 @@ export interface Callbacks {
 }
 
 export interface Row {
-  icon: "zap" | "undo" | "camera" | "square" | "receipt";
+  icon: "zap" | "undo" | "camera" | "square" | "receipt" | "users";
   text: string;
   amount: string;
   tx: string | null;
@@ -65,11 +67,11 @@ export interface Described {
 
 const PASTEL = ["p1", "p2", "p3", "p4", "p5"] as const;
 const TOKENS = ["paper", "card", "soft", "ink", "muted", "accent", "accent-text", "accent-soft", "green", "shadow", "stage", "p1", "p2", "p3", "p4", "p5"] as const;
-const DIST: Partial<Record<ThreadKind, number>> = { lists: 200, has: 30, leads: 130, spotted: 120, holds: 70 };
-const STR: Partial<Record<ThreadKind, number>> = { lists: 0.15, has: 1, leads: 0.025, spotted: 0.035, holds: 0.05 };
+const DIST: Partial<Record<ThreadKind, number>> = { lists: 200, has: 30, leads: 130, spotted: 120, holds: 70, team: 40 };
+const STR: Partial<Record<ThreadKind, number>> = { lists: 0.15, has: 1, leads: 0.025, spotted: 0.035, holds: 0.05, team: 0.7 };
 const RING = { creator: 190, brand: 330, holder: 330, spotter: 370 } as const;
 const BEND: Partial<Record<ThreadKind, number>> = { leads: 0.14, outbid: 0.1, spotted: -0.18, holds: 0.1 };
-const ORDER: Record<string, number> = { spotter: 0, brand: 1, holder: 1, creator: 2, spot: 3, event: 4 };
+const ORDER: Record<string, number> = { spotter: 0, brand: 1, holder: 1, teammate: 2, creator: 2, spot: 3, event: 4 };
 const TAU = Math.PI * 2;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -123,6 +125,8 @@ export class PatchworkEngine {
   private replayState: { start: number; from: number } | null = null;
   private cam: { from: { x: number; y: number; k: number }; to: { x: number; y: number; k: number }; start: number; dur: number } | null = null;
   private frameCount = 0;
+  /** The camera still shows the whole graph as loaded: keep it framed when the pane changes size. */
+  private autoFit = true;
   private display = '"Arial Black", sans-serif';
   private sans = "system-ui, sans-serif";
 
@@ -153,7 +157,9 @@ export class PatchworkEngine {
         const r = canvas.getBoundingClientRect();
         return !this.hit(e.clientX - r.left, e.clientY - r.top);
       })
-      .on("zoom", () => {
+      .on("zoom", (ev: { sourceEvent?: unknown }) => {
+        // Once a person moves the camera, a resize no longer re-frames the graph for them.
+        if (ev.sourceEvent) this.autoFit = false;
         this.dirty = true;
         this.hideTip();
       });
@@ -220,7 +226,7 @@ export class PatchworkEngine {
         const a = (ci / Math.max(1, creators.length)) * TAU;
         x = Math.cos(a) * RING.creator;
         y = Math.sin(a) * RING.creator;
-      } else if (n.kind !== "event" && n.kind !== "spot") {
+      } else if (n.kind !== "event" && n.kind !== "spot" && n.kind !== "teammate") {
         const a = hash01(n.id) * TAU;
         x = Math.cos(a) * 330;
         y = Math.sin(a) * 330;
@@ -228,8 +234,8 @@ export class PatchworkEngine {
       this.add(n, x, y, now + (this.reduce ? -1e9 : Math.min(1400, rank++ * 14)));
     }
     for (const n of this.nodes) {
-      if (n.kind !== "spot") continue;
-      const c = this.byId.get(n.creatorId ?? "");
+      if (n.kind !== "spot" && n.kind !== "teammate") continue;
+      const c = this.byId.get(n.kind === "spot" ? (n.creatorId ?? "") : (g.threads.find((t) => t.kind === "team" && t.target === n.id)?.source ?? ""));
       n.x = (c?.x ?? 0) + (hash01(n.id) - 0.5) * 40;
       n.y = (c?.y ?? 0) + (hash01(n.id + "y") - 0.5) * 40;
     }
@@ -247,6 +253,7 @@ export class PatchworkEngine {
     this.sim.alpha(1);
     this.sim.tick(this.reduce ? 320 : 260);
     this.fit(0);
+    this.autoFit = true;
     this.dirty = true;
     this.cb.select(null);
     this.changed(true);
@@ -313,7 +320,7 @@ export class PatchworkEngine {
     const source = this.byId.get(t.source);
     const target = this.byId.get(t.target);
     if (!source || !target) return null;
-    const th: RThread = { id: t.id, kind: t.kind, source, target, t: t.t, amount: t.amount ?? 0, tx: t.tx ?? null, photo: t.photo ?? null, visible: true, born };
+    const th: RThread = { id: t.id, kind: t.kind, source, target, t: t.t, amount: t.amount ?? 0, tx: t.tx ?? null, photo: t.photo ?? null, onchain: Boolean(t.onchain), visible: true, born };
     this.threads.push(th);
     this.dirty = true;
     return th;
@@ -364,7 +371,7 @@ export class PatchworkEngine {
       who.total += amount;
       const creator = this.byId.get(spot.creatorId ?? "");
       if (creator) creator.total += amount - (prev ? prevAmount : 0);
-      this.threads.push({ id: `lead:${spot.id}:${who.id}:${spot.bidCount}`, kind: "leads", source: who, target: spot, t: 0, amount, tx: null, photo: null, visible: true, born: animate ? now : -1e9 });
+      this.threads.push({ id: `lead:${spot.id}:${who.id}:${spot.bidCount}`, kind: "leads", source: who, target: spot, t: 0, amount, tx: null, photo: null, onchain: false, visible: true, born: animate ? now : -1e9 });
       if (buyNow || (spot.buyNow && amount >= spot.buyNow)) {
         spot.sold = true;
         if (animate) this.fx.stamps.push({ node: spot, born: now });
@@ -402,6 +409,7 @@ export class PatchworkEngine {
     switch (n.kind) {
       case "event": return 44;
       case "creator": return 20 + Math.min(10, n.total / 150);
+      case "teammate": return 13;
       case "spot": return 9 + Math.min(5, n.amount / 100);
       case "brand":
       case "holder": return 16 + Math.min(9, n.total / 250);
@@ -458,9 +466,10 @@ export class PatchworkEngine {
       if (t.kind === "leads") rows.push({ icon: "zap", text: `${a.label} leads ${b.label}${n.kind !== "spot" ? ` on ${this.byId.get(b.creatorId ?? "")?.label ?? ""}` : ""}`, amount: usd(t.amount), tx: this.txOf(b, a), node: n === a ? b.id : a.id });
       if (t.kind === "outbid") rows.push({ icon: "undo", text: `${a.label} was outbid on ${b.label}`, amount: "refunded", tx: null, node: n === a ? b.id : a.id });
       if (t.kind === "spotted") {
-        rows.push({ icon: "camera", text: `${a.label} spotted ${b.label}`, amount: "", tx: null, node: n === a ? b.id : a.id });
+        rows.push({ icon: "camera", text: `${a.label} spotted ${b.label}`, amount: t.onchain ? "on-chain" : "", tx: t.onchain ? t.tx : null, node: n === a ? b.id : a.id });
         if (t.photo && b === n) photos.push(t.photo);
       }
+      if (t.kind === "team") rows.push({ icon: "users", text: `${a.label} and ${b.label} split a hoodie`, amount: "", tx: null, node: n === a ? b.id : a.id });
       if (t.kind === "holds") rows.push({ icon: "receipt", text: `${a.label} holds the receipt for ${b.label}`, amount: "", tx: null, node: a.id });
       if (t.kind === "has" && n.kind === "creator") rows.push({ icon: "square", text: b.label, amount: b.leader ? usd(b.amount) : "open", tx: null, node: b.id });
     }
@@ -470,7 +479,7 @@ export class PatchworkEngine {
     else if (n.kind === "creator") {
       const own = this.nodes.filter((s) => s.kind === "spot" && s.creatorId === n.id);
       stats.push({ v: usd(n.total), k: "escrowed" }, { v: `${own.filter((s) => s.leader).length}/${own.length}`, k: "spots led" }, { v: String(this.degree(n, "spotted")), k: "spotted by" });
-    } else if (n.kind === "spotter") stats.push({ v: String(this.degree(n, "spotted")), k: "spotted" }, { v: String(this.degree(n)), k: "threads" }, { v: `#${this.rankOf(n)}`, k: "rank" });
+    } else if (n.kind === "spotter" || n.kind === "teammate") stats.push({ v: String(this.degree(n, "spotted")), k: "spotted" }, { v: String(this.degree(n)), k: "threads" }, { v: `#${this.rankOf(n)}`, k: "rank" });
     else stats.push({ v: usd(n.total), k: "leading" }, { v: String(led), k: "spots led" }, { v: String(this.threads.filter((t) => t.kind === "outbid" && t.source === n).length), k: "outbid" });
     return { node: n, stats, rows: rows.slice(0, 16), rank: this.rankOf(n), degree: this.degree(n), photos, leader: n.leader };
   }
@@ -528,6 +537,7 @@ export class PatchworkEngine {
     this.moveTo({ x: this.W / 2 - ((x0 + x1) / 2) * k, y: this.H / 2 - ((y0 + y1) / 2) * k + 10, k }, ms);
   }
   private flyTo(wx: number, wy: number, k: number) {
+    this.autoFit = false;
     this.moveTo({ x: this.W / 2 - wx * k, y: this.H / 2 - wy * k, k }, 900);
   }
   private moveTo(to: { x: number; y: number; k: number }, ms: number) {
@@ -641,11 +651,11 @@ export class PatchworkEngine {
     (this.sim.force("collide") as ReturnType<typeof forceCollide<RNode>>).radius((n) => (n.visible ? this.radius(n) * (n.kind === "spot" ? 1.5 : 1) + (n.kind === "spot" ? 3 : 6) : 0));
     (this.sim.force("radial") as ReturnType<typeof forceRadial<RNode>>)
       .radius((n) => (RING as Record<string, number>)[n.kind] ?? 0)
-      .strength((n) => (!n.visible || n.kind === "spot" || n.kind === "event" ? 0 : n.kind === "creator" ? 0.1 : 0.06));
+      .strength((n) => (!n.visible || n.kind === "spot" || n.kind === "event" || n.kind === "teammate" ? 0 : n.kind === "creator" ? 0.1 : 0.06));
   }
   private shown(t: RThread) {
     if (!t.visible || !t.source.visible || !t.target.visible) return false;
-    if (t.kind === "lists" || t.kind === "has" || t.kind === "holds") return true;
+    if (t.kind === "lists" || t.kind === "has" || t.kind === "holds" || t.kind === "team") return true;
     return this.layers[t.kind as Layer] ?? true;
   }
 
@@ -660,7 +670,7 @@ export class PatchworkEngine {
     this.canvas.width = Math.max(1, Math.round(this.W * this.dpr));
     this.canvas.height = Math.max(1, Math.round(this.H * this.dpr));
     this.dirty = true;
-    if (first && this.W > 0 && this.nodes.length) this.fit(0);
+    if ((first || this.autoFit) && this.W > 0 && this.nodes.length) this.fit(0);
   }
   private readTokens() {
     const cs = getComputedStyle(document.documentElement);
@@ -746,6 +756,7 @@ export class PatchworkEngine {
       n.kind === "spot" ? (n.leader ? `${n.leader.label} · ${usd(n.amount)}` : `Open · ${usd(n.floor ?? 0)}+`)
       : n.kind === "creator" ? `${n.surface === "hoodie" ? "Team hoodie" : n.surface === "car" ? "Car" : "Outfit"} · ${usd(n.total)} escrowed`
       : n.kind === "brand" || n.kind === "holder" ? `${usd(n.total)} leading`
+      : n.kind === "teammate" ? "Teammate"
       : n.kind === "spotter" ? `Spotted ${this.degree(n, "spotted")}`
       : "Event";
     sub.textContent = ` ${text}`;
@@ -955,6 +966,13 @@ export class PatchworkEngine {
       case "has":
         ctx.strokeStyle = T.ink!; ctx.globalAlpha = 0.45 * dim; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2.5]); this.curve(a, b, 0, pr);
         break;
+      case "team": {
+        ctx.strokeStyle = T.ink!; ctx.globalAlpha = 0.55 * dim; ctx.lineWidth = 1;
+        const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, ox = (-dy / l) * 1.8, oy = (dx / l) * 1.8;
+        this.curve({ x: a.x + ox, y: a.y + oy }, { x: b.x + ox, y: b.y + oy }, 0, pr);
+        this.curve({ x: a.x - ox, y: a.y - oy }, { x: b.x - ox, y: b.y - oy }, 0, pr);
+        break;
+      }
       case "outbid":
         ctx.strokeStyle = T.ink!; ctx.globalAlpha = 0.16 * dim; ctx.lineWidth = 1; ctx.setLineDash([1, 4]); this.curve(a, b, BEND.outbid, pr);
         break;
@@ -1161,7 +1179,7 @@ export class PatchworkEngine {
     } else {
       ctx.fillStyle = "#0B0B0C"; ctx.font = font(r * 0.78); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(initials(n.name), 0, 1);
     }
-    ctx.lineWidth = n.kind === "spotter" ? 1.5 : 2; ctx.strokeStyle = T.ink!; circ(); ctx.stroke();
+    ctx.lineWidth = n.kind === "spotter" || n.kind === "teammate" ? 1.5 : 2; ctx.strokeStyle = T.ink!; circ(); ctx.stroke();
     if (n.kind === "creator") {
       const bx = r * 0.72;
       ctx.fillStyle = T.card!; ctx.beginPath(); ctx.arc(bx, bx, 8, 0, TAU); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = T.ink!; ctx.stroke();

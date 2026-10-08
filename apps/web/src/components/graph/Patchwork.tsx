@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Camera, ChevronDown, Crosshair, ExternalLink, Gavel, List, Network, Pause, Play, Receipt, Share2, Square, Undo2, X, Zap, Stamp, UserPlus } from "lucide-react";
+import { BadgeCheck, Camera, Users, ChevronDown, Crosshair, ExternalLink, Gavel, List, Network, Pause, Play, Receipt, Share2, Square, Undo2, X, Zap, Stamp, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { ExplorerLink } from "@/components/ui/ExplorerLink";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -21,9 +21,9 @@ const LAYERS: { id: Layer; label: string }[] = [
   { id: "spotted", label: "Spots" },
   { id: "outbid", label: "Bid history" },
 ];
-const ROW_ICON = { zap: Zap, undo: Undo2, camera: Camera, square: Square, receipt: Receipt } as const;
+const ROW_ICON = { zap: Zap, undo: Undo2, camera: Camera, square: Square, receipt: Receipt, users: Users } as const;
 const TOAST_ICON = { zap: Zap, camera: Camera, stamp: Stamp, node: UserPlus } as const;
-const ROLE_LABEL = { creator: "Creator", brand: "Brand", holder: "Holder", spotter: "Spotter", spot: "Spot", event: "Event" } as const;
+const ROLE_LABEL = { creator: "Creator", teammate: "Teammate", brand: "Brand", holder: "Holder", spotter: "Spotter", spot: "Spot", event: "Event" } as const;
 
 interface ToastItem { id: number; title: string; sub: string; icon: ToastIcon }
 
@@ -496,7 +496,8 @@ function Legend() {
   const sw = (svg: React.ReactNode) => <svg width="34" height="14" viewBox="0 0 34 14" aria-hidden="true">{svg}</svg>;
   const items: [React.ReactNode, string][] = [
     [sw(<><path d="M2 7h30" stroke="var(--ink)" strokeWidth="2.5" /><circle cx="20" cy="7" r="2.4" fill="var(--accent)" /></>), "Brand leads a spot, USDC flowing to escrow"],
-    [sw(<path d="M2 7h30" stroke="var(--accent-text)" strokeWidth="1.6" strokeDasharray="5 4" />), "Someone spotted a creator"],
+    [sw(<path d="M2 7h30" stroke="var(--accent-text)" strokeWidth="1.6" strokeDasharray="5 4" />), "Someone spotted a creator (on-chain)"],
+    [sw(<path d="M2 5h30M2 9h30" stroke="var(--ink)" strokeWidth="1" />), "Team hoodie: paid together"],
     [sw(<path d="M2 7h30" stroke="var(--green)" strokeWidth="1.8" />), "Receipt held by a buyer from resale"],
     [sw(<rect x="10" y="1" width="12" height="12" rx="3" fill="var(--accent-soft)" stroke="var(--accent-text)" strokeDasharray="3 2" strokeWidth="1.5" />), "Open spot, nobody leads yet"],
   ];

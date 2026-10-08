@@ -138,6 +138,11 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   BidNotPlaced: "One of the patches changed a moment ago, so none of the bids went through. Check the prices and try again.",
   LengthMismatch: "Something went wrong building the sweep. Reload and try again.",
   Empty: "Pick at least one patch.",
+  // PatchSpotter
+  NotSpottable: "You can only spot a listing that is live or being delivered.",
+  OwnListing: "You can't spot your own listing.",
+  AlreadySpotted: "You already spotted this creator.",
+  BadPhoto: "That photo couldn't be recorded. Try another one.",
   // PatchAutoBidder
   AlreadyLeading: "You already lead this patch.",
   OverMax: "The next bid is above your auto-bid maximum.",

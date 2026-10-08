@@ -12,7 +12,7 @@ import { useEnsureOnchainName } from "@/lib/market/useOnchainName";
 export type TxStatus = "idle" | "signing" | "confirming" | "done" | "error";
 
 /** Turn any wallet / contract error into one sentence a person understands. */
-export function friendlyError(err: unknown): string {
+export function friendlyError(err: unknown, fallback = "The bid didn't go through. Try again in a moment."): string {
   if (err instanceof BaseError) {
     const revert = err.walk((e) => e instanceof ContractFunctionRevertedError);
     if (revert instanceof ContractFunctionRevertedError) {
@@ -38,7 +38,7 @@ export function friendlyError(err: unknown): string {
     return TEST_TOKEN
       ? "Not enough test USD in your wallet. Get 1,000 free from the faucet on My bids."
       : "Not enough USDC in your wallet for this bid.";
-  return "The bid didn't go through. Try again in a moment.";
+  return fallback;
 }
 
 /**

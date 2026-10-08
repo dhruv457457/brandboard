@@ -22,7 +22,9 @@ interface Person {
 const PERSON_COLS = "id, wallet, handle, display_name, avatar_url, brand_name, brand_logo_url, brand_verified_domain";
 
 interface BidRow { tx_hash: string; log_index: number; listing_id: number; patch_id: number; bidder: string; amount: number; is_buy_now: boolean; block_time: string }
-interface PostRow { id: string; listing_id: number; spotted_wallet: string; author: string; media: unknown; created_at: string }
+interface PostRow { id: string; listing_id: number; spotted_wallet: string; author: string; media: unknown; created_at: string; spot_tx: string | null }
+interface SpotRow { tx_hash: string; listing_id: number; spotter: string; creator: string; block_time: string }
+interface PayeeRow { listing_id: number; payee: string }
 
 /** Events that have something to show, busiest first. Cars (event 0) come as "On the road". */
 export async function fetchGraphEvents(): Promise<GraphEventRow[]> {
@@ -66,24 +68,33 @@ export async function fetchEventGraph(eventId: number): Promise<EventGraph | nul
   const ids = cards.map((c) => c.id);
   const closedIds = cards.filter((c) => c.status >= 2).map((c) => c.id);
 
-  const [bidsRes, postsRes, receiptsRes] = await Promise.all([
+  const [bidsRes, postsRes, receiptsRes, spotsRes, payeesRes] = await Promise.all([
     ids.length
       ? db.from("bids").select("tx_hash, log_index, listing_id, patch_id, bidder, amount, is_buy_now, block_time")
           .eq("chain_id", CHAIN_ID).in("listing_id", ids).order("block_number", { ascending: false }).order("log_index", { ascending: false }).limit(1500)
       : { data: [] as BidRow[] },
     ids.length
-      ? db.from("posts").select("id, listing_id, spotted_wallet, author, media, created_at")
+      ? db.from("posts").select("id, listing_id, spotted_wallet, author, media, created_at, spot_tx")
           .eq("chain_id", CHAIN_ID).in("listing_id", ids).eq("hidden", false).not("spotted_wallet", "is", null)
           .order("created_at", { ascending: false }).limit(300)
       : { data: [] as PostRow[] },
     closedIds.length
       ? db.from("receipts").select("listing_id, patch_id, owner").eq("chain_id", CHAIN_ID).in("listing_id", closedIds)
       : { data: [] as { listing_id: number; patch_id: number; owner: string }[] },
+    // Spots recorded on-chain by PatchSpotter, and who is paid with the creator on a team hoodie.
+    ids.length
+      ? db.from("spots").select("tx_hash, listing_id, spotter, creator, block_time").eq("chain_id", CHAIN_ID).in("listing_id", ids).order("block_time").limit(500)
+      : { data: [] as SpotRow[] },
+    ids.length
+      ? db.from("listing_payees").select("listing_id, payee").eq("chain_id", CHAIN_ID).in("listing_id", ids)
+      : { data: [] as PayeeRow[] },
   ]);
   // Newest first from the database (so a cut-off drops the oldest), oldest first from here on.
   const bidRows = ((bidsRes.data ?? []) as BidRow[]).reverse();
   const postRows = ((postsRes.data ?? []) as PostRow[]).reverse();
   const receipts = receiptsRes.data ?? [];
+  const spotRows = (spotsRes.data ?? []) as SpotRow[];
+  const payeeRows = (payeesRes.data ?? []) as PayeeRow[];
 
   // Everyone who appears, looked up once: by wallet, and spotters by profile id.
   const wallets = new Set<string>();
@@ -93,6 +104,8 @@ export async function fetchEventGraph(eventId: number): Promise<EventGraph | nul
   }
   for (const b of bidRows) wallets.add(lc(b.bidder));
   for (const r of receipts) wallets.add(lc(r.owner));
+  for (const s of spotRows) wallets.add(lc(s.spotter));
+  for (const p of payeeRows) wallets.add(lc(p.payee));
   const authorIds = [...new Set(postRows.map((p) => p.author))];
   const [byWalletRes, byIdRes] = await Promise.all([
     wallets.size ? db.from("profiles").select(PERSON_COLS).in("wallet", [...wallets]) : { data: [] as Person[] },
@@ -107,6 +120,7 @@ export async function fetchEventGraph(eventId: number): Promise<EventGraph | nul
   for (const c of cards) times.push(c.createdAt);
   for (const b of bidRows) times.push(new Date(b.block_time).getTime());
   for (const p of postRows) times.push(new Date(p.created_at).getTime());
+  for (const s of spotRows) times.push(new Date(s.block_time).getTime());
   const t0 = times.length ? Math.min(...times) : Date.now() - 86_400_000;
   const t1 = Math.max(times.length ? Math.max(...times) : Date.now(), t0 + 60_000);
   const T = (ms: number) => Math.min(1, Math.max(0, (ms - t0) / (t1 - t0)));
@@ -120,7 +134,7 @@ export async function fetchEventGraph(eventId: number): Promise<EventGraph | nul
     wallet: null, href: eventId ? `/e/${event.slug ?? event.id}` : "/explore", t: 0, color: 2,
   });
 
-  const KIND_ORDER: NodeRole[] = ["creator", "brand", "holder", "spotter"];
+  const KIND_ORDER: NodeRole[] = ["creator", "teammate", "brand", "holder", "spotter"];
   /** One node per wallet; roles add up and the first role in KIND_ORDER is its kind. */
   const wallet = (addr: string | null, authorId: string | null, role: NodeRole, ts: number): GNode => {
     const w = addr ? lc(addr) : null;
@@ -213,14 +227,35 @@ export async function fetchEventGraph(eventId: number): Promise<EventGraph | nul
     const t = T(new Date(p.created_at).getTime());
     const sp = wallet(author.wallet, author.id, "spotter", t);
     if (sp.id === target.id) continue;
-    threads.push({ id: `s:${p.id}`, kind: "spotted", source: sp.id, target: target.id, t, photo });
+    threads.push({ id: `s:${p.id}`, kind: "spotted", source: sp.id, target: target.id, t, photo, tx: p.spot_tx, onchain: Boolean(p.spot_tx) });
+  }
+  // Spots recorded on-chain with no photo post behind them (someone called the contract directly).
+  const postedTx = new Set(postRows.map((p) => p.spot_tx).filter(Boolean));
+  for (const s of spotRows) {
+    if (postedTx.has(s.tx_hash)) continue;
+    const target = nodes.get(`w:${lc(s.creator)}`);
+    if (!target) continue;
+    const t = T(new Date(s.block_time).getTime());
+    const sp = wallet(s.spotter, null, "spotter", t);
+    if (sp.id === target.id) continue;
+    threads.push({ id: `s:${s.tx_hash}`, kind: "spotted", source: sp.id, target: target.id, t, tx: s.tx_hash, onchain: true });
+  }
+
+  // Team hoodies: everyone paid with the creator is a teammate, tied to them by a double thread.
+  for (const p of payeeRows) {
+    const card = cards.find((c) => c.id === p.listing_id);
+    const owner = card ? nodes.get(`w:${lc(card.creator)}`) : undefined;
+    if (!card || !owner || lc(p.payee) === lc(card.creator)) continue;
+    const mate = wallet(p.payee, null, "teammate", T(card.createdAt));
+    const id = `team:${owner.id}:${mate.id}`;
+    if (!threads.some((t) => t.id === id)) threads.push({ id, kind: "team", source: owner.id, target: mate.id, t: mate.t });
   }
 
   // Names and pictures now that every wallet knows all its roles: people by face, brands by logo.
   for (const n of nodes.values()) {
     const p = profileOf.get(n.id);
     if (!p) continue;
-    const person = n.roles.includes("creator") || n.roles.every((r) => r === "spotter");
+    const person = n.roles.includes("creator") || n.roles.includes("teammate") || n.roles.every((r) => r === "spotter");
     if (person) {
       n.name = p.display_name ?? (p.handle ? `@${p.handle}` : n.name);
       n.label = p.handle ? `@${p.handle}` : (p.display_name ?? n.label);

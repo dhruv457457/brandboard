@@ -1,8 +1,8 @@
 // Patchwork: one event as a graph. Wallets are nodes (a wallet that creates and also bids is ONE node with two roles),
 // every thread comes from an indexed chain event. Amounts are whole USDC numbers: this is display data only.
 
-export type NodeKind = "event" | "creator" | "spot" | "brand" | "holder" | "spotter";
-export type NodeRole = "creator" | "brand" | "holder" | "spotter";
+export type NodeKind = "event" | "creator" | "teammate" | "spot" | "brand" | "holder" | "spotter";
+export type NodeRole = "creator" | "teammate" | "brand" | "holder" | "spotter";
 export type SurfaceName = "outfit" | "car" | "hoodie";
 
 export interface GNode {
@@ -38,7 +38,7 @@ export interface GNode {
   won?: boolean;
 }
 
-export type ThreadKind = "lists" | "has" | "leads" | "outbid" | "spotted" | "holds";
+export type ThreadKind = "lists" | "has" | "leads" | "outbid" | "spotted" | "holds" | "team";
 
 export interface GThread {
   id: string;
@@ -50,6 +50,8 @@ export interface GThread {
   tx?: string | null;
   /** spotted: the photo. */
   photo?: string | null;
+  /** spotted: recorded by PatchSpotter on-chain (tx is then its transaction). Older photos are off-chain. */
+  onchain?: boolean;
 }
 
 /** One bid in block order. Replay and the live state are both built from these. */

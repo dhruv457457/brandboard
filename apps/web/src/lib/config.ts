@@ -14,6 +14,8 @@ export const RECEIPT = deployment.receipt;
 export const AUTO_BIDDER = deployment.autoBidder ?? null;
 /** PatchSweeper for this market, if deployed. */
 export const SWEEPER = deployment.sweeper ?? null;
+/** PatchSpotter for this market, if deployed: spotting someone is then an on-chain transaction. */
+export const SPOTTER = deployment.spotter ?? null;
 export const USDC = deployment.usdc;
 /** The dollar token is the TestUSD faucet token (mainnet test run), not real USDC. */
 export const TEST_TOKEN = deployment.testToken === true;

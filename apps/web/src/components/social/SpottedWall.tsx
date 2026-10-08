@@ -9,6 +9,8 @@ import { Sheet } from "@/components/ui/Sheet";
 import { toast } from "@/components/ui/Toast";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
+import { useSpot } from "@/lib/market/useSpot";
+import { SPOTTER } from "@/lib/config";
 import { formatTimeAgo } from "@/lib/format";
 import type { SpottedPost } from "@/lib/spotted";
 
@@ -104,6 +106,7 @@ export function SpottedWall({ eventId, listingId, wallet, choices = [], title = 
 
 function SpotSheet({ open, onClose, choices, onPosted }: { open: boolean; onClose: () => void; choices: SpotChoice[]; onPosted: () => void }) {
   const authedFetch = useAuthedFetch();
+  const spot = useSpot();
   const [listing, setListing] = useState(choices[0]?.listingId ?? 0);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -134,12 +137,19 @@ function SpotSheet({ open, onClose, choices, onPosted }: { open: boolean; onClos
       const up = await authedFetch("/api/uploads", { method: "POST", body: form });
       const uploaded = (await up.json()) as { url?: string; error?: string };
       if (!up.ok || !uploaded.url) throw new Error(uploaded.error ?? "The photo didn't upload.");
-      const res = await authedFetch("/api/spotted", {
+      // Pin the photo, record the spot on-chain (gas-free with a Patched wallet), then show it.
+      const pin = await authedFetch("/api/spotted/pin", {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ listingId: listing, photo: uploaded.url, caption }),
+      });
+      const pinned = (await pin.json()) as { photoHash?: `0x${string}`; photoURI?: string; error?: string };
+      if (!pin.ok || !pinned.photoHash || !pinned.photoURI) throw new Error(pinned.error ?? "Couldn't prepare your photo.");
+      const tx = await spot(listing, pinned.photoHash, pinned.photoURI);
+      const res = await authedFetch("/api/spotted", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ listingId: listing, photo: uploaded.url, caption, tx }),
       });
       const json = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Couldn't post that.");
-      toast("Posted. The creator has been told.");
+      toast(SPOTTER ? "Spotted. It is on Monad now and the creator has been told." : "Posted. The creator has been told.");
       setFile(null);
       setCaption("");
       onPosted();

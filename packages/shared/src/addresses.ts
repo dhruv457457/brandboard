@@ -15,6 +15,9 @@ export interface PatchedDeployment {
   autoBidderBlock?: number;
   /** PatchSweeper for this market (several patches in one transaction). */
   sweeper?: Address;
+  /** PatchSpotter for this market (on-chain "spotted" photos), and the block it was deployed in. */
+  spotter?: Address;
+  spotterBlock?: number;
   /** True once this market has `approveProof` and `minDisputeWindow` (brands can accept a proof early). */
   approvals?: boolean;
   /** True once this market is upgraded to the Living Patch (`submitProof` with a cover image, `tokenView`, `receiptFor`). */

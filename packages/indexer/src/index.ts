@@ -6,7 +6,7 @@
 // always safe (all writes are idempotent).
 import { createPublicClient, decodeEventLog, hexToString, http, type Log, type PublicClient } from "viem";
 import type { Sql } from "postgres";
-import { DEPLOYMENTS, monadMainnet, monadTestnet, patchAutoBidderAbi, patchedMarketAbi } from "@patched/shared";
+import { DEPLOYMENTS, monadMainnet, monadTestnet, patchAutoBidderAbi, patchedMarketAbi, patchSpotterAbi } from "@patched/shared";
 
 const CHAINS = { 10143: monadTestnet, 143: monadMainnet } as const;
 export type IndexedChainId = keyof typeof CHAINS;
@@ -50,8 +50,9 @@ export async function syncChain({ sql, chainId, rpcUrl, maxBlocks = 20_000n }: S
   let refreshed = 0;
   for (let from = start; from <= end; from += MAX_RANGE) {
     const to = from + MAX_RANGE - 1n < end ? from + MAX_RANGE - 1n : end;
-    // The market plus, when deployed, the auto-bidder (its AutoBidSet events feed auto_bid_rules).
-    const addresses = deployment.autoBidder ? [deployment.market, deployment.autoBidder] : [deployment.market];
+    // The market plus, when deployed, the auto-bidder (its AutoBidSet events feed auto_bid_rules) and the spotter
+    // (its Spotted events feed the spots table).
+    const addresses = [deployment.market, ...(deployment.autoBidder ? [deployment.autoBidder] : []), ...(deployment.spotter ? [deployment.spotter] : [])];
     const logs = (await client.getLogs({ address: addresses, fromBlock: from, toBlock: to })) as MarketLog[];
     const touched = new Set<bigint>();
     await Promise.all(logs.map((l) => blockTime(l, client))); // warm the cache in parallel
@@ -74,7 +75,7 @@ export async function syncChain({ sql, chainId, rpcUrl, maxBlocks = 20_000n }: S
 }
 
 function decode(log: MarketLog): Decoded | null {
-  for (const abi of [patchedMarketAbi, patchAutoBidderAbi]) {
+  for (const abi of [patchedMarketAbi, patchAutoBidderAbi, patchSpotterAbi]) {
     try {
       const d = decodeEventLog({ abi, data: log.data, topics: log.topics });
       return { eventName: d.eventName, args: (d.args ?? {}) as Record<string, unknown> };
@@ -160,6 +161,15 @@ async function handle(
       }
       await notify(note, await creatorOf(sql, chainId, a.listingId), "new_bid", { listingId, patchId: Number(a.patchId), amount: num(a.amount), bidder: lc(a.bidder) });
       break;
+    case "Spotted": {
+      // Someone posted a photo of a creator. The photo record is on IPFS; the row is what the Patchwork graph reads.
+      await sql`
+        insert into public.spots (chain_id, tx_hash, log_index, event_id, listing_id, spotter, creator, photo_hash, photo_uri, block_number, block_time)
+        values (${chainId}, ${tx}, ${idx}, ${Number(a.eventId)}, ${num(a.listingId)}, ${lc(a.spotter)}, ${lc(a.creator)},
+          ${String(a.photoHash)}, ${String(a.photoURI)}, ${block}, ${time})
+        on conflict do nothing`;
+      break;
+    }
     case "AutoBidPlaced":
       await notify(note, lc(a.brand), "auto_bid", { listingId, patchId: Number(a.patchId), amount: num(a.amount) });
       break;
@@ -313,6 +323,15 @@ async function refreshListing(sql: Sql, client: PublicClient, chainId: number, m
         values (${chainId}, ${((id << 8n) | BigInt(i)).toString()}, ${id.toString()}, ${i}, ${bidder})
         on conflict do nothing`;
     }
+  }
+
+  // Team splits (hoodies): who is paid with the creator. Not in any event, so read once per refresh.
+  const [payees, shares] = await client.readContract({ address: market, abi: patchedMarketAbi, functionName: "getPayees", args: [id] });
+  for (let i = 0; i < payees.length; i++) {
+    await sql`
+      insert into public.listing_payees (chain_id, listing_id, payee, share_bps)
+      values (${chainId}, ${id.toString()}, ${payees[i]!.toLowerCase()}, ${shares[i]!})
+      on conflict (chain_id, listing_id, payee) do update set share_bps = excluded.share_bps`;
   }
 
   for (let m = 0; m < L.milestoneCount; m++) {

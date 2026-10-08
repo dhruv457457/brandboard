@@ -1,4 +1,6 @@
-import { CHAIN_ID } from "@/lib/config";
+import { decodeEventLog } from "viem";
+import { patchSpotterAbi } from "@patched/shared";
+import { CHAIN_ID, SPOTTER, serverClient } from "@/lib/config";
 import { getSessionLite, getSessionWallet, unauthorized } from "@/lib/server/auth";
 import { allow } from "@/lib/server/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -50,18 +52,27 @@ export async function GET(req: Request) {
   return Response.json({ posts }, { headers: { "cache-control": "no-store" } });
 }
 
-/** Post a spotted photo. Body: { listingId, photo (an uploaded proofs image), caption? }. */
+/**
+ * Post a spotted photo. Body: { listingId, photo (an uploaded proofs image), caption?, tx? }.
+ * Where PatchSpotter is deployed, `tx` is the transaction that recorded the spot on-chain: it is required, and checked
+ * (it must be a Spotted event from this wallet for this listing) before the photo is shown.
+ */
 export async function POST(req: Request) {
   const user = await getSessionLite(req);
   if (!user?.wallet) return unauthorized(user);
-  const body = (await req.json().catch(() => null)) as { listingId?: number; photo?: string; caption?: string } | null;
+  const body = (await req.json().catch(() => null)) as { listingId?: number; photo?: string; caption?: string; tx?: string } | null;
   const listingId = Number(body?.listingId);
   const photo = String(body?.photo ?? "");
   const caption = String(body?.caption ?? "").trim().slice(0, 200);
+  const tx = String(body?.tx ?? "").toLowerCase();
   if (!Number.isInteger(listingId) || listingId < 1 || !photo.startsWith(PHOTOS())) {
     return Response.json({ error: "Add a photo of who you spotted." }, { status: 400 });
   }
   if (!allow(`spotted:${user.wallet}`, 20)) return Response.json({ error: "That's 20 spots today. Try again tomorrow." }, { status: 429 });
+
+  if (SPOTTER && !(await spotWasRecorded(tx, user.wallet, listingId))) {
+    return Response.json({ error: "We couldn't find your spot on-chain. Try again." }, { status: 400 });
+  }
 
   const db = supabaseAdmin();
   const [{ data: author }, { data: listing }] = await Promise.all([
@@ -74,7 +85,7 @@ export async function POST(req: Request) {
 
   const { data: post, error } = await db.from("posts").insert({
     author: author.id, chain_id: CHAIN_ID, listing_id: listingId, event_id: listing.event_id || null,
-    spotted_wallet: String(listing.creator).toLowerCase(), body: caption || "Spotted", media: [{ url: photo }],
+    spotted_wallet: String(listing.creator).toLowerCase(), body: caption || "Spotted", media: [{ url: photo }], spot_tx: SPOTTER ? tx : null,
   }).select("id").single();
   if (error || !post) return Response.json({ error: "Couldn't post that. Try again." }, { status: 500 });
 
@@ -101,4 +112,21 @@ export async function DELETE(req: Request) {
   if (post.spotted_wallet !== user.wallet && post.author !== me?.id) return Response.json({ error: "Only the person who posted it, or the creator it shows, can remove it." }, { status: 403 });
   await db.from("posts").update({ hidden: true }).eq("id", id);
   return Response.json({ ok: true });
+}
+
+/** True when `tx` is a mined PatchSpotter `Spotted` from `wallet` for `listingId`. */
+async function spotWasRecorded(tx: string, wallet: string, listingId: number): Promise<boolean> {
+  if (!SPOTTER || !/^0x[0-9a-f]{64}$/.test(tx)) return false;
+  try {
+    const receipt = await serverClient().getTransactionReceipt({ hash: tx as `0x${string}` });
+    if (receipt.status !== "success") return false;
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() !== SPOTTER.toLowerCase()) continue;
+      const d = decodeEventLog({ abi: patchSpotterAbi, data: log.data, topics: log.topics });
+      if (d.eventName === "Spotted" && d.args.spotter.toLowerCase() === wallet && Number(d.args.listingId) === listingId) return true;
+    }
+  } catch {
+    // not mined yet, or not a real transaction: treated as not recorded
+  }
+  return false;
 }
