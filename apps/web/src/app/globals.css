@@ -507,3 +507,25 @@ html[data-signed-in] body:has(.landing-only) .boot-loader {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
   100% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
+
+/* A car page: the picture sits on a road that keeps moving under it. */
+.road {
+  position: relative;
+  height: 54px;
+  background: linear-gradient(#34343a, #222226);
+  border-top: 4px solid #6b6b72;
+}
+
+.road-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 55%;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, #f3f1e8 0 38px, transparent 38px 84px);
+  animation: roadMove 1.1s linear infinite;
+}
+
+@keyframes roadMove {
+  to { background-position-x: -84px; }
+}

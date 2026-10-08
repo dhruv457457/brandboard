@@ -134,6 +134,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
   const [editing, setEditing] = useState(false);
   const [burst, setBurst] = useState<{ x: number; y: number; n: number } | null>(null);
   const [viewSide, setViewSide] = useState<string>(() => listing.views[0]?.id ?? "front");
+  // A car page lays out as a road scene with the spots of the side you're looking at beside it, so bidding needs no scrolling.
+  const isCar = listing.surface === "car";
+  const [allSides, setAllSides] = useState(false);
   const [amountText, setAmountText] = useState("");
   // Time-based text (countdown, "2m ago") differs between server and browser, so render it after mount.
   const [mounted, setMounted] = useState(false);
@@ -295,6 +298,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     ? listing.views.map((v) => ({ id: v.id, label: v.label, patches: patches.filter((p) => p.side === v.id) })).filter((g) => g.patches.length)
     : [{ id: "all", label: "", patches }];
 
+  const visibleGroups = isCar && !allSides && groups.length > 1 ? groups.filter((g) => g.id === viewSide) : groups;
+
   /**
    * Saving is queued, not awaited: the page shows the new version and the editor closes right away, and saves run
    * one after another in the background (so two quick saves can't land out of order). If one fails, the page goes
@@ -359,6 +364,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               {editing ? "Editing your page. Click any dashed text to change it; leave it empty to use the default." : "This is your sponsor page. Make it yours, then share it."}
             </span>
             <span className="flex gap-2">
+              {!editing && !listing.creatorName && !listing.creatorHandle && (
+                <Link href="/settings" className="btn-base btn-small">Add your name</Link>
+              )}
               {!editing && (
                 <button className="btn-base btn-small" onClick={() => { setDraft(saved); setEditing(true); setOpenId(null); }}>
                   <Pencil size={13} /> Edit page
@@ -371,9 +379,9 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
       )}
 
       {/* ── The auction room: the photo on one side, every spot's live price and leader on the other ── */}
-      <section className="wrap mt-6 grid gap-8 lg:gap-12 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] items-start">
-        <div id="stage" className="lg:sticky lg:top-6 grid gap-3 scroll-mt-6">
-          <div className="rounded-[28px] bg-[var(--stage)] p-4 sm:p-6 grid gap-3" style={stageStyle(pg.stage)} onMouseEnter={() => setStageHover(true)} onMouseLeave={() => setStageHover(false)}>
+      <section className={cn("wrap mt-6 grid gap-8 grid-cols-[minmax(0,1fr)] items-start", isCar ? "lg:gap-x-8 lg:gap-y-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : "lg:gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]")}>
+        <div id="stage" className={cn("grid gap-3 scroll-mt-6", isCar ? "lg:col-start-1 lg:row-start-2" : "lg:sticky lg:top-6")}>
+          <div className={cn("rounded-[28px] bg-[var(--stage)] p-4 sm:p-6 grid gap-3", isCar && "overflow-hidden")} style={stageStyle(pg.stage)} onMouseEnter={() => setStageHover(true)} onMouseLeave={() => setStageHover(false)}>
             {listing.views.length > 1 && (
               <div className="flex justify-center items-center gap-2">
                 <div className="grid gap-1 min-w-0">
@@ -385,7 +393,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
             )}
             <AnimatePresence mode="wait" initial={false}>
             <motion.div key={viewSide} initial={intro ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.32, ease: "easeInOut" }}
-              className={cn("relative", listing.surface === "car" ? "w-full" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto w-full" : "max-w-[460px] mx-auto w-full")}>
+              className={cn("relative", isCar ? "w-full max-w-[760px] mx-auto" : listing.surface === "hoodie" ? "max-w-[480px] mx-auto w-full" : "max-w-[460px] mx-auto w-full")}>
               <SurfaceFigure
                 surface={listing.surface}
                 imageUrl={listing.views.find((v) => v.id === viewSide)?.image ?? listing.canvasImage}
@@ -402,6 +410,11 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               <Burst key={burst?.n} x={burst?.x ?? 50} y={burst?.y ?? 50} show={!!burst} />
             </motion.div>
             </AnimatePresence>
+            {isCar && (
+              <div className="road -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 mt-1" aria-hidden="true">
+                <span className="road-line" />
+              </div>
+            )}
           </div>
           <div className="flex gap-4 justify-center flex-wrap text-[13px] text-[var(--muted)]">
             {printed ? <span>Bidding is over. The winning brands are printed on the {surfaceWord}.</span> : (
@@ -414,8 +427,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           </div>
         </div>
 
-        <div className="grid gap-6 min-w-0">
-          <header className="grid gap-2.5">
+        <div className={cn("grid gap-6 min-w-0", isCar && "contents")}>
+          <header className={cn("grid gap-2.5", isCar && "lg:col-start-1 lg:row-start-1 lg:self-end")}>
             <div className="flex items-center gap-2 flex-wrap text-sm">
               <Avatar creatorAvatar={listing.creatorAvatar} label={creatorLabel} />
               <b>{creatorLabel}</b>
@@ -447,7 +460,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           </header>
 
           {/* The auction at a glance */}
-          <div className="grid gap-3">
+          <div className={cn("grid gap-3", isCar && "lg:col-start-2 lg:row-start-1 lg:self-end")}>
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <div className="grid">
                 <span className="eyebrow">In escrow</span>
@@ -477,7 +490,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
           </div>
 
           {/* ── The spot board ── */}
-          <section id="spots" className="grid gap-3 scroll-mt-20">
+          <section id="spots" className={cn("grid gap-3 scroll-mt-20", isCar && "lg:col-start-2 lg:row-start-2 lg:self-start")}>
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <div>
                 <span className="eyebrow">{patches.length} spots · each its own auction</span>
@@ -490,9 +503,17 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
               <div className="hidden sm:grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] gap-4 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] border-b-[1.5px] border-[var(--soft)]">
                 <span>Spot</span><span>Leading</span><span className="text-right w-[92px]">{biddingOpen ? "Top bid" : "Price"}</span>
               </div>
-              {groups.map((g) => (
+              {isCar && groups.length > 1 && (
+                <div className="flex items-center justify-between gap-3 px-5 py-2 text-xs text-[var(--muted)] border-b-[1.5px] border-[var(--soft)]">
+                  <span>{allSides ? `All ${patches.length} spots` : `${visibleGroups[0]?.patches.length ?? 0} on the ${(visibleGroups[0]?.label ?? "").toLowerCase()}`}</span>
+                  <button type="button" className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setAllSides((v) => !v)}>
+                    {allSides ? "Only this side" : `Show all ${patches.length}`}
+                  </button>
+                </div>
+              )}
+              {visibleGroups.map((g) => (
                 <div key={g.id}>
-                  {groups.length > 1 && (
+                  {visibleGroups.length > 1 && (
                     <div className="px-5 pt-3 pb-1 text-xs font-semibold text-[var(--muted)]">{g.label}</div>
                   )}
                   {g.patches.map((p) => {
@@ -653,7 +674,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
 
           {/* Everything that just happened, across all spots */}
           {shown("activity") && (
-            <section id="activity" className={cn("grid gap-2 scroll-mt-20", hidden("activity") && "opacity-40")}>
+            <section id="activity" className={cn("grid gap-2 scroll-mt-20", hidden("activity") && "opacity-40", isCar && "lg:col-span-2 lg:row-start-3")}>
               <span className="eyebrow inline-flex items-center gap-1.5"><span className="dot live" /> Latest bids</span>
               {bids.length ? (
                 <ol className="grid list-none m-0 p-0">
