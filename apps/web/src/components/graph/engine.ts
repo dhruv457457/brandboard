@@ -65,9 +65,9 @@ export interface Described {
 
 const PASTEL = ["p1", "p2", "p3", "p4", "p5"] as const;
 const TOKENS = ["paper", "card", "soft", "ink", "muted", "accent", "accent-text", "accent-soft", "green", "shadow", "stage", "p1", "p2", "p3", "p4", "p5"] as const;
-const DIST: Partial<Record<ThreadKind, number>> = { lists: 200, has: 16, leads: 130, spotted: 120, holds: 70 };
+const DIST: Partial<Record<ThreadKind, number>> = { lists: 200, has: 30, leads: 130, spotted: 120, holds: 70 };
 const STR: Partial<Record<ThreadKind, number>> = { lists: 0.15, has: 1, leads: 0.025, spotted: 0.035, holds: 0.05 };
-const RING = { creator: 210, brand: 400, holder: 400, spotter: 440 } as const;
+const RING = { creator: 190, brand: 330, holder: 330, spotter: 370 } as const;
 const BEND: Partial<Record<ThreadKind, number>> = { leads: 0.14, outbid: 0.1, spotted: -0.18, holds: 0.1 };
 const ORDER: Record<string, number> = { spotter: 0, brand: 1, holder: 1, creator: 2, spot: 3, event: 4 };
 const TAU = Math.PI * 2;
@@ -222,8 +222,8 @@ export class PatchworkEngine {
         y = Math.sin(a) * RING.creator;
       } else if (n.kind !== "event" && n.kind !== "spot") {
         const a = hash01(n.id) * TAU;
-        x = Math.cos(a) * 400;
-        y = Math.sin(a) * 400;
+        x = Math.cos(a) * 330;
+        y = Math.sin(a) * 330;
       }
       this.add(n, x, y, now + (this.reduce ? -1e9 : Math.min(1400, rank++ * 14)));
     }
@@ -638,7 +638,7 @@ export class PatchworkEngine {
       .distance((l) => (DIST[l.kind] ?? 100) + (l.kind === "has" ? this.radius(l.source) : 0))
       .strength((l) => STR[l.kind] ?? 0.05);
     (this.sim.force("charge") as ReturnType<typeof forceManyBody<RNode>>).strength((n) => (!n.visible ? 0 : n.kind === "spot" ? -18 : n.kind === "event" ? -800 : -260));
-    (this.sim.force("collide") as ReturnType<typeof forceCollide<RNode>>).radius((n) => (n.visible ? this.radius(n) + (n.kind === "spot" ? 2 : 6) : 0));
+    (this.sim.force("collide") as ReturnType<typeof forceCollide<RNode>>).radius((n) => (n.visible ? this.radius(n) * (n.kind === "spot" ? 1.5 : 1) + (n.kind === "spot" ? 3 : 6) : 0));
     (this.sim.force("radial") as ReturnType<typeof forceRadial<RNode>>)
       .radius((n) => (RING as Record<string, number>)[n.kind] ?? 0)
       .strength((n) => (!n.visible || n.kind === "spot" || n.kind === "event" ? 0 : n.kind === "creator" ? 0.1 : 0.06));
@@ -901,7 +901,10 @@ export class PatchworkEngine {
 
     // Labels: always for the hub, creators when zoomed in a little, everything for the focused node's neighbors.
     for (const n of vis) {
-      const show = n.kind === "event" || (nb ? nb.has(n) : (n.kind === "creator" && tr.k > 0.5) || ((n.kind === "brand" || n.kind === "holder") && tr.k > 0.75) || n === me || tr.k > 1.4);
+      // Spots are many and close together: they only get a label when they are the focus or you are zoomed right in.
+      const show =
+        n.kind === "event" ||
+        (n.kind === "spot" ? n === focus || tr.k > 2 : nb ? nb.has(n) : (n.kind === "creator" && tr.k > 0.5) || ((n.kind === "brand" || n.kind === "holder") && tr.k > 0.75) || n === me || tr.k > 1.4);
       if (!show || now < n.born) continue;
       ctx.globalAlpha = Math.min(1, clamp((now - n.born) / 560, 0, 1) * 3);
       this.drawLabel(n, tr.k, n === me);

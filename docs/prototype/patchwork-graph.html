@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patchwork prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root {
+  --paper:#FAFAF7; --card:#FFFFFF; --soft:#F0EEE7; --ink:#0B0B0C; --muted:#5F5B53; --line:#D9D5CA; --dot:#DCD8CC;
+  --accent:#FF5A1F; --accent-text:#E0430B; --accent-soft:#FFE3D6; --on-accent:#FFFFFF;
+  --green:#15803D; --green-soft:#DCF5E4; --shadow:#0B0B0C; --stage:#F1EFE8; --monad:#836EF9;
+  --p1:#BDEBD3; --p2:#D9CCFF; --p3:#FFE58F; --p4:#BFE3FF; --p5:#FFC9DA;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#121211; --card:#1B1B19; --soft:#272620; --ink:#F2F0E9; --muted:#A9A498; --line:#3A382F; --dot:#2E2C26;
+    --accent:#FF6B35; --accent-text:#FF7A45; --accent-soft:#3A2016; --on-accent:#140800;
+    --green:#4ADE80; --green-soft:#15291C; --shadow:#000000; --stage:#211F1B;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#121211; --card:#1B1B19; --soft:#272620; --ink:#F2F0E9; --muted:#A9A498; --line:#3A382F; --dot:#2E2C26;
+  --accent:#FF6B35; --accent-text:#FF7A45; --accent-soft:#3A2016; --on-accent:#140800;
+  --green:#4ADE80; --green-soft:#15291C; --shadow:#000000; --stage:#211F1B;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--paper); color: var(--ink); font: 14px/1.4 Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.mono { font-family: "Geist Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.app { display: grid; grid-template-rows: auto 1fr; height: 100dvh; }
+
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1.5px solid var(--soft); flex-wrap: wrap; }
+h1 { font: 800 22px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.03em; margin: 0; }
+.seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 999px; padding: 3px; gap: 2px; background: var(--card); box-shadow: 3px 3px 0 var(--shadow); }
+.seg button { border: 0; background: none; border-radius: 999px; height: 30px; padding: 0 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--card); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.chip[aria-pressed="false"] { opacity: .55; background: transparent; }
+.chip.event { border-color: var(--ink); font-size: 13px; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.live .dot { animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.spacer { flex: 1; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 14px; background: var(--card); font-weight: 700; box-shadow: 3px 3px 0 var(--shadow); transition: transform .12s, box-shadow .12s; white-space: nowrap; }
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.sm { height: 32px; padding: 0 11px; font-size: 13px; border-radius: 12px; }
+
+.main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+.stage { position: relative; min-height: 0; overflow: hidden; background: var(--stage); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas.over { cursor: pointer; }
+.overlay { position: absolute; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+.overlay > * { pointer-events: auto; }
+.layers { top: 14px; left: 16px; right: 16px; }
+.tools { top: 56px; left: 16px; flex-direction: column; align-items: flex-start; }
+.replay { left: 50%; bottom: 16px; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); align-items: center; background: var(--card); border: 2px solid var(--ink); border-radius: 18px; box-shadow: 4px 4px 0 var(--shadow); padding: 8px 14px 8px 8px; flex-wrap: nowrap; }
+.replay input { flex: 1; accent-color: var(--accent); min-width: 0; }
+.replay .when { font-size: 12px; color: var(--muted); min-width: 96px; text-align: right; }
+.toasts { left: 16px; bottom: 84px; flex-direction: column-reverse; align-items: flex-start; }
+.toast { background: var(--ink); color: var(--paper); border-radius: 14px; padding: 9px 13px; font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center; animation: toastIn .35s cubic-bezier(.2,1.4,.4,1); max-width: 360px; }
+.toast .amt { color: var(--accent); }
+@keyframes toastIn { from { transform: translateY(10px) scale(.96); opacity: 0; } }
+.tip { position: absolute; pointer-events: none; background: var(--card); border: 1.5px solid var(--ink); border-radius: 12px; padding: 7px 10px; font-size: 12px; box-shadow: 3px 3px 0 var(--shadow); transform: translate(-50%, calc(-100% - 14px)); white-space: nowrap; opacity: 0; transition: opacity .12s; }
+.tip b { font-weight: 700; }
+.tip .sub { color: var(--muted); }
+
+.panel { border-left: 1.5px solid var(--soft); overflow-y: auto; padding: 16px; background: var(--paper); display: grid; gap: 14px; align-content: start; }
+.card { border: 2px solid var(--ink); border-radius: 18px; box-shadow: 4px 4px 0 var(--shadow); background: var(--card); padding: 14px; }
+.card h2 { font: 800 20px/1.1 "Bricolage Grotesque", sans-serif; letter-spacing: -.03em; margin: 0; }
+.card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 700; }
+.who { display: flex; gap: 12px; align-items: center; }
+.av { flex: none; width: 46px; height: 46px; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--shadow); display: grid; place-items: center; font: 800 17px "Bricolage Grotesque", sans-serif; color: #0B0B0C; }
+.av.round { border-radius: 50%; }
+.av.square { border-radius: 12px; }
+.av.hub { background: var(--accent); color: #fff; border-radius: 12px; transform: rotate(-8deg); }
+.roles { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.role { font-size: 11px; font-weight: 700; border: 1.5px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.role.you { border-color: var(--accent-text); color: var(--accent-text); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.stat { background: var(--soft); border-radius: 12px; padding: 8px; }
+.stat .v { font: 600 16px "Geist Mono", monospace; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 11px; color: var(--muted); }
+.rows { display: grid; gap: 2px; }
+.row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 4px; border-bottom: 1px solid var(--soft); font-size: 13px; }
+.row:last-child { border-bottom: 0; }
+.row .ic { color: var(--muted); display: grid; }
+.row .tx { display: block; font-size: 11px; color: var(--muted); }
+.row .amt { font: 600 13px "Geist Mono", monospace; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.legend { display: grid; gap: 8px; font-size: 13px; }
+.legend div { display: flex; gap: 10px; align-items: center; }
+.legend svg { flex: none; }
+.you-card { border-color: var(--accent-text); }
+.rank { font: 800 40px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.04em; color: var(--accent-text); }
+.hand { font: 700 18px Caveat, cursive; color: var(--accent-text); }
+
+.feed { display: none; overflow-y: auto; padding: 16px; }
+.feed .col { max-width: 600px; margin: 0 auto; display: grid; gap: 14px; }
+.app[data-view="feed"] .feed { display: block; }
+.app[data-view="feed"] .main { display: none; }
+.app[data-view="feed"] .graph-only { display: none; }
+
+.listview { position: absolute; inset: 0; background: var(--paper); overflow: auto; padding: 64px 16px 16px; display: none; }
+.listview.on { display: block; }
+table { border-collapse: collapse; width: 100%; max-width: 760px; margin: 0 auto; font-size: 13px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--soft); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+.modal { position: fixed; inset: 0; background: rgba(11, 11, 12, .45); display: none; place-items: center; padding: 16px; z-index: 10; }
+.modal.on { display: grid; }
+.modal .card { width: min(640px, 100%); display: grid; gap: 12px; }
+.modal img { width: 100%; border-radius: 12px; border: 1.5px solid var(--line); }
+
+@media (max-width: 860px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .panel { border-left: 0; border-top: 2px solid var(--ink); max-height: 40dvh; border-radius: 18px 18px 0 0; }
+  .tools { top: auto; bottom: 84px; left: auto; right: 16px; align-items: flex-end; }
+  .toasts { bottom: 140px; }
+  header .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app" data-view="graph">
+  <header>
+    <h1>Home</h1>
+    <div class="seg" role="group" aria-label="View">
+      <button id="v-feed" aria-pressed="false"><span data-i="rows"></span>Feed</button>
+      <button id="v-graph" aria-pressed="true"><span data-i="graph"></span>Patchwork</button>
+    </div>
+    <button class="chip event graph-only" id="eventPick"><span class="dot"></span>Token2049 Singapore<span data-i="chevron"></span></button>
+    <div class="spacer"></div>
+    <button class="chip live graph-only" id="live" aria-pressed="true"><span class="dot"></span>Live</button>
+    <button class="btn sm graph-only hide-sm" id="themeBtn">Theme</button>
+  </header>
+
+  <div class="feed" id="feed"><div class="col" id="feedCol"></div></div>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="graph" role="img" aria-label="Patchwork graph of Token2049: creators, their spots, the brands bidding on them and the people who spotted them."></canvas>
+      <div class="overlay layers" id="layers"></div>
+      <div class="overlay tools">
+        <button class="btn sm primary" id="findMe"><span data-i="crosshair"></span>Find me</button>
+        <button class="btn sm" id="listBtn"><span data-i="list"></span>View as list</button>
+      </div>
+      <div class="overlay toasts" id="toasts"></div>
+      <div class="overlay replay">
+        <button class="btn sm" id="replayBtn" aria-label="Replay the event"><span data-i="play"></span>Replay</button>
+        <input type="range" id="scrub" min="0" max="1000" value="1000" aria-label="Replay position">
+        <span class="when mono" id="when">Now</span>
+      </div>
+      <div class="tip" id="tip"></div>
+      <div class="listview" id="listview"></div>
+    </div>
+    <aside class="panel" id="panel"></aside>
+  </div>
+</div>
+
+<div class="modal" id="shareModal" role="dialog" aria-label="Share your spot in the graph">
+  <div class="card">
+    <div class="who" style="justify-content:space-between"><h2>Post your spot</h2><button class="btn sm" id="shareClose" aria-label="Close"><span data-i="x"></span></button></div>
+    <img id="shareImg" alt="Your node and its connections in the Token2049 patchwork">
+    <div class="actions" style="margin:0"><button class="btn primary" id="postX"><span data-i="share"></span>Post on X</button><button class="btn" id="copyLink">Copy link</button></div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- icons (lucide paths)
+const ICON = {
+  crosshair: '<circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  list: '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4M12 2v13"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  graph: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>',
+  rows: '<rect width="18" height="7" x="3" y="3" rx="1"/><rect width="18" height="7" x="3" y="14" rx="1"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  gavel: '<path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/>',
+  zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  square: '<rect x="4" y="4" width="16" height="16" rx="3" stroke-dasharray="3 3"/>',
+  external: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+};
+const icon = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+document.querySelectorAll("[data-i]").forEach((el) => (el.outerHTML = icon(el.dataset.i)));
+// Canvas glyphs, same lucide paths.
+const GLYPH = {
+  shirt: new Path2D("M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"),
+  users: new Path2D("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"),
+  camera: new Path2D("M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3zM9 13a3 3 0 1 0 6 0a3 3 0 1 0-6 0"),
+  check: new Path2D("M20 6 9 17l-5-5"),
+};
+
+// ---------------------------------------------------------------- helpers
+const $ = (s) => document.querySelector(s);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(2049);
+const pick = (a) => a[Math.floor(rnd() * a.length)];
+const hex = (n) => Array.from({ length: n }, () => "0123456789abcdef"[Math.floor(rnd() * 16)]).join("");
+const usd = (v) => "$" + Math.round(v).toLocaleString("en-US");
+const initials = (s) => s.replace(/^@/, "").split(/[\s.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+let T = {};
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["paper", "card", "soft", "ink", "muted", "line", "dot", "accent", "accent-text", "accent-soft", "green", "shadow", "stage", "p1", "p2", "p3", "p4", "p5"]) T[k] = cs.getPropertyValue("--" + k).trim();
+}
+readTokens();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTokens);
+$("#themeBtn").onclick = () => {
+  const dark = getComputedStyle(document.documentElement).getPropertyValue("--paper").trim() === "#121211";
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  readTokens();
+};
+
+// Event window used for the replay clock: Oct 1 09:00 to Oct 8 18:00.
+const T0 = Date.UTC(2026, 9, 1, 3, 30), T1 = Date.UTC(2026, 9, 8, 12, 30);
+const when = (t) => new Date(T0 + t * (T1 - T0)).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+
+// ---------------------------------------------------------------- mock event data
+const PAST = ["p1", "p2", "p3", "p4", "p5"];
+const CREATORS = [
+  { name: "Mira Okafor", handle: "mira.wears", surface: "outfit" },
+  { name: "Devon Hale", handle: "devonbuilds", surface: "outfit" },
+  { name: "Team Lambda", handle: "teamlambda", surface: "hoodie", team: ["Ana", "Raj", "Wei"] },
+  { name: "Kaito Mori", handle: "kaito.fits", surface: "outfit" },
+  { name: "Priya Shah", handle: "priyaonchain", surface: "outfit" },
+  { name: "Team Basalt", handle: "basalt", surface: "hoodie", team: ["Leo", "Sun"] },
+  { name: "Jonas Berg", handle: "jonas.b", surface: "outfit" },
+  { name: "Sofia Reyes", handle: "sofi.r", surface: "outfit" },
+  { name: "Amara Lee", handle: "amaralee", surface: "outfit" },
+];
+const SPOT_LABELS = { outfit: ["Neckline", "Left sleeve", "Right sleeve", "Back panel", "Hem", "Pocket"], hoodie: ["Chest", "Hood", "Left sleeve", "Back", "Cuff"] };
+const BRANDS = ["Orbit Labs", "Nimbus", "Kite Pay", "Lumen DEX", "Bolt Wallet", "Ferro", "Aster", "Quill", "Hexa", "Tidal"];
+const SPOTTERS = ["sam", "nora", "ike", "luca", "zara", "theo", "maya", "ben", "ivy", "omar", "kim", "rio"];
+const NEW_SPOTTERS = ["ash", "cleo", "eli", "fin", "gus", "hana", "jade", "kai", "lou", "max", "nia", "oz"];
+
+const nodes = [], threads = [], byId = new Map(), bidEvents = [];
+function addNode(n) {
+  Object.assign(n, { roles: n.roles ?? [n.kind], phase: rnd() * 6.28, born: -1e9, bump: -1e9, visible: true, wallet: "0x" + hex(4) + "…" + hex(4) });
+  if (n.x == null) { const a = rnd() * 6.28; n.x = Math.cos(a) * 300; n.y = Math.sin(a) * 300; }
+  nodes.push(n); byId.set(n.id, n); return n;
+}
+function addThread(kind, source, target, t, extra = {}) {
+  const th = { kind, source, target, t, born: -1e9, visible: true, tx: "0x" + hex(4) + "…" + hex(4), ...extra };
+  threads.push(th); return th;
+}
+
+const hub = addNode({ id: "event", kind: "event", label: "Token2049", name: "Token2049 Singapore", t: 0, x: 0, y: 0, fx: 0, fy: 0 });
+const creators = [], spots = [];
+CREATORS.forEach((c, i) => {
+  const t = 0.02 + i * 0.045 + rnd() * 0.02, a = (i / CREATORS.length) * Math.PI * 2;
+  const n = addNode({ id: "w:" + c.handle, kind: "creator", label: "@" + c.handle, name: c.name, surface: c.surface, color: PAST[i % 5], t, x: Math.cos(a) * 190, y: Math.sin(a) * 190, escrow: 0 });
+  creators.push(n);
+  addThread("lists", n, hub, t);
+  const count = 3 + Math.floor(rnd() * 3);
+  for (let j = 0; j < count; j++) {
+    const floor = 40 + Math.floor(rnd() * 8) * 10;
+    const s = addNode({ id: `p:${i}:${j}`, kind: "spot", label: SPOT_LABELS[c.surface][j], creator: n, color: PAST[(i + j + 1) % 5], rot: ((rnd() * 6 - 3) * Math.PI) / 180,
+      floor, buyNow: floor * 6, amount: 0, leader: null, bids: 0, sold: false, t: t + 0.004 * (j + 1), x: n.x + (rnd() - 0.5) * 40, y: n.y + (rnd() - 0.5) * 40 });
+    spots.push(s);
+    addThread("has", n, s, s.t);
+  }
+  (c.team ?? []).forEach((m, k) => {
+    const tm = addNode({ id: `w:${c.handle}-${m.toLowerCase()}`, kind: "creator", roles: ["teammate"], teammate: true, label: m, name: `${m}, ${c.name}`, color: PAST[(i + k + 2) % 5], t: t + 0.006, x: n.x + (rnd() - 0.5) * 50, y: n.y + (rnd() - 0.5) * 50 });
+    addThread("team", n, tm, tm.t);
+  });
+});
+const brands = BRANDS.map((b, i) => addNode({ id: "w:brand" + i, kind: "brand", label: b, name: b, color: PAST[(i + 2) % 5], verified: i % 3 === 0, t: 1, total: 0, x: Math.cos(i * 0.63) * 360, y: Math.sin(i * 0.63) * 360 }));
+const you = addNode({ id: "w:you", kind: "brand", roles: ["brand", "spotter"], you: true, label: "You", name: "Paper Street Co.", color: "p3", t: 1, total: 0, x: 320, y: -240 });
+const bidders = [...brands, you];
+
+// Bid history per spot. Some spots stay open; "You" leads two and lost one.
+spots.forEach((s, idx) => {
+  if (rnd() < 0.2 && idx !== 2 && idx !== 9 && idx !== 5) return;
+  const seq = [];
+  const n = 1 + Math.floor(rnd() * 4);
+  for (let k = 0; k < n; k++) { const b = pick(brands); if (b !== seq[seq.length - 1]) seq.push(b); }
+  if (idx === 2 || idx === 9) { if (seq[seq.length - 1] !== you) seq.push(you); }
+  if (idx === 5) { seq.unshift(you); if (seq.length < 2) seq.push(brands[1]); }
+  let t = s.t + 0.04 + rnd() * 0.15, amt = s.floor;
+  seq.forEach((b, k) => {
+    if (k > 0) amt = Math.max(Math.ceil(amt * 1.05), amt + 5) + Math.floor(rnd() * 3) * 10;
+    bidEvents.push({ spot: s, who: b, amt: Math.min(amt, s.buyNow), t: Math.min(t, 0.985) });
+    b.t = Math.min(b.t, t);
+    t += 0.02 + rnd() * 0.12;
+  });
+});
+bidEvents.sort((a, b) => a.t - b.t);
+const spotters = SPOTTERS.map((nm, i) => {
+  const sp = addNode({ id: "w:sp" + i, kind: "spotter", label: "@" + nm, name: "@" + nm, color: PAST[i % 5], t: 0.3 + rnd() * 0.65 });
+  const c1 = pick(creators); addThread("spotted", sp, c1, sp.t);
+  if (rnd() < 0.4) { const c2 = pick(creators); if (c2 !== c1) addThread("spotted", sp, c2, Math.min(0.99, sp.t + 0.08)); }
+  return sp;
+});
+addThread("spotted", you, creators[3], 0.82);
+
+// ---------------------------------------------------------------- graph state changes
+let dirty = true;
+let hovered = null, selected = null, dragNode = null, downAt = null;
+function applyBid(s, b, amt, animate, fast) {
+  const land = () => {
+    if (s.leader === b || s.sold) return;
+    const now = performance.now();
+    const prev = s.leader, prevAmt = s.amount;
+    if (prev) {
+      const lt = threads.find((t) => t.kind === "leads" && t.target === s);
+      for (let i = threads.length - 1; i >= 0; i--) if (threads[i].kind === "outbid" && threads[i].source === prev && threads[i].target === s) threads.splice(i, 1);
+      if (lt) { lt.kind = "outbid"; lt.born = -1e9; }
+      prev.total -= prevAmt;
+      if (animate) { effects.snaps.push({ a: prev, b: s, born: now }); shoot(s, prev, T.muted, fast ? 420 : 900, null, true); }
+    }
+    for (let i = threads.length - 1; i >= 0; i--) if (threads[i].kind === "outbid" && threads[i].source === b && threads[i].target === s) threads.splice(i, 1);
+    if (!b.visible) reveal(b, s);
+    s.leader = b; s.amount = amt; s.bids += 1; b.total += amt; s.creator.escrow += amt - (prev ? prevAmt : 0);
+    const th = addThread("leads", b, s, 0, { amount: amt });
+    th.born = animate ? now : -1e9;
+    if (amt >= s.buyNow) { s.sold = true; if (animate) effects.stamps.push({ node: s, born: now }); }
+    if (animate) { effects.ripples.push({ node: s, born: now, color: T.accent }); s.bump = now; }
+    dirty = true;
+    if (animate && !fast) toast(`${b.label} ${s.sold ? "bought" : "leads"} ${s.label}`, `${usd(amt)} locked in escrow`);
+    if (selected && (selected === s || selected === b || selected === prev || selected === s.creator)) renderPanel();
+  };
+  if (animate) { if (!b.visible) reveal(b, s); shoot(b, s, T.accent, fast ? 520 : 1000, land); } else land();
+}
+function reveal(n, near) {
+  n.visible = true; n.born = performance.now();
+  if (near) { const a = Math.atan2(near.y, near.x) + (rnd() - 0.5) * 0.6, d = Math.hypot(near.x, near.y) + 70; n.x = Math.cos(a) * d; n.y = Math.sin(a) * d; n.vx = n.vy = 0; }
+  dirty = true;
+}
+for (const e of bidEvents) applyBid(e.spot, e.who, e.amt, false);
+
+// ---------------------------------------------------------------- simulation
+const R = (n) => {
+  switch (n.kind) {
+    case "event": return 34;
+    case "creator": return n.teammate ? 11 : 18 + Math.min(10, n.escrow / 180);
+    case "spot": return 8 + Math.min(5, n.amount / 120);
+    case "brand": return 15 + Math.min(9, n.total / 300);
+    default: return 10;
+  }
+};
+const DIST = { lists: 200, has: 16, leads: 130, spotted: 120, team: 26 };
+const STR = { lists: 0.15, has: 1, leads: 0.025, spotted: 0.035, team: 0.7 };
+const RING = { creator: 210, brand: 400, spotter: 440 };
+const layer = { leads: true, flow: true, spotted: true, team: true, outbid: false };
+const shown = (th) => th.visible && th.source.visible && th.target.visible && (th.kind === "lists" || th.kind === "has" || layer[th.kind]);
+function drift() {
+  if (reduce) return;
+  const t = performance.now() / 1000;
+  for (const n of nodes) { if (n.fx != null) continue; n.vx += Math.sin(t * 0.5 + n.phase) * 0.025; n.vy += Math.cos(t * 0.37 + n.phase * 1.3) * 0.025; }
+}
+const sim = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink([]))
+  .force("charge", d3.forceManyBody().distanceMax(520))
+  .force("collide", d3.forceCollide().iterations(2))
+  .force("radial", d3.forceRadial(0, 0, 0))
+  .force("drift", drift)
+  .velocityDecay(0.38).alphaDecay(0.025).alphaTarget(reduce ? 0 : 0.012).stop();
+function refreshForces() {
+  sim.force("link").links(threads.filter((t) => t.visible && t.source.visible && t.target.visible && DIST[t.kind] != null))
+    .distance((l) => DIST[l.kind] + (l.kind === "has" ? R(l.source) : 0)).strength((l) => STR[l.kind]);
+  sim.force("charge").strength((n) => (!n.visible ? 0 : n.kind === "spot" ? -18 : n.kind === "event" ? -700 : -260));
+  sim.force("collide").radius((n) => (n.visible ? R(n) + (n.kind === "spot" ? 2 : 6) : 0));
+  sim.force("radial").radius((n) => RING[n.kind] ?? 0).strength((n) => (!n.visible || n.kind === "spot" || n.teammate ? 0 : n.kind === "creator" ? 0.1 : 0.06));
+  dirty = false;
+}
+refreshForces();
+sim.tick(260);
+
+// ---------------------------------------------------------------- canvas, zoom, input
+const canvas = $("#graph"), stage = $("#stage");
+let ctx = canvas.getContext("2d");
+let W = 0, H = 0, dpr = 1, transform = d3.zoomIdentity;
+function hitAt(sx, sy) {
+  const [x, y] = transform.invert([sx, sy]);
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (!n.visible) continue;
+    if (Math.hypot(n.x - x, n.y - y) < R(n) * (n.kind === "spot" ? 1.3 : 1) + 4) return n;
+  }
+  return null;
+}
+const zoom = d3.zoom().scaleExtent([0.3, 4])
+  .filter((ev) => ev.type === "wheel" || ev.type === "dblclick" ? true : !ev.button && !hitAt(...d3.pointer(ev, canvas)))
+  .on("zoom", (ev) => { transform = ev.transform; hideTip(); });
+d3.select(canvas).call(zoom).on("dblclick.zoom", null);
+function fit(ms = 0) {
+  const vis = nodes.filter((n) => n.visible);
+  const xs = vis.map((n) => n.x), ys = vis.map((n) => n.y);
+  const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 60, y1 = Math.max(...ys) + 90;
+  const k = clamp(Math.min(W / (x1 - x0), H / (y1 - y0)), 0.3, 1.4);
+  const tr = d3.zoomIdentity.translate(W / 2 - ((x0 + x1) / 2) * k, H / 2 - ((y0 + y1) / 2) * k + 10).scale(k);
+  d3.select(canvas).transition().duration(reduce ? 0 : ms).call(zoom.transform, tr);
+}
+new ResizeObserver(() => {
+  const r = stage.getBoundingClientRect();
+  const first = W === 0;
+  W = r.width; H = r.height; dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  if (first && W > 0) fit();
+}).observe(stage);
+
+canvas.addEventListener("pointerdown", (ev) => {
+  const n = hitAt(ev.offsetX, ev.offsetY);
+  downAt = { x: ev.offsetX, y: ev.offsetY, n };
+  if (n && n !== hub) { dragNode = n; n.fx = n.x; n.fy = n.y; canvas.setPointerCapture(ev.pointerId); sim.alphaTarget(0.2); }
+});
+canvas.addEventListener("pointermove", (ev) => {
+  if (dragNode) { const [x, y] = transform.invert([ev.offsetX, ev.offsetY]); dragNode.fx = x; dragNode.fy = y; hideTip(); return; }
+  const n = hitAt(ev.offsetX, ev.offsetY);
+  if (n !== hovered) { hovered = n; canvas.classList.toggle("over", !!n); }
+  n ? showTip(n) : hideTip();
+});
+canvas.addEventListener("pointerleave", () => { if (!dragNode) { hovered = null; hideTip(); } });
+canvas.addEventListener("pointerup", (ev) => {
+  const moved = downAt ? Math.hypot(ev.offsetX - downAt.x, ev.offsetY - downAt.y) : 99;
+  if (dragNode) { dragNode.fx = dragNode.fy = null; sim.alphaTarget(reduce ? 0 : 0.012); dragNode = null; }
+  if (moved < 5) { selected = downAt.n; renderPanel(); }
+  downAt = null;
+});
+const tip = $("#tip");
+function showTip(n) {
+  const [sx, sy] = transform.apply([n.x, n.y]);
+  tip.style.left = sx + "px"; tip.style.top = sy - R(n) * transform.k + "px"; tip.style.opacity = 1;
+  const sub = n.kind === "spot" ? (n.leader ? `${n.leader.label} · ${usd(n.amount)}` : `Open · ${usd(n.floor)}+`)
+    : n.kind === "creator" ? (n.teammate ? "Teammate" : `${n.surface === "hoodie" ? "Team hoodie" : "Outfit"} · ${usd(n.escrow)} escrowed`)
+    : n.kind === "brand" ? `${n.you ? "You · " : ""}${usd(n.total)} leading`
+    : n.kind === "spotter" ? `Spotted ${degree(n, "spotted")}` : "Event";
+  tip.innerHTML = `<b>${n.kind === "spot" ? `${n.label} on ${n.creator.label}` : n.name ?? n.label}</b> <span class="sub">${sub}</span>`;
+}
+const hideTip = () => (tip.style.opacity = 0);
+
+// ---------------------------------------------------------------- effects
+const effects = { particles: [], ripples: [], snaps: [], stamps: [] };
+function shoot(a, b, color, dur, onArrive, refund) {
+  if (reduce) { onArrive?.(); return; }
+  effects.particles.push({ a, b, color, dur, onArrive, refund, born: performance.now() });
+}
+const BEND = { leads: 0.14, outbid: 0.1, spotted: -0.18 };
+const ctrl = (a, b, bend) => [(a.x + b.x) / 2 - (b.y - a.y) * bend, (a.y + b.y) / 2 + (b.x - a.x) * bend];
+const qpt = (a, c, b, t) => { const u = 1 - t; return [u * u * a.x + 2 * u * t * c[0] + t * t * b.x, u * u * a.y + 2 * u * t * c[1] + t * t * b.y]; };
+function curve(a, b, bend = 0, upto = 1) {
+  ctx.beginPath(); ctx.moveTo(a.x, a.y);
+  const c = ctrl(a, b, bend);
+  if (upto >= 1) { bend ? ctx.quadraticCurveTo(c[0], c[1], b.x, b.y) : ctx.lineTo(b.x, b.y); }
+  else for (let i = 1; i <= 18; i++) { const p = qpt(a, c, b, (upto * i) / 18); ctx.lineTo(p[0], p[1]); }
+  ctx.stroke();
+}
+
+// ---------------------------------------------------------------- drawing
+function neighborsOf(n) {
+  const set = new Set([n]);
+  for (const t of threads) if (shown(t)) { if (t.source === n) set.add(t.target); if (t.target === n) set.add(t.source); }
+  if (n.kind === "spot") set.add(n.creator);
+  return set;
+}
+function degree(n, kind) { let d = 0; for (const t of threads) if (t.visible && (!kind ? t.kind !== "lists" : t.kind === kind) && (t.source === n || t.target === n)) d++; return d; }
+
+function drawThread(th, now, focus, nb) {
+  const a = th.source, b = th.target;
+  const hot = focus && (a === focus || b === focus || (focus.kind === "spot" && th.kind === "has" && b === focus));
+  const dim = focus && !hot ? 0.07 : 1;
+  const pr = clamp((now - th.born) / 650, 0, 1);
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  switch (th.kind) {
+    case "lists": ctx.strokeStyle = T.ink; ctx.globalAlpha = 0.12 * dim; ctx.lineWidth = 1; curve(a, b, 0, pr); break;
+    case "has": ctx.strokeStyle = T.ink; ctx.globalAlpha = 0.45 * dim; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2.5]); curve(a, b, 0, pr); break;
+    case "team": {
+      ctx.strokeStyle = T.ink; ctx.globalAlpha = 0.5 * dim; ctx.lineWidth = 1;
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, ox = (-dy / l) * 1.8, oy = (dx / l) * 1.8;
+      curve({ x: a.x + ox, y: a.y + oy }, { x: b.x + ox, y: b.y + oy }, 0, pr); curve({ x: a.x - ox, y: a.y - oy }, { x: b.x - ox, y: b.y - oy }, 0, pr); break;
+    }
+    case "outbid": ctx.strokeStyle = T.ink; ctx.globalAlpha = 0.16 * dim; ctx.lineWidth = 1; ctx.setLineDash([1, 4]); curve(a, b, BEND.outbid, pr); break;
+    case "leads": {
+      ctx.strokeStyle = hot ? T["accent-text"] : T.ink; ctx.globalAlpha = (hot ? 0.95 : 0.55) * dim;
+      ctx.lineWidth = 1 + Math.min(3, th.amount / 160); curve(a, b, BEND.leads, pr);
+      if (layer.flow && !reduce && pr >= 1 && !b.sold) {
+        const c = ctrl(a, b, BEND.leads);
+        ctx.fillStyle = T.accent; ctx.globalAlpha = 0.9 * dim;
+        for (let i = 0; i < 2; i++) {
+          const p = qpt(a, c, b, (now / 1700 + i / 2 + a.phase) % 1);
+          ctx.beginPath(); ctx.arc(p[0], p[1], 2.1, 0, 6.29); ctx.fill();
+        }
+      }
+      break;
+    }
+    case "spotted": {
+      ctx.strokeStyle = T["accent-text"]; ctx.globalAlpha = 0.85 * dim; ctx.lineWidth = 1.6;
+      ctx.setLineDash([5, 4]); ctx.lineDashOffset = reduce ? 0 : -now / 45; curve(a, b, BEND.spotted, pr);
+      ctx.setLineDash([]);
+      if (pr >= 1) {
+        const m = qpt(a, ctrl(a, b, BEND.spotted), b, 0.5);
+        ctx.globalAlpha = dim; ctx.fillStyle = T.card; ctx.strokeStyle = T["accent-text"]; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(m[0], m[1], 6.5, 0, 6.29); ctx.fill(); ctx.stroke();
+        glyph("camera", m[0], m[1], 8, T["accent-text"], 2.4);
+      }
+      break;
+    }
+  }
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+}
+function glyph(name, x, y, size, color, lw = 2) {
+  ctx.save(); ctx.translate(x - size / 2, y - size / 2); ctx.scale(size / 24, size / 24);
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(GLYPH[name]); ctx.restore();
+}
+function sticker(shape) { // hard offset shadow, then the fill and ink outline
+  ctx.save(); ctx.translate(3, 3); ctx.fillStyle = T.shadow; shape(); ctx.fill(); ctx.restore();
+}
+function drawNode(n, now) {
+  const r = R(n);
+  if (n.kind === "event") {
+    ctx.rotate(-0.14);
+    const s = 62, rr = () => { ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, 14); };
+    ctx.save(); ctx.translate(4, 4); ctx.fillStyle = T.shadow; rr(); ctx.fill(); ctx.restore();
+    ctx.fillStyle = T.accent; rr(); ctx.fill(); ctx.lineWidth = 2.4; ctx.strokeStyle = T.ink; ctx.stroke();
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.roundRect(-s / 2 + 6, -s / 2 + 6, s - 12, s - 12, 9); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "#fff"; ctx.font = '800 34px "Bricolage Grotesque"'; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("p", 0, -2);
+    return;
+  }
+  if (n.kind === "spot") {
+    ctx.rotate(n.rot); const s = r * 2, box = () => { ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, 4); };
+    if (n.leader) {
+      ctx.save(); ctx.translate(2, 2); ctx.fillStyle = T.shadow; ctx.globalAlpha *= 0.85; box(); ctx.fill(); ctx.restore();
+      ctx.fillStyle = T[n.color]; box(); ctx.fill(); ctx.strokeStyle = "#0B0B0C"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.setLineDash([2, 2]); ctx.globalAlpha *= 0.55; ctx.beginPath(); ctx.roundRect(-s / 2 + 3, -s / 2 + 3, s - 6, s - 6, 2); ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = T["accent-soft"]; box(); ctx.fill(); ctx.setLineDash([3, 2]); ctx.strokeStyle = T["accent-text"]; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    }
+    return;
+  }
+  if (n.kind === "brand") {
+    const s = r * 2, box = () => { ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, 9); };
+    sticker(box); ctx.fillStyle = T.card; box(); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = T.ink; ctx.stroke();
+    ctx.fillStyle = T[n.color]; ctx.beginPath(); ctx.roundRect(-s / 2 + 4, -s / 2 + 4, s - 8, s - 8, 6); ctx.fill();
+    ctx.fillStyle = "#0B0B0C"; ctx.font = `800 ${r * 0.78}px "Bricolage Grotesque"`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(n.you ? "You" : initials(n.label), 0, 1);
+    if (n.verified) { ctx.fillStyle = T.green; ctx.beginPath(); ctx.arc(s / 2 - 1, -s / 2 + 1, 6, 0, 6.29); ctx.fill(); glyph("check", s / 2 - 1, -s / 2 + 1, 8, "#fff", 4); }
+    return;
+  }
+  // creators, teammates and spotters are round stickers
+  const circ = () => { ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.29); };
+  sticker(circ); ctx.fillStyle = T[n.color]; circ(); ctx.fill(); ctx.lineWidth = n.kind === "spotter" ? 1.5 : 2; ctx.strokeStyle = T.ink; ctx.stroke();
+  ctx.fillStyle = "#0B0B0C"; ctx.font = `800 ${r * 0.78}px "Bricolage Grotesque"`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(n.kind === "spotter" ? n.label[1].toUpperCase() : initials(n.name), 0, 1);
+  if (n.kind === "creator" && !n.teammate) {
+    const bx = r * 0.72, by = r * 0.72;
+    ctx.fillStyle = T.card; ctx.beginPath(); ctx.arc(bx, by, 8, 0, 6.29); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = T.ink; ctx.stroke();
+    glyph(n.surface === "hoodie" ? "users" : "shirt", bx, by, 10, T.ink, 2.2);
+  }
+}
+function drawLabel(n, k) {
+  const fs = 11 / k;
+  ctx.font = `${n.kind === "event" ? 800 : 600} ${n.kind === "event" ? 14 / k : fs}px ${n.kind === "event" ? '"Bricolage Grotesque"' : "Geist"}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const text = n.kind === "spot" ? (n.leader ? `${n.label} ${usd(n.amount)}` : `${n.label} OPEN`) : n.kind === "event" ? "Token2049" : n.label;
+  const y = n.y + (n.kind === "event" ? 40 : R(n) + 5 / k);
+  ctx.lineWidth = 3 / k; ctx.strokeStyle = T.stage; ctx.lineJoin = "round"; ctx.strokeText(text, n.x, y);
+  ctx.fillStyle = n.you ? T["accent-text"] : T.ink; ctx.fillText(text, n.x, y);
+}
+
+const ORDER = { spotter: 0, brand: 1, creator: 2, spot: 3, event: 4 };
+function draw(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = T.stage; ctx.fillRect(0, 0, W, H);
+  // cutting-mat dot grid
+  let gs = 26 * transform.k; while (gs < 13) gs *= 2;
+  ctx.fillStyle = T.dot;
+  for (let x = transform.x % gs; x < W; x += gs) for (let y = transform.y % gs; y < H; y += gs) { ctx.beginPath(); ctx.arc(x, y, 1.1, 0, 6.29); ctx.fill(); }
+
+  ctx.save(); ctx.translate(transform.x, transform.y); ctx.scale(transform.k, transform.k);
+  const focus = hovered || selected;
+  const nb = focus ? neighborsOf(focus) : null;
+  for (const th of threads) if (shown(th)) drawThread(th, now, focus, nb);
+
+  // cut threads retracting after an outbid
+  effects.snaps = effects.snaps.filter((s) => now - s.born < 650);
+  for (const s of effects.snaps) {
+    const p = ease((now - s.born) / 650), mx = (s.a.x + s.b.x) / 2, my = (s.a.y + s.b.y) / 2;
+    ctx.strokeStyle = T["accent-text"]; ctx.lineWidth = 2; ctx.globalAlpha = 1 - p;
+    ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.a.x + (mx - s.a.x) * (1 - p) - 6 * p, s.a.y + (my - s.a.y) * (1 - p) + 8 * p); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s.b.x, s.b.y); ctx.lineTo(s.b.x + (mx - s.b.x) * (1 - p) + 6 * p, s.b.y + (my - s.b.y) * (1 - p) - 8 * p); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  effects.ripples = effects.ripples.filter((r) => now - r.born < 1100);
+  for (const r of effects.ripples) {
+    const p = (now - r.born) / 1100, rr = R(r.node) * (1 + p * 2.2);
+    ctx.strokeStyle = r.color; ctx.lineWidth = 2.5 * (1 - p); ctx.globalAlpha = 1 - p; ctx.beginPath(); ctx.arc(r.node.x, r.node.y, rr, 0, 6.29); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // "You" halo
+  if (you.visible) {
+    const p = reduce ? 0 : (now % 1800) / 1800, r0 = R(you) + 7;
+    ctx.fillStyle = T.accent; ctx.globalAlpha = 0.14; ctx.beginPath(); ctx.arc(you.x, you.y, r0 + 3, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.globalAlpha = 0.9 * (1 - p); ctx.beginPath(); ctx.arc(you.x, you.y, r0 + p * 22, 0, 6.29); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  const sorted = nodes.filter((n) => n.visible).sort((a, b) => ORDER[a.kind] - ORDER[b.kind]);
+  for (const n of sorted) {
+    const p = clamp((now - n.born) / 560, 0, 1);
+    let s = p >= 1 ? 1 : 1 + 0.45 * Math.exp(-5 * p) * Math.cos(9 * p);
+    const bp = (now - n.bump) / 450;
+    if (bp >= 0 && bp < 1) s *= 1 + 0.14 * Math.sin(Math.PI * bp);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, p * 3) * (nb && !nb.has(n) ? 0.15 : 1);
+    ctx.translate(n.x, n.y); ctx.scale(s, s);
+    if (n === selected) { ctx.strokeStyle = T["accent-text"]; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(0, 0, R(n) + (n.kind === "event" ? 18 : 7), 0, 6.29); ctx.stroke(); ctx.setLineDash([]); }
+    drawNode(n, now);
+    ctx.restore();
+  }
+
+  // particles: USDC in (orange), refunds out (muted)
+  effects.particles = effects.particles.filter((pt) => {
+    const p = (now - pt.born) / pt.dur;
+    if (p >= 1) { pt.onArrive?.(); return false; }
+    const c = ctrl(pt.a, pt.b, pt.refund ? -BEND.leads : BEND.leads);
+    for (let i = 4; i >= 0; i--) {
+      const q = qpt(pt.a, c, pt.b, clamp(ease(p) - i * 0.025, 0, 1));
+      ctx.fillStyle = pt.color; ctx.globalAlpha = (1 - i / 5) * 0.95;
+      ctx.beginPath(); ctx.arc(q[0], q[1], (pt.refund ? 2.6 : 3.6) * (1 - i / 7), 0, 6.29); ctx.fill();
+    }
+    ctx.globalAlpha = 1; return true;
+  });
+  effects.stamps = effects.stamps.filter((st) => now - st.born < 2200);
+  for (const st of effects.stamps) {
+    const t = now - st.born, p = clamp(t / 380, 0, 1), sc = 2.4 - 1.4 * ease(p), rot = (-30 + 18 * ease(p)) * (Math.PI / 180);
+    ctx.save(); ctx.translate(st.node.x, st.node.y - 4); ctx.rotate(rot); ctx.scale(sc, sc); ctx.globalAlpha = t > 1700 ? 1 - (t - 1700) / 500 : 1;
+    ctx.font = '800 13px "Bricolage Grotesque"'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 2; ctx.strokeStyle = T["accent-text"]; ctx.fillStyle = T.card;
+    ctx.beginPath(); ctx.roundRect(-22, -10, 44, 20, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = T["accent-text"]; ctx.fillText("SOLD", 0, 1); ctx.restore();
+  }
+
+  const k = transform.k;
+  for (const n of sorted) {
+    const show = n.kind === "event" || (nb ? nb.has(n) : (n.kind === "creator" && !n.teammate && k > 0.55) || (n.kind === "brand" && k > 0.75) || n.you || k > 1.5);
+    if (show) { ctx.globalAlpha = Math.min(1, clamp((now - n.born) / 560, 0, 1) * 3); drawLabel(n, k); ctx.globalAlpha = 1; }
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- replay
+let replay = null, nextBid = 0;
+const DUR = 22000;
+function resetTo(p) {
+  for (let i = threads.length - 1; i >= 0; i--) if (threads[i].kind === "leads" || threads[i].kind === "outbid") threads.splice(i, 1);
+  for (const s of spots) Object.assign(s, { leader: null, amount: 0, bids: 0, sold: false });
+  for (const b of bidders) b.total = 0;
+  for (const c of creators) c.escrow = 0;
+  for (const n of nodes) n.visible = n === hub || (n.kind !== "brand" && n.t <= p);
+  for (const t of threads) t.visible = t.t <= p;
+  nextBid = 0;
+  while (nextBid < bidEvents.length && bidEvents[nextBid].t <= p) { const e = bidEvents[nextBid++]; applyBid(e.spot, e.who, e.amt, false); }
+  effects.particles.length = effects.snaps.length = effects.stamps.length = effects.ripples.length = 0;
+  dirty = true;
+}
+function startReplay(from = 0) {
+  if (!replay) { for (const n of nodes) n.visible = true; fit(700); }
+  resetTo(from);
+  replay = { start: performance.now() - from * DUR };
+  $("#replayBtn").innerHTML = icon("pause") + "Pause";
+  selected = null; renderPanel();
+}
+function stopReplay() {
+  replay = null;
+  $("#replayBtn").innerHTML = icon("play") + "Replay";
+}
+function updateReplay(now) {
+  if (!replay) return;
+  const p = Math.min(1, (now - replay.start) / DUR);
+  $("#scrub").value = Math.round(p * 1000); $("#when").textContent = p >= 1 ? "Now" : when(p);
+  for (const n of nodes) if (!n.visible && n.kind !== "brand" && n.t <= p) {
+    const link = threads.find((t) => (t.source === n || t.target === n) && (t.source === n ? t.target : t.source).visible);
+    const a = n.kind === "spot" ? n.creator : link ? (link.source === n ? link.target : link.source) : hub;
+    reveal(n, null); n.x = a.x + (rnd() - 0.5) * 30; n.y = a.y + (rnd() - 0.5) * 30;
+  }
+  for (const t of threads) if (!t.visible && t.t <= p) { t.visible = true; t.born = now; dirty = true; if (t.kind === "spotted") effects.ripples.push({ node: t.target, born: now, color: T["accent-text"] }); }
+  while (nextBid < bidEvents.length && bidEvents[nextBid].t <= p) { const e = bidEvents[nextBid++]; applyBid(e.spot, e.who, e.amt, true, true); }
+  if (now - lastPanel > 400) { lastPanel = now; renderPanel(); }
+  if (p >= 1) { stopReplay(); renderPanel(); }
+}
+let lastPanel = 0;
+$("#replayBtn").onclick = () => (replay ? stopReplay() : startReplay(0));
+$("#scrub").addEventListener("input", (e) => { const p = e.target.value / 1000; startReplay(p); if (p >= 1) { stopReplay(); renderPanel(); } });
+
+// ---------------------------------------------------------------- live activity (mock Realtime)
+let live = true, extraSpotters = 0;
+$("#live").onclick = () => { live = !live; $("#live").setAttribute("aria-pressed", live); $("#live").classList.toggle("live", live); };
+$("#live").classList.add("live");
+setInterval(() => {
+  if (!live || replay || view !== "graph" || document.hidden) return;
+  if (rnd() < 0.72) {
+    const open = spots.filter((s) => s.visible && !s.sold);
+    const s = pick(open), b = pick(bidders.filter((x) => x !== s.leader && x !== you));
+    const min = s.leader ? Math.max(Math.ceil(s.amount * 1.05), s.amount + 5) : s.floor;
+    applyBid(s, b, rnd() < 0.07 ? s.buyNow : Math.min(s.buyNow, min + Math.floor(rnd() * 3) * 5), true);
+  } else {
+    const c = pick(creators);
+    let sp;
+    if (extraSpotters < NEW_SPOTTERS.length && rnd() < 0.6) {
+      const nm = NEW_SPOTTERS[extraSpotters++];
+      sp = addNode({ id: "w:new" + nm, kind: "spotter", label: "@" + nm, name: "@" + nm, color: pick(PAST), t: 1 });
+      sim.nodes(nodes); reveal(sp, c);
+    } else sp = pick(spotters);
+    if (threads.some((t) => t.kind === "spotted" && t.source === sp && t.target === c)) return;
+    const th = addThread("spotted", sp, c, 1); th.born = performance.now();
+    effects.ripples.push({ node: c, born: performance.now(), color: T["accent-text"] }); c.bump = performance.now();
+    dirty = true; toast(`${sp.label} spotted ${c.label}`, "on-chain", "camera");
+  }
+}, 2600);
+
+// ---------------------------------------------------------------- frame loop
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (view !== "graph" || W === 0) return;
+  updateReplay(now);
+  if (dirty) { refreshForces(); sim.alpha(Math.max(sim.alpha(), reduce ? 0 : 0.18)); if (reduce) sim.tick(120); }
+  if (!reduce || dragNode) sim.tick();
+  draw(now);
+}
+
+// ---------------------------------------------------------------- panel
+function avatar(n) {
+  if (n.kind === "event") return `<div class="av hub">p</div>`;
+  const round = n.kind === "creator" || n.kind === "spotter";
+  return `<div class="av ${round ? "round" : "square"}" style="background:var(--${n.color ?? "p3"})">${n.kind === "spot" ? "" : n.you ? "You" : n.kind === "spotter" ? n.label[1].toUpperCase() : initials(n.name ?? n.label)}</div>`;
+}
+const ROLE = { creator: "Creator", brand: "Brand", spotter: "Spotter", teammate: "Teammate", spot: "Spot", event: "Event" };
+function rowsFor(n) {
+  const out = [];
+  for (const t of threads) {
+    if (!t.visible || (t.source !== n && t.target !== n) || t.kind === "lists") continue;
+    const a = t.source, b = t.target;
+    if (t.kind === "leads") out.push(["zap", `${a.label} leads ${b.label}` + (n.kind === "brand" ? ` on ${b.creator.label}` : ""), usd(t.amount), t.tx]);
+    if (t.kind === "outbid") out.push(["undo", `${a.label} was outbid on ${b.label}`, "refunded", t.tx]);
+    if (t.kind === "spotted") out.push(["camera", `${a.label} spotted ${b.label}`, "", t.tx]);
+    if (t.kind === "team") out.push(["users", `${a.label} and ${b.label} split a hoodie`, "", t.tx]);
+    if (t.kind === "has" && n.kind === "creator") out.push(["square", `${b.label}`, b.leader ? usd(b.amount) : "open", t.tx]);
+  }
+  return out.slice(0, 14).map(([ic, text, amt, tx]) => `<div class="row"><span class="ic">${icon(ic)}</span><span>${text}<span class="tx mono">${tx}</span></span><span class="amt">${amt}</span></div>`).join("");
+}
+function stat(v, k) { return `<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`; }
+function walletNodes() { return nodes.filter((n) => n.visible && n.kind !== "spot" && n.kind !== "event"); }
+function rankOf(n) { const list = walletNodes().map((x) => [x, degree(x)]).sort((a, b) => b[1] - a[1]); return list.findIndex(([x]) => x === n) + 1; }
+function legend() {
+  const sw = (svg) => `<svg width="34" height="14" viewBox="0 0 34 14">${svg}</svg>`;
+  return `<div class="card"><h3>How to read it</h3><div class="legend">
+    <div>${sw(`<path d="M2 7h30" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="7" r="2.4" fill="var(--accent)"/>`)}Brand leads a spot, USDC flowing to escrow</div>
+    <div>${sw(`<path d="M2 7h30" stroke="var(--accent-text)" stroke-width="1.6" stroke-dasharray="5 4"/>`)}Someone spotted a creator (on-chain)</div>
+    <div>${sw(`<path d="M2 5h30M2 9h30" stroke="var(--ink)" stroke-width="1"/>`)}Team hoodie split</div>
+    <div>${sw(`<rect x="10" y="1" width="12" height="12" rx="3" fill="var(--accent-soft)" stroke="var(--accent-text)" stroke-dasharray="3 2" stroke-width="1.5"/>`)}Open spot, nobody leads yet</div>
+  </div></div>`;
+}
+function youCard() {
+  const leading = threads.filter((t) => t.kind === "leads" && t.source === you).length;
+  const spottedN = degree(you, "spotted");
+  return `<div class="card you-card"><h3>You in Token2049</h3>
+    <div class="who"><div class="rank">${you.visible ? "#" + rankOf(you) : "-"}</div><div><b>most connected</b><div class="roles"><span class="role you">Brand</span><span class="role you">Spotter</span></div></div></div>
+    <div class="stats">${stat(degree(you), "threads")}${stat(usd(you.total), "locked")}${stat(leading, "spots led")}</div>
+    <div class="stats" style="grid-template-columns:1fr 2fr">${stat(spottedN, "spotted")}${stat(threads.filter((t) => t.kind === "outbid" && t.source === you).length, "times outbid")}</div>
+    <div class="actions"><button class="btn primary sm" data-act="share">${icon("share")}Post my spot</button><button class="btn sm" data-act="find">${icon("crosshair")}Find me</button></div></div>`;
+}
+function renderPanel() {
+  const n = selected;
+  const panel = $("#panel");
+  if (!n || n === hub) {
+    const vis = nodes.filter((x) => x.visible);
+    const locked = spots.reduce((s, x) => s + x.amount, 0);
+    const top = walletNodes().map((x) => [x, degree(x)]).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    panel.innerHTML = `<div class="card"><div class="who">${avatar(hub)}<div><h2>Token2049 Singapore</h2><div class="roles"><span class="role">Oct 1 to Oct 8</span><span class="role">Marina Bay Sands</span></div></div></div>
+      <div class="stats">${stat(vis.filter((x) => x.kind === "creator" && !x.teammate).length, "creators")}${stat(vis.filter((x) => x.kind === "spot").length, "spots")}${stat(vis.filter((x) => x.kind === "brand").length, "brands")}</div>
+      <div class="stats">${stat(usd(locked), "in escrow")}${stat(spots.reduce((s, x) => s + x.bids, 0), "bids")}${stat(vis.filter((x) => x.kind === "spotter" || x.you).length, "spotters")}</div></div>
+      ${youCard()}
+      <div class="card"><h3>Most connected</h3><div class="rows">${top.map(([x, d], i) => `<div class="row" data-node="${x.id}" style="cursor:pointer"><span class="mono">${i + 1}</span><span><b>${x.name ?? x.label}</b> <span style="color:var(--muted)">${ROLE[x.roles[0]]}</span></span><span class="amt">${d}</span></div>`).join("")}</div></div>
+      ${legend()}`;
+  } else {
+    const roles = n.roles.map((r) => `<span class="role ${n.you ? "you" : ""}">${ROLE[r]}</span>`).join("");
+    let stats = "", actions = "";
+    if (n.kind === "spot") {
+      stats = stat(n.leader ? usd(n.amount) : "Open", "top bid") + stat(n.bids, "bids") + stat(usd(n.buyNow), "buy now");
+      actions = `<button class="btn primary sm" data-act="toast" data-msg="Opens the bid sheet for ${n.label}">${icon("gavel")}Place bid</button><button class="btn sm" data-act="toast" data-msg="Opens ${n.creator.label}'s listing">Open listing</button>`;
+    } else if (n.kind === "creator") {
+      const own = spots.filter((s) => s.creator === n);
+      stats = n.teammate ? stat(degree(n), "threads") + stat("1", "team") + stat("-", "") : stat(usd(n.escrow), "escrowed") + stat(`${own.filter((s) => s.leader).length}/${own.length}`, "spots led") + stat(degree(n, "spotted"), "spotted by");
+      actions = `<button class="btn primary sm" data-act="toast" data-msg="Opens the listing">Open listing</button><button class="btn sm" data-act="toast" data-msg="Opens the profile">View profile</button>`;
+    } else if (n.kind === "brand") {
+      stats = stat(usd(n.total), "leading") + stat(threads.filter((t) => t.kind === "leads" && t.source === n).length, "spots led") + stat(threads.filter((t) => t.kind === "outbid" && t.source === n).length, "outbid");
+      actions = `<button class="btn sm" data-act="toast" data-msg="Opens the brand profile">View profile</button>`;
+    } else {
+      stats = stat(degree(n, "spotted"), "spotted") + stat(degree(n), "threads") + stat("#" + rankOf(n), "rank");
+      actions = `<button class="btn sm" data-act="toast" data-msg="Opens their spotted photos">See photos</button>`;
+    }
+    panel.innerHTML = `<div class="card"><div class="who">${avatar(n)}<div><h2>${n.kind === "spot" ? `${n.label}` : n.name ?? n.label}</h2>
+      <div class="roles">${roles}${n.kind === "spot" ? `<span class="role">on ${n.creator.label}</span>` : `<span class="role mono">${n.wallet}</span>`}</div></div></div>
+      <div class="stats">${stats}</div><div class="actions">${actions}<button class="btn sm" data-act="close" aria-label="Back to event">${icon("x")}</button></div></div>
+      <div class="card"><h3>Threads</h3><div class="rows">${rowsFor(n) || '<span style="color:var(--muted)">No threads yet.</span>'}</div>
+      <p style="font-size:12px;color:var(--muted);margin:10px 0 0">Every thread is a Monad transaction. Tap one to open it in the explorer.</p></div>
+      ${n.you ? youCard() : ""}`;
+  }
+}
+$("#panel").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act],[data-node]");
+  if (!el) return;
+  if (el.dataset.node) { selected = byId.get(el.dataset.node); renderPanel(); focusOn(selected); return; }
+  const act = el.dataset.act;
+  if (act === "close") { selected = null; renderPanel(); }
+  if (act === "find") findMe();
+  if (act === "share") openShare();
+  if (act === "toast") toast(el.dataset.msg, "in the real app");
+});
+function focusOn(n, k = 1.6) {
+  d3.select(canvas).transition().duration(reduce ? 0 : 900).ease(d3.easeCubicInOut)
+    .call(zoom.transform, d3.zoomIdentity.translate(W / 2 - n.x * k, H / 2 - n.y * k).scale(k));
+}
+function findMe() { if (replay) { stopReplay(); resetTo(1); } selected = you; renderPanel(); focusOn(you); effects.ripples.push({ node: you, born: performance.now(), color: T.accent }); }
+$("#findMe").onclick = findMe;
+
+// ---------------------------------------------------------------- layers, toasts, list view, share
+const LAYERS = [["leads", "Bids"], ["flow", "Money flow"], ["spotted", "Spots"], ["team", "Teams"], ["outbid", "Bid history"]];
+$("#layers").innerHTML = LAYERS.map(([k, l]) => `<button class="chip" data-layer="${k}" aria-pressed="${layer[k]}">${l}</button>`).join("");
+$("#layers").addEventListener("click", (e) => { const b = e.target.closest("[data-layer]"); if (!b) return; layer[b.dataset.layer] = !layer[b.dataset.layer]; b.setAttribute("aria-pressed", layer[b.dataset.layer]); });
+function toast(text, sub, ic = "zap") {
+  const el = document.createElement("div");
+  el.className = "toast"; el.innerHTML = `${icon(ic, 15)}<span>${text}${sub ? ` <span class="amt">${sub}</span>` : ""}</span>`;
+  $("#toasts").prepend(el);
+  while ($("#toasts").children.length > 3) $("#toasts").lastChild.remove();
+  setTimeout(() => el.remove(), 4200);
+}
+$("#listBtn").onclick = () => {
+  const lv = $("#listview"), on = !lv.classList.contains("on");
+  lv.classList.toggle("on", on); $("#listBtn").innerHTML = on ? icon("graph") + "Back to graph" : icon("list") + "View as list";
+  if (!on) return;
+  const rows = walletNodes().map((n) => [n, degree(n)]).sort((a, b) => b[1] - a[1]);
+  lv.innerHTML = `<table><thead><tr><th>Who</th><th>Role</th><th>Threads</th><th>Amount</th></tr></thead><tbody>${rows.map(([n, d]) =>
+    `<tr><td><b>${n.name ?? n.label}</b></td><td>${n.roles.map((r) => ROLE[r]).join(", ")}</td><td class="mono">${d}</td><td class="mono">${n.kind === "brand" ? usd(n.total) : n.kind === "creator" && !n.teammate ? usd(n.escrow) : "-"}</td></tr>`).join("")}</tbody></table>`;
+};
+function openShare() {
+  if (replay) { stopReplay(); resetTo(1); }
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 630;
+  const saved = ctx; ctx = c.getContext("2d");
+  ctx.fillStyle = T.paper; ctx.fillRect(0, 0, 1200, 630);
+  ctx.fillStyle = T.dot; for (let x = 13; x < 1200; x += 26) for (let y = 13; y < 630; y += 26) { ctx.beginPath(); ctx.arc(x, y, 1.3, 0, 6.29); ctx.fill(); }
+  ctx.fillStyle = T.ink; ctx.font = '800 64px "Bricolage Grotesque"'; ctx.textBaseline = "top"; ctx.textAlign = "left";
+  ctx.fillText("I'm in the", 60, 70); ctx.fillText("Token2049", 60, 140); ctx.fillStyle = T["accent-text"]; ctx.fillText("patchwork.", 60, 210);
+  ctx.fillStyle = T.muted; ctx.font = '500 26px Geist';
+  ctx.fillText(`#${rankOf(you)} most connected · ${degree(you)} threads`, 60, 310);
+  ctx.fillText(`${usd(you.total)} locked in escrow · spotted ${degree(you, "spotted")}`, 60, 348);
+  ctx.fillStyle = T.ink; ctx.font = '800 30px "Bricolage Grotesque"'; ctx.fillText("patched", 60, 540);
+  ctx.fillStyle = T.muted; ctx.font = '500 22px Geist'; ctx.fillText("Get patched. Get paid.", 60, 578);
+  const mine = threads.filter((t) => t.kind !== "lists" && (t.source === you || t.target === you));
+  const set = [...new Set([you, ...mine.map((t) => (t.source === you ? t.target : t.source)), ...mine.filter((t) => t.target.kind === "spot").map((t) => t.target.creator)])];
+  const cx = you.x, cy = you.y, span = Math.max(...set.map((n) => Math.hypot(n.x - cx, n.y - cy))) || 1, k = 250 / span;
+  ctx.save(); ctx.translate(880, 315); ctx.scale(Math.min(k, 2.4), Math.min(k, 2.4)); ctx.translate(-cx, -cy);
+  const now = performance.now() + 1e6, others = new Set(set);
+  for (const th of threads) if (others.has(th.source) && others.has(th.target) && th.kind !== "lists") drawThread(th, now, null, null);
+  for (const n of set.sort((a, b) => ORDER[a.kind] - ORDER[b.kind])) { ctx.save(); ctx.translate(n.x, n.y); drawNode(n, now); ctx.restore(); }
+  ctx.strokeStyle = T.accent; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(you.x, you.y, R(you) + 9, 0, 6.29); ctx.stroke();
+  ctx.restore();
+  ctx = saved;
+  $("#shareImg").src = c.toDataURL("image/png");
+  $("#shareModal").classList.add("on");
+}
+$("#shareClose").onclick = () => $("#shareModal").classList.remove("on");
+$("#postX").onclick = () => toast("Opens an X post with your patchwork card", "in the real app", "share");
+$("#copyLink").onclick = () => toast("Copied patched.fun/share/patchwork/token2049/you", "", "share");
+
+// ---------------------------------------------------------------- feed / patchwork switch
+let view = "graph";
+function setView(v) {
+  view = v; $("#app").dataset.view = v;
+  $("#v-feed").setAttribute("aria-pressed", v === "feed"); $("#v-graph").setAttribute("aria-pressed", v === "graph");
+  if (v === "graph") { const now = performance.now(); for (const n of nodes) n.born = now - rnd() * 300; sim.alpha(0.3); }
+}
+$("#v-feed").onclick = () => setView("feed");
+$("#v-graph").onclick = () => setView("graph");
+$("#eventPick").onclick = () => toast("Pick another event: each one gets its own patchwork", "", "graph");
+$("#feedCol").innerHTML = [
+  ["Mira Okafor", "listed a Token2049 dress with 5 spots", "Neckline from $60"],
+  ["Orbit Labs", "leads Neckline on @mira.wears", "$420 locked in escrow"],
+  ["@sam", "spotted @kaito.fits at the venue", "on-chain"],
+  ["Team Lambda", "posted their print proof", "milestone 1 of 2"],
+].map(([who, what, sub]) => `<div class="card"><b>${who}</b> ${what}<div style="color:var(--muted);margin-top:4px">${sub}</div></div>`).join("") +
+  `<p style="text-align:center;color:var(--muted)">This is the existing Home feed, unchanged. Switch to Patchwork above.</p>`;
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input,textarea")) return;
+  if (e.key === "f") findMe();
+  if (e.key === "r") (replay ? stopReplay() : startReplay(0));
+  if (e.key === "Escape") { selected = null; renderPanel(); $("#shareModal").classList.remove("on"); }
+});
+
+renderPanel();
+document.fonts.ready.then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>

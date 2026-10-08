@@ -163,7 +163,7 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
   }, [graph, me, selected]);
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-120px)] md:h-dvh min-h-[480px]">
+    <div className="flex flex-col md:h-dvh md:min-h-[480px]">
       <header className="flex items-center gap-2 flex-wrap px-4 py-2.5 border-b-[1.5px] border-[var(--soft)]">
         {lead}
         <div className="relative">
@@ -205,17 +205,17 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
             </ul>
           )}
         </div>
-        <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border-[1.5px] border-[var(--soft)] text-xs font-semibold">
+        <span className="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border-[1.5px] border-[var(--soft)] text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" /> Live on {CHAIN_ID === 143 ? "Monad" : "Monad testnet"}
         </span>
         <div className="flex-1" />
-        <button onClick={() => setList((v) => !v)} className="btn-base btn-small" aria-pressed={list}>
-          {list ? <Network size={15} /> : <List size={15} />} {list ? "Back to graph" : "View as list"}
+        <button onClick={() => setList((v) => !v)} className="btn-base btn-small" aria-pressed={list} aria-label={list ? "Back to graph" : "View as list"}>
+          {list ? <Network size={15} /> : <List size={15} />} <span className="hidden sm:inline">{list ? "Back to graph" : "View as list"}</span>
         </button>
       </header>
 
-      <div className="flex-1 min-h-0 grid md:grid-cols-[1fr_340px] grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1">
-        <div ref={stageRef} className="relative min-h-0 overflow-hidden bg-[var(--stage)]">
+      <div className="md:flex-1 md:min-h-0 grid md:grid-cols-[1fr_340px]">
+        <div ref={stageRef} className="relative h-[64dvh] md:h-auto min-h-0 overflow-hidden bg-[var(--stage)]">
           <canvas
             ref={canvasRef}
             className="block w-full h-full touch-none cursor-grab"
@@ -295,7 +295,7 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
           )}
         </div>
 
-        <aside className="border-t-[1.5px] md:border-t-0 md:border-l-[1.5px] border-[var(--soft)] overflow-y-auto p-4 grid gap-4 content-start max-h-[42dvh] md:max-h-none bg-[var(--paper)]">
+        <aside className="border-t-[1.5px] md:border-t-0 md:border-l-[1.5px] border-[var(--soft)] overflow-y-auto overflow-x-hidden p-4 grid gap-4 content-start min-w-0 bg-[var(--paper)]">
           {described ? (
             <NodePanel d={described} explorer={graph?.explorer ?? ""} onPick={(id) => engine?.select(id, true)} onClose={() => engine?.select(null)} />
           ) : (
