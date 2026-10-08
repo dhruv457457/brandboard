@@ -21,7 +21,24 @@ function samePageOn(path: string): string {
  * Whether a network has a site to go to. Without NEXT_PUBLIC_*_URL set, a site points at localhost, which is only
  * useful when you are on localhost yourself: on the real site it would be a dead link.
  */
+/**
+ * One site, two chains: the switch sets a cookie and the middleware serves the other chain's build behind the same
+ * address (see middleware.ts). On when NEXT_PUBLIC_CHAIN_COOKIE=true.
+ */
+const COOKIE_MODE = process.env.NEXT_PUBLIC_CHAIN_COOKIE === "true";
+
+/** Remember the chosen chain for the whole site (creator subdomains too) and open the same place on it. */
+export function switchChain(chain: 10143 | 143, path: string) {
+  const host = window.location.hostname;
+  const parent = host === "monad.patched.world" || host.endsWith(".monad.patched.world") ? "; domain=monad.patched.world" : "";
+  document.cookie = chain === 143
+    ? `patched-chain=143; path=/; max-age=31536000; samesite=lax${parent}`
+    : `patched-chain=; path=/; max-age=0; samesite=lax${parent}`;
+  window.location.assign(samePageOn(path));
+}
+
 export function networkAvailable(chain: 10143 | 143): boolean {
+  if (COOKIE_MODE) return true;
   const url = NETWORK_SITES[chain].url;
   if (!/localhost|127\.0\.0\.1/.test(url)) return true;
   return typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
@@ -51,7 +68,11 @@ export function NetworkOptions({ onPick }: { onPick?: () => void }) {
               href={active ? undefined : networkUrl(chain, pathname)}
               onClick={(e) => {
                 if (active) e.preventDefault();
-                else if (chain === 143) {
+                else if (COOKIE_MODE && chain === 10143) {
+                  e.preventDefault();
+                  switchChain(10143, pathname);
+                  return;
+                } else if (chain === 143) {
                   e.preventDefault();
                   setAsking(true);
                   return;
@@ -71,13 +92,13 @@ export function NetworkOptions({ onPick }: { onPick?: () => void }) {
         );
       })}
       <li className="px-2.5 pt-1 pb-1 text-[11px] text-[var(--muted)]">Same account and wallet on both. You sign in once per network.</li>
-      {asking && <li><MainnetNotice href={networkUrl(143, pathname)} onClose={() => setAsking(false)} /></li>}
+      {asking && <li><MainnetNotice href={networkUrl(143, pathname)} onGo={COOKIE_MODE ? () => switchChain(143, pathname) : undefined} onClose={() => setAsking(false)} /></li>}
     </ul>
   );
 }
 
 /** The warning before a visitor moves to mainnet: real USDC, an MVP, so small amounts. */
-export function MainnetNotice({ href, onClose }: { href: string; onClose: () => void }) {
+export function MainnetNotice({ href, onGo, onClose }: { href: string; onGo?: () => void; onClose: () => void }) {
   const open = networkAvailable(143);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -97,7 +118,9 @@ export function MainnetNotice({ href, onClose }: { href: string; onClose: () => 
         </p>
         <div className={open ? "grid gap-2 sm:grid-cols-2 mt-1" : "grid mt-1"}>
           <button type="button" onClick={onClose} className="btn-base btn-primary justify-center">{open ? "Stay on testnet" : "Got it"}</button>
-          {open && <a href={href} className="btn-base justify-center no-underline">Go to mainnet</a>}
+          {open && (onGo
+            ? <button type="button" onClick={onGo} className="btn-base justify-center">Go to mainnet</button>
+            : <a href={href} className="btn-base justify-center no-underline">Go to mainnet</a>)}
         </div>
       </div>
     </div>
@@ -122,7 +145,7 @@ export function NetworkToggle({ compact }: { compact?: boolean }) {
         aria-checked={onMainnet}
         aria-label={onMainnet ? "On mainnet. Switch to testnet" : "On testnet. Switch to mainnet"}
         title={onMainnet ? "Mainnet (real USDC). Switch to testnet" : "Testnet. Switch to mainnet"}
-        onClick={() => (onMainnet ? window.location.assign(href) : setAsking(true))}
+        onClick={() => (onMainnet ? (COOKIE_MODE ? switchChain(10143, pathname) : window.location.assign(href)) : setAsking(true))}
         className={cn("flex items-center gap-2 rounded-full hover:bg-[var(--soft)] px-2 h-10 w-full", compact ? "justify-center" : "xl:px-3 justify-center xl:justify-start")}
       >
         <span className={cn("relative w-9 h-5 flex-none rounded-full border-[1.5px] border-[var(--line)] transition-colors", onMainnet ? "bg-[var(--green)]" : "bg-[#F5B400]")}>
@@ -130,7 +153,7 @@ export function NetworkToggle({ compact }: { compact?: boolean }) {
         </span>
         <span className="hidden xl:inline text-sm font-semibold">{onMainnet ? "Mainnet" : "Testnet"}</span>
       </button>
-      {asking && <MainnetNotice href={href} onClose={() => setAsking(false)} />}
+      {asking && <MainnetNotice href={href} onGo={COOKIE_MODE ? () => switchChain(143, pathname) : undefined} onClose={() => setAsking(false)} />}
     </>
   );
 }

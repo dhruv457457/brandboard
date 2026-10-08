@@ -11,6 +11,25 @@ import { RESERVED_HANDLES } from "@/lib/handles";
  * One sign-in across all of these needs Privy's HttpOnly cookies on the parent domain (Privy dashboard).
  */
 export function middleware(req: NextRequest) {
+  const res = resolve(req);
+  const origin = process.env.MAINNET_ORIGIN?.replace(/\/$/, "");
+  if (!origin || req.cookies.get("patched-chain")?.value !== "143") return res;
+
+  // One site, two chains: a visitor who switched to mainnet is served by the mainnet build, behind this same address.
+  // Redirects (creator subdomains) stay as they are; a rewrite to a creator's page keeps its inner path.
+  if (res.headers.get("location")) return res;
+  const inner = res.headers.get("x-middleware-rewrite");
+  const target = new URL(inner ? new URL(inner).pathname + new URL(inner).search : req.nextUrl.pathname + req.nextUrl.search, origin);
+  const out = NextResponse.rewrite(target);
+  // The same address now shows two different sites; keep shared caches from mixing them up. Built files are
+  // content-hashed, so those can stay cached.
+  if (!target.pathname.startsWith("/_next/static/")) out.headers.set("cache-control", "private, no-cache");
+  return out;
+}
+
+function resolve(req: NextRequest): NextResponse {
+  // Assets and API calls follow the visitor's chain too (see the matcher), but the creator-page rules are for pages.
+  if (/^\/(_next|api)\//.test(req.nextUrl.pathname) || /\.(?:png|jpg|jpeg|webp|svg|ico|txt|xml|js|css|woff2?)$/.test(req.nextUrl.pathname)) return NextResponse.next();
   const base = process.env.HANDLE_DOMAIN?.toLowerCase();
   if (!base) return NextResponse.next();
 
@@ -57,6 +76,10 @@ export function middleware(req: NextRequest) {
 const to = (url: string) => NextResponse.redirect(url, 307);
 
 export const config = {
-  // Pages only: assets, API routes and Next's own files are served on any host as-is.
-  matcher: ["/((?!_next/|api/|favicon\\.ico|icon\\.svg|.*\\.(?:png|jpg|jpeg|webp|svg|ico|txt|xml)$).*)"],
+  // Pages: creator subdomains. Everything, but only for a visitor on mainnet: their files and API calls go to the
+  // mainnet build too (see middleware above).
+  matcher: [
+    "/((?!_next/|api/|favicon\\.ico|icon\\.svg|.*\\.(?:png|jpg|jpeg|webp|svg|ico|txt|xml)$).*)",
+    { source: "/(.*)", has: [{ type: "cookie", key: "patched-chain", value: "143" }] },
+  ],
 };
