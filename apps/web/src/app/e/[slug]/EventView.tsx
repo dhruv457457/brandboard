@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils";
 import { FollowButton } from "@/components/ui/FollowButton";
 import { SpottedWall } from "@/components/social/SpottedWall";
 import { CHAIN_ID } from "@/lib/config";
+import { CONTEST_EVENT_SLUG, DEADLINE } from "@/lib/contest";
 
 export interface EventInfo {
   id: number;
+  slug: string | null;
   name: string;
   startsAt: number;
   endsAt: number;
@@ -82,6 +84,7 @@ export function EventView({ event, cards: wire, leaderboards, wall }: { event: E
         actions={<>
           {event.website && <a href={event.website} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><Globe size={14} /> Website <ExternalLink size={12} /></a>}
           {event.x && <a href={event.x} target="_blank" rel="noopener noreferrer" className="btn-base btn-small"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={X_PATH} /></svg> On X</a>}
+          {event.slug === CONTEST_EVENT_SLUG && Date.now() < DEADLINE && <Link href="/contest" className="btn-base btn-small btn-primary"><Trophy size={14} /> Contest rules and entry</Link>}
           <Link href={`/e/${event.id}/patchwork`} className="btn-base btn-small"><Network size={14} /> Patchwork</Link>
           <FollowButton kind="event" id={`${CHAIN_ID}:${event.id}`} />
           {event.active && !past && <Link href={`/campaigns/new?event=${event.id}`} className="btn-base btn-small"><Megaphone size={14} /> Sponsor everyone here</Link>}

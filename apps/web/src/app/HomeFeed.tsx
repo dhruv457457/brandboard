@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { ReactionBar } from "@/components/social/SpottedWall";
 import { Seg } from "@/components/ui/Seg";
+import { ContestBanner } from "@/components/contest/ContestBanner";
 import type { SpottedPost } from "@/lib/spotted";
 
 // The graph (d3, canvas) only loads when someone switches to it, so the feed stays as light as before.
@@ -146,6 +147,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
         </header>
         <div className="md:hidden flex justify-end px-5 pt-3">{viewSwitch}</div>
 
+        <ContestBanner />
         <Composer />
         <FundYourWallet />
         <OffersForYou />

@@ -17,7 +17,7 @@ export async function generateStaticParams() {
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const db = supabase();
-  const q = db.from("patched_events").select("event_id, name, starts_at, ends_at, active, city, venue, description, banner_url, links").eq("chain_id", CHAIN_ID);
+  const q = db.from("patched_events").select("event_id, name, slug, starts_at, ends_at, active, city, venue, description, banner_url, links").eq("chain_id", CHAIN_ID);
   const { data: event } = /^\d+$/.test(slug) ? await q.eq("event_id", Number(slug)).maybeSingle() : await q.eq("slug", slug).maybeSingle();
   if (!event) notFound();
 
@@ -78,6 +78,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const links = (event.links ?? {}) as { website?: string | null; x?: string | null };
   const info: EventInfo = {
     id: event.event_id,
+    slug: event.slug ?? null,
     name: event.name,
     startsAt: new Date(event.starts_at).getTime(),
     endsAt: new Date(event.ends_at).getTime(),

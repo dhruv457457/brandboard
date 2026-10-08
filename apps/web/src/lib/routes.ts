@@ -22,7 +22,7 @@ export function isListingPage(path: string) {
  * event pages. These are what people share, so they never send a visitor off to sign in first.
  */
 export function isPublicPage(path: string) {
-  if (isListingPage(path) || path.startsWith("/e/") || path.startsWith("/patch/") || path.startsWith("/share/patchwork/")) return true;
+  if (isListingPage(path) || path.startsWith("/e/") || path.startsWith("/patch/") || path.startsWith("/share/patchwork/") || path === "/contest") return true;
   const m = path.match(/^\/([^/]+)\/?$/);
   return !!m && !RESERVED_HANDLES.has(m[1].toLowerCase());
 }
