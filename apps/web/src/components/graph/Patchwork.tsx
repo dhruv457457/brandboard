@@ -166,24 +166,25 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
 
   return (
     <div className="flex flex-col md:h-dvh md:min-h-[480px]">
-      <header className="flex items-center gap-2 flex-wrap px-4 py-2.5 border-b-[1.5px] border-[var(--soft)]">
-        {lead}
-        <div className="relative">
+      <header className="flex flex-col md:flex-row md:items-center gap-2 px-4 pt-3 pb-2.5 md:py-2.5 border-b-[1.5px] border-[var(--soft)]">
+        {lead && <div className="w-full md:w-auto">{lead}</div>}
+        <div className="flex items-center gap-2 min-w-0 md:flex-1">
+        <div className="relative min-w-0 flex-1 md:flex-none">
           <button
             onClick={() => setPicker((v) => !v)}
-            className="inline-flex items-center gap-2 h-9 pl-2 pr-3 rounded-full border-[1.5px] border-[var(--ink)] bg-[var(--card)] font-semibold text-sm"
+            className="w-full md:w-auto inline-flex items-center gap-2 h-10 md:h-9 pl-1.5 pr-3 rounded-full border-2 border-[var(--ink)] bg-[var(--card)] font-bold text-sm shadow-[2px_2px_0_var(--shadow)]"
             aria-haspopup="listbox"
             aria-expanded={picker}
           >
-            <span className="w-5 h-5 rounded-md bg-[var(--accent)] border-[1.5px] border-[var(--ink)] grid place-items-center overflow-hidden flex-none">
+            <span className="w-7 h-7 md:w-6 md:h-6 rounded-full bg-[var(--accent)] border-[1.5px] border-[var(--ink)] grid place-items-center overflow-hidden flex-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {graph?.event.banner ? <img src={graph.event.banner} alt="" className="w-full h-full object-cover" /> : null}
             </span>
-            <span className="max-w-[200px] truncate">{eventName}</span>
-            <ChevronDown size={14} />
+            <span className="flex-1 min-w-0 text-left truncate md:max-w-[220px]">{eventName}</span>
+            <ChevronDown size={15} className="flex-none" />
           </button>
           {picker && events && (
-            <ul role="listbox" className="absolute z-30 top-11 left-0 w-[280px] max-h-[320px] overflow-y-auto p-1.5 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card)] shadow-[4px_4px_0_var(--shadow)] list-none m-0">
+            <ul role="listbox" className="absolute z-30 top-12 left-0 w-full md:w-[280px] max-h-[320px] overflow-y-auto p-1.5 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card)] shadow-[4px_4px_0_var(--shadow)] list-none m-0">
               {events.map((e) => (
                 <li key={e.id} role="option" aria-selected={e.id === eventId}>
                   <button
@@ -210,14 +211,15 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
         <span className="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border-[1.5px] border-[var(--soft)] text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" /> Live on {CHAIN_ID === 143 ? "Monad" : "Monad testnet"}
         </span>
-        <div className="flex-1" />
-        <button onClick={() => setList((v) => !v)} className="btn-base btn-small" aria-pressed={list} aria-label={list ? "Back to graph" : "View as list"}>
-          {list ? <Network size={15} /> : <List size={15} />} <span className="hidden sm:inline">{list ? "Back to graph" : "View as list"}</span>
+        <div className="hidden md:block flex-1" />
+        <button onClick={() => setList((v) => !v)} className="btn-base btn-small flex-none max-md:w-10 max-md:h-10 max-md:p-0 max-md:justify-center" aria-pressed={list} aria-label={list ? "Back to graph" : "View as list"}>
+          {list ? <Network size={16} /> : <List size={16} />} <span className="hidden md:inline">{list ? "Back to graph" : "View as list"}</span>
         </button>
+        </div>
       </header>
 
       <div className="md:flex-1 md:min-h-0 grid md:grid-cols-[1fr_340px]">
-        <div ref={stageRef} className="relative h-[64dvh] md:h-auto min-h-0 overflow-hidden bg-[var(--stage)]">
+        <div ref={stageRef} className="relative h-[calc(100svh-238px)] min-h-[360px] md:min-h-0 md:h-auto overflow-hidden bg-[var(--stage)]">
           <canvas
             ref={canvasRef}
             className="block w-full h-full touch-none cursor-grab"
@@ -225,23 +227,23 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
             aria-label={`Patchwork of ${eventName}: creators, their spots, the brands bidding on them and the people who spotted them. Use View as list for the same data as a table.`}
           />
 
-          <div className="absolute top-3 left-3 right-3 flex flex-wrap gap-2 pointer-events-none">
+          <div className="absolute top-2.5 left-2.5 right-2.5 md:top-3 md:left-3 md:right-3 flex gap-1.5 md:gap-2 overflow-x-auto [scrollbar-width:none] pointer-events-none">
             {LAYERS.map((l) => (
               <button
                 key={l.id}
                 aria-pressed={layers[l.id]}
                 onClick={() => setLayers((s) => ({ ...s, [l.id]: !s[l.id] }))}
-                className={cn("pointer-events-auto h-8 px-3 rounded-full text-xs font-semibold border-[1.5px]", layers[l.id] ? "bg-[var(--card)] border-[var(--ink)]" : "bg-transparent border-[var(--soft)] text-[var(--muted)]")}
+                className={cn("pointer-events-auto flex-none h-7 md:h-8 px-2.5 md:px-3 rounded-full text-[11px] md:text-xs font-bold border-[1.5px] transition-colors", layers[l.id] ? "bg-[var(--card)] border-[var(--ink)] shadow-[2px_2px_0_var(--shadow)]" : "bg-[var(--stage)] border-[var(--ink)]/20 text-[var(--muted)]")}
               >
                 {l.label}
               </button>
             ))}
           </div>
-          <div className="absolute top-14 left-3 flex flex-col gap-2 items-start">
-            <button onClick={findMe} className="btn-base btn-primary btn-small"><Crosshair size={15} /> Find me</button>
+          <div className="absolute right-2.5 bottom-[66px] md:right-auto md:bottom-auto md:top-14 md:left-3">
+            <button onClick={findMe} aria-label="Find me" className="btn-base btn-primary btn-small max-md:w-11 max-md:h-11 max-md:p-0 max-md:justify-center max-md:!rounded-full"><Crosshair size={17} /> <span className="hidden md:inline">Find me</span></button>
           </div>
 
-          <div className="absolute left-3 bottom-[76px] flex flex-col-reverse gap-2 items-start pointer-events-none" aria-live="polite">
+          <div className="absolute left-2.5 bottom-[66px] md:left-3 md:bottom-[76px] max-w-[calc(100%-76px)] flex flex-col-reverse gap-2 items-start pointer-events-none" aria-live="polite">
             {toasts.map((t) => {
               const Icon = TOAST_ICON[t.icon];
               return (
@@ -253,21 +255,21 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
             })}
           </div>
 
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-4 w-[min(560px,calc(100%-24px))] flex items-center gap-3 pl-2 pr-4 py-2 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card)] shadow-[4px_4px_0_var(--shadow)]">
+          <div className="absolute left-2.5 right-2.5 bottom-2.5 md:left-1/2 md:right-auto md:-translate-x-1/2 md:bottom-4 md:w-[min(560px,calc(100%-24px))] flex items-center gap-2 md:gap-3 pl-1.5 pr-3 md:pl-2 md:pr-4 py-1.5 md:py-2 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card)] shadow-[3px_3px_0_var(--shadow)] md:shadow-[4px_4px_0_var(--shadow)]">
             <button
               onClick={() => (replay.playing ? engine?.stopReplay(true) : engine?.startReplay(0))}
               disabled={!graph}
-              className="btn-base btn-small flex-none"
+              className="btn-base btn-small flex-none max-md:w-9 max-md:h-9 max-md:p-0 max-md:justify-center"
               aria-label={replay.playing ? "Pause replay" : "Replay the event"}
             >
-              {replay.playing ? <Pause size={15} /> : <Play size={15} />} {replay.playing ? "Pause" : "Replay"}
+              {replay.playing ? <Pause size={15} /> : <Play size={15} />} <span className="hidden md:inline">{replay.playing ? "Pause" : "Replay"}</span>
             </button>
             <input
               type="range" min={0} max={1000} value={Math.round(replay.p * 1000)} aria-label="Replay position"
               onChange={(e) => engine?.seek(Number(e.target.value) / 1000)}
               className="flex-1 min-w-0 accent-[var(--accent)]"
             />
-            <span className="font-mono text-xs text-[var(--muted)] w-[92px] text-right tabular-nums">{replay.label}</span>
+            <span className="font-mono text-[11px] md:text-xs text-[var(--muted)] w-[78px] md:w-[92px] text-right tabular-nums whitespace-nowrap">{replay.label}</span>
           </div>
 
           {!graph && !error && <Overlay>Loading the graph…</Overlay>}

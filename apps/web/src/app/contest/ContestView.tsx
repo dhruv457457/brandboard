@@ -50,7 +50,7 @@ export function ContestView({ cover }: { cover: string | null }) {
 
   return (
     <div className="ct pb-28">
-      <div className="mx-auto w-full max-w-[1120px] px-4 sm:px-6 grid gap-20 sm:gap-28 pt-5 sm:pt-8">
+      <div className="mx-auto w-full max-w-[1120px] px-4 sm:px-6 grid gap-16 sm:gap-28 pt-4 sm:pt-8">
         <Hero data={data} cover={cover} loaded={loaded} onEnter={() => go("enter")} />
         <Ticker entries={data.entries} />
         {data.winners.length > 0 && <Winners data={data} />}
@@ -94,8 +94,9 @@ export function ContestView({ cover }: { cover: string | null }) {
 function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: string | null; loaded: boolean; onEnter: () => void }) {
   const stats: [string, number][] = [["Entries", data.stats.entries], ["Listings", data.stats.listings], ["Bids", data.stats.bids], ["Creators", data.stats.creators]];
   return (
-    <section className="relative rounded-[36px] border-[3px] border-[var(--ink)] bg-[var(--card)] shadow-[8px_8px_0_var(--shadow)] overflow-hidden">
+    <section className="relative rounded-[28px] sm:rounded-[36px] border-[3px] border-[var(--ink)] bg-[var(--card)] shadow-[5px_5px_0_var(--shadow)] sm:shadow-[8px_8px_0_var(--shadow)] overflow-hidden">
       <Floaters
+        className="max-sm:hidden"
         items={[
           { x: "46%", y: "5%", size: 54, tone: 4, rotate: 12, dur: 8 },
           { x: "90%", y: "56%", size: 46, tone: 5, rotate: -14, dur: 9 },
@@ -103,12 +104,12 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
           { x: "52%", y: "88%", size: 40, tone: 3, rotate: -8, dur: 10 },
         ]}
       />
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-10 p-6 sm:p-10 lg:p-14">
-        <div className="grid gap-6 content-start">
-          <span className="inline-flex w-fit items-center gap-2.5 rounded-full border-2 border-[var(--ink)] bg-[var(--paper)] px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em]">
-            <span className="ct-dot" /> Community contest · Oct 8 to 11
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-8 sm:gap-10 p-5 sm:p-10 lg:p-14">
+        <div className="grid gap-5 sm:gap-6 content-start">
+          <span className="inline-flex w-fit items-center gap-2.5 rounded-full border-2 border-[var(--ink)] bg-[var(--paper)] px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap">
+            <span className="ct-dot" /> <span className="sm:hidden">Contest · Oct 8 to 11</span><span className="hidden sm:inline">Community contest · Oct 8 to 11</span>
           </span>
-          <h1 className="m-0 font-display font-extrabold leading-[0.94] tracking-[-0.04em] text-[clamp(46px,9vw,92px)]">
+          <h1 className="m-0 font-display font-extrabold leading-[0.94] tracking-[-0.04em] text-[clamp(50px,13vw,92px)]">
             Get <span className="ct-mark">Patched</span>
             <br />
             Week
@@ -126,14 +127,14 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
             <span className={cn(hand.className, "text-[24px] leading-none text-[var(--muted)] -rotate-1")}>time left</span>
             <Countdown to={DEADLINE} />
           </div>
-          <div className="flex flex-wrap gap-3 pt-1">
-            <button type="button" onClick={onEnter} className="btn-base btn-primary text-base h-12 px-6"><ArrowDown size={18} /> Enter now</button>
-            <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="btn-base h-12 px-6 text-base"><Send size={17} /> Join the Telegram</a>
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3 pt-1">
+            <button type="button" onClick={onEnter} className="btn-base btn-primary text-base h-12 px-6 justify-center"><ArrowDown size={18} /> Enter now</button>
+            <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="btn-base h-12 px-6 text-base justify-center"><Send size={17} /> Join the Telegram</a>
           </div>
         </div>
 
-        <div className="relative grid place-items-center min-h-[300px] lg:min-h-[420px]">
-          <div className="relative w-full max-w-[470px] rotate-[2.5deg]">
+        <div className="relative grid place-items-center lg:min-h-[420px] pb-6 sm:pb-0">
+          <div className="relative w-[92%] sm:w-full max-w-[470px] rotate-[2.5deg]">
             <div className="rounded-[26px] border-[3px] border-[var(--ink)] bg-[var(--stage)] p-2.5 shadow-[7px_7px_0_var(--shadow)]">
               <div className="relative aspect-[3/2] overflow-hidden rounded-[18px] border-2 border-[var(--ink)] bg-[var(--accent)]">
                 {cover ? (
@@ -148,8 +149,8 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
                 <span>Mumbai · Online</span><span>Event #{data.event?.id ?? "-"}</span>
               </div>
             </div>
-            <div className="absolute -right-5 -bottom-9 sm:-right-9 sm:-bottom-12 scale-[0.8] sm:scale-100 origin-bottom-right">
-              <SpinBadge text="· WIN $10 USDC · ON MONAD · NO FOLLOWERS NEEDED " size={150}>
+            <div className="absolute -right-4 -bottom-10 sm:-right-9 sm:-bottom-12 scale-[0.72] sm:scale-100 origin-bottom-right">
+              <SpinBadge text="WIN $10 USDC · 3 WINNERS · ON MONAD · " size={150}>
                 <span className="block text-[34px]">$10</span>
                 <span className="block text-[11px] tracking-widest mt-0.5">x3</span>
               </SpinBadge>
@@ -158,9 +159,9 @@ function Hero({ data, cover, loaded, onEnter }: { data: ContestData; cover: stri
         </div>
       </div>
 
-      <div className="relative z-10 border-t-[3px] border-[var(--ink)] bg-[var(--paper)]/80 grid grid-cols-2 sm:grid-cols-4 divide-x-2 divide-[var(--ink)]/15">
+      <div className="relative z-10 border-t-[3px] border-[var(--ink)] grid grid-cols-2 sm:grid-cols-4 gap-[2px] bg-[color-mix(in_srgb,var(--ink)_14%,transparent)]">
         {stats.map(([k, v], i) => (
-          <div key={k} className={cn("px-5 py-4 grid gap-0.5", i >= 2 && "max-sm:border-t-2 max-sm:border-[var(--ink)]/15", i === 2 && "max-sm:border-l-0")}>
+          <div key={k} className="px-5 py-3.5 sm:py-4 grid gap-0.5 bg-[var(--paper)]">
             <span className="font-display font-extrabold text-[34px] leading-none tabular-nums"><NumberFlow value={loaded ? v : 0} /></span>
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] inline-flex items-center gap-1.5">{i === 0 && <span className="ct-dot" />}{k}</span>
           </div>
@@ -174,8 +175,8 @@ function Ticker({ entries }: { entries: ContestData["entries"] }) {
   const items = entries.slice(-30).reverse();
   if (!items.length) {
     return (
-      <div className="-mt-10 sm:-mt-14 text-center">
-        <span className={cn(hand.className, "text-[28px] text-[var(--muted)] inline-block -rotate-2")}>nobody is on the board yet. be the first one.</span>
+      <div className="-mt-8 sm:-mt-14 text-center">
+        <span className={cn(hand.className, "text-[22px] sm:text-[28px] text-[var(--muted)] inline-block -rotate-2 px-4")}>nobody is on the board yet. be the first one.</span>
       </div>
     );
   }

@@ -26,9 +26,9 @@ export function Patch({ children, tone = 2, rotate = -3, className, style, hover
 }
 
 /** Patches drifting around a section, behind its content. */
-export function Floaters({ items }: { items: { x: string; y: string; size: number; tone: number | "orange"; rotate: number; dur?: number; delay?: number; bob?: number; label?: string }[] }) {
+export function Floaters({ items, className }: { className?: string; items: { x: string; y: string; size: number; tone: number | "orange"; rotate: number; dur?: number; delay?: number; bob?: number; label?: string }[] }) {
   return (
-    <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+    <div className={cn("absolute inset-0 pointer-events-none", className)} aria-hidden="true">
       {items.map((it, i) => (
         <div
           key={i}
@@ -55,7 +55,7 @@ export function SpinBadge({ text, size = 150, children }: { text: string; size?:
         </defs>
         <circle cx="100" cy="100" r="96" fill="var(--accent)" stroke="var(--ink)" strokeWidth="4" />
         <circle cx="100" cy="100" r="88" fill="none" stroke="#0b0b0c" strokeOpacity=".5" strokeWidth="2" strokeDasharray="6 6" />
-        <text fontFamily="var(--font-bricolage), sans-serif" fontWeight={800} fontSize="19" letterSpacing="3.2" fill="#0b0b0c">
+        <text fontFamily="var(--font-bricolage), sans-serif" fontWeight={800} fontSize="17" letterSpacing="2.6" fill="#0b0b0c">
           <textPath href={`#${id}`}>{text}</textPath>
         </text>
       </svg>

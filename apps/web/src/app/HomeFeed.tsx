@@ -9,7 +9,7 @@ import { MonadLogo, PrivyLogo } from "@/components/brand/PartnerLogos";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CalendarDays, Network, Rows3, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
+import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { OffersForYou } from "@/components/market/OffersForYou";
 import { FundYourWallet } from "@/components/wallet/FundYourWallet";
@@ -26,7 +26,7 @@ import type { FeedEvent, FeedItem } from "@/lib/market/feed";
 import { cn } from "@/lib/utils";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { ReactionBar } from "@/components/social/SpottedWall";
-import { Seg } from "@/components/ui/Seg";
+import { ViewSwitch } from "@/components/graph/ViewSwitch";
 import { ContestBanner } from "@/components/contest/ContestBanner";
 import type { SpottedPost } from "@/lib/spotted";
 
@@ -71,17 +71,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     setView(v);
     updateUrl((u) => (v === "patchwork" ? u.searchParams.set("view", "patchwork") : (u.searchParams.delete("view"), u.searchParams.delete("event"))));
   };
-  const viewSwitch = (
-    <Seg
-      ariaLabel="Home view"
-      value={view}
-      onChange={switchView}
-      items={[
-        { value: "feed", label: "Feed", icon: <Rows3 size={15} /> },
-        { value: "patchwork", label: "Patchwork", icon: <Network size={15} /> },
-      ]}
-    />
-  );
+  const viewSwitch = (wide?: boolean) => <ViewSwitch value={view} onChange={switchView} className={wide ? "w-full" : undefined} />;
 
   // "Following": only moments from creators and events you follow.
   const { authenticated, ready } = usePatchedAuth();
@@ -129,7 +119,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     return (
       <Patchwork
         eventId={graphEvent}
-        lead={viewSwitch}
+        lead={viewSwitch(true)}
         onEvent={(id) => {
           setGraphEvent(id);
           updateUrl((u) => u.searchParams.set("event", String(id)));
@@ -143,9 +133,9 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
       <section className="flex-1 min-w-0 max-w-[640px] lg:border-r-[1.5px] lg:border-[var(--soft)] min-h-dvh">
         <header className="hidden md:flex sticky top-0 z-20 h-[56px] items-center px-5 bg-[var(--paper)]/90 backdrop-blur-md border-b-[1.5px] border-[var(--soft)]">
           <h1 className="text-xl font-extrabold">Home</h1>
-          <div className="ml-auto">{viewSwitch}</div>
+          <div className="ml-auto">{viewSwitch()}</div>
         </header>
-        <div className="md:hidden flex justify-end px-5 pt-3">{viewSwitch}</div>
+        <div className="md:hidden px-4 pt-3 pb-1">{viewSwitch(true)}</div>
 
         <ContestBanner />
         <Composer />

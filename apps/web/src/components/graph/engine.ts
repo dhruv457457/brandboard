@@ -125,6 +125,10 @@ export class PatchworkEngine {
   private replayState: { start: number; from: number } | null = null;
   private cam: { from: { x: number; y: number; k: number }; to: { x: number; y: number; k: number }; start: number; dur: number } | null = null;
   private frameCount = 0;
+  /** Space the overlays (chips on top, replay bar below) cover, so the framed graph sits in the clear part. */
+  private insets = { top: 90, bottom: 84 };
+  /** Rings shrink on narrow screens so a phone shows the graph big instead of a tiny circle in the middle. */
+  private spread = 1;
   /** The camera still shows the whole graph as loaded: keep it framed when the pane changes size. */
   private autoFit = true;
   private display = '"Arial Black", sans-serif';
@@ -533,8 +537,9 @@ export class PatchworkEngine {
     const x1 = Math.max(...xs) + 70;
     const y0 = Math.min(...ys) - 70;
     const y1 = Math.max(...ys) + 100;
-    const k = clamp(Math.min(this.W / (x1 - x0), this.H / (y1 - y0)), 0.25, 1.3);
-    this.moveTo({ x: this.W / 2 - ((x0 + x1) / 2) * k, y: this.H / 2 - ((y0 + y1) / 2) * k + 10, k }, ms);
+    const h = Math.max(120, this.H - this.insets.top - this.insets.bottom);
+    const k = clamp(Math.min(this.W / (x1 - x0), h / (y1 - y0)), 0.25, 1.3);
+    this.moveTo({ x: this.W / 2 - ((x0 + x1) / 2) * k, y: this.insets.top + h / 2 - ((y0 + y1) / 2) * k, k }, ms);
   }
   private flyTo(wx: number, wy: number, k: number) {
     this.autoFit = false;
@@ -645,12 +650,12 @@ export class PatchworkEngine {
     const live = (t: RThread) => t.visible && t.source.visible && t.target.visible && DIST[t.kind] != null;
     (this.sim.force("link") as ReturnType<typeof forceLink<RNode, RThread>>)
       .links(this.threads.filter(live))
-      .distance((l) => (DIST[l.kind] ?? 100) + (l.kind === "has" ? this.radius(l.source) : 0))
+      .distance((l) => (DIST[l.kind] ?? 100) * (l.kind === "has" || l.kind === "team" ? 1 : this.spread) + (l.kind === "has" ? this.radius(l.source) : 0))
       .strength((l) => STR[l.kind] ?? 0.05);
     (this.sim.force("charge") as ReturnType<typeof forceManyBody<RNode>>).strength((n) => (!n.visible ? 0 : n.kind === "spot" ? -18 : n.kind === "event" ? -800 : -260));
     (this.sim.force("collide") as ReturnType<typeof forceCollide<RNode>>).radius((n) => (n.visible ? this.radius(n) * (n.kind === "spot" ? 1.5 : 1) + (n.kind === "spot" ? 3 : 6) : 0));
     (this.sim.force("radial") as ReturnType<typeof forceRadial<RNode>>)
-      .radius((n) => (RING as Record<string, number>)[n.kind] ?? 0)
+      .radius((n) => ((RING as Record<string, number>)[n.kind] ?? 0) * this.spread)
       .strength((n) => (!n.visible || n.kind === "spot" || n.kind === "event" || n.kind === "teammate" ? 0 : n.kind === "creator" ? 0.1 : 0.06));
   }
   private shown(t: RThread) {
@@ -667,6 +672,13 @@ export class PatchworkEngine {
     this.W = r.width;
     this.H = r.height;
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.insets = this.W < 768 ? { top: 40, bottom: 60 } : { top: 90, bottom: 84 };
+    const spread = clamp(this.W / 760, 0.62, 1);
+    if (Math.abs(spread - this.spread) > 0.02) {
+      this.spread = spread;
+      this.sim.alpha(Math.max(this.sim.alpha(), 0.5));
+      if (this.nodes.length) this.sim.tick(this.reduce ? 200 : 60);
+    }
     this.canvas.width = Math.max(1, Math.round(this.W * this.dpr));
     this.canvas.height = Math.max(1, Math.round(this.H * this.dpr));
     this.dirty = true;
