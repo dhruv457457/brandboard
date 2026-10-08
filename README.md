@@ -135,16 +135,16 @@ The full write-up, with the problem, the lesson and the on-chain proof for each 
 
 ## The patch NFT that grows up
 
-Winning a spot mints a **Living Patch**: an embroidered patch sewn onto the creator's fabric, with a woven label that carries the facts. The picture is drawn by the contract itself and redraws as the creator proves each step. It *is* the spot: its holder gets the refund and the right to dispute.
+Winning a spot mints a **Living Patch**, drawn as a collectible trading card: the garment with the brand's embroidered patch sewn on, a price coin, and a four-step track. The picture is drawn by the contract itself and redraws as the creator proves each step: passport stamps pile up for printed and seen, and a DELIVERED stamp lands when the run is done. It *is* the spot: its holder gets the refund and the right to dispute.
 
 <p align="center">
-  <img src="docs/images/living-patch.png" alt="The six stages of a patch NFT: won, printed, seen, delivered, refunded, disputed" width="100%">
+  <img src="docs/images/living-patch.png" alt="Patch NFT trading cards: delivered in gold, won, printed, seen, delivered, refunded, disputed, and a car card" width="100%">
 </p>
 
 - **Sponsor numbers.** "No.001, first sponsor of @mira": a public record of which brand backed which creator first.
 - **Verifiable proofs.** Proof photos and the proof record are pinned to IPFS, and the hash in the contract is the hash of that record. Every patch has a page at `/patch/<token>` with a timeline and a button that fetches the proof, hashes it in your browser and compares it with the chain.
 - **Resale with a royalty.** A patch can be resold on Patched while the creator is delivering; 5% goes to the creator. Tokens cannot move any other way.
-- Thread colour shows the price (cotton under $100, silk to $999, gold from $1,000) and each listing's patches come in five shapes. Design and plan: [docs/nft-plan.md](docs/nft-plan.md).
+- The card's frame shows the price: black cotton under $100, iridescent silk to $999, gold foil from $1,000. Each listing's patches come in five shapes, and outfits, cars and team hoodies each get their own drawing. Design and plan: [docs/nft-plan.md](docs/nft-plan.md).
 
 ## Verify it yourself
 
@@ -229,7 +229,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **No-shows are refunded.** If a creator misses a proof deadline, the unpaid escrow and the creator's stake go to the patch holders.
 - **Creator record.** On-chain delivered and missed counts plus total earned, shown on every listing next to the stake and the payout plan.
 - **Safe onboarding.** New creators have a spending cap until their first delivery, and every new listing goes live within seconds through a policy-limited Privy wallet that can only approve listings.
-- **Living patch NFTs.** Winning a spot mints an NFT drawn on-chain as an embroidered patch with a woven label. It updates itself as the creator proves each step (won, printed, seen, delivered), is unpicked if the creator fails, and shows hazard tape while a dispute is open. It *is* the spot: its holder gets refunds and dispute rights. Each one has a public page at `/patch/<token>` with a timeline and a check that hashes the proof from IPFS and compares it with the hash on-chain.
+- **Living patch NFTs.** Winning a spot mints an NFT drawn on-chain as a trading card with the patch sewn onto the garment. It updates itself as the creator proves each step (won, printed, seen, delivered), goes grey with the patch unpicked if the creator fails, and shows hazard tape while a dispute is open. It *is* the spot: its holder gets refunds and dispute rights. Each one has a public page at `/patch/<token>` with a timeline and a check that hashes the proof from IPFS and compares it with the hash on-chain.
 - **Resale.** A receipt can be listed, bought or delisted on Patched, with a 5% royalty to the creator. Receipts can't move outside the market, so the royalty always applies.
 - **Fallback payouts.** If a payment to a wallet ever fails, the money waits in the contract and the owner withdraws it. The market can be paused in an emergency.
 
@@ -296,7 +296,7 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 |---|---|---|
 | PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xf10a7E612579456401E4d59df7d446158FE7ee9F` (proxy) |
 | PatchReceipt, Living Patch | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` (listings 11 and later) | `0x6a8CD838489dbafB974A2cB08C86847BE55ea95c` |
-| PatchRenderer | `0xE0369f8e0cddf96Ad069A413D3a53f7109c9826d` | `0x655477765425bd1A2E1289af9760836E22eD4209` |
+| PatchRenderer | `0x6277d2FddAec00DE17C3eBa299FbfAe6F6783B80` | `0x1D864f5b369D63287532D0CC8ed59b057666d540` |
 | PatchReceipt, first version | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` (listings 1 to 10) | – |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0xD0779dC4E1EE6626E76ec54E7A356877bfc0F47a` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0xB508530bC1752583E6A04b1A9d6c82d9dd7eA4C5` |

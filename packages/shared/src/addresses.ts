@@ -34,7 +34,7 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
     // Living Patch upgrade 2026-10-04: new receipt + renderer. Listings 1-10 keep their tokens on the first receipt.
     receipt: "0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A",
     legacyReceipt: "0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e",
-    renderer: "0xE0369f8e0cddf96Ad069A413D3a53f7109c9826d",
+    renderer: "0x6277d2FddAec00DE17C3eBa299FbfAe6F6783B80", // trading-card art, swapped in 2026-10-09
     livingPatch: true,
     usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3",
     deployBlock: 66627600,
@@ -53,7 +53,7 @@ export const DEPLOYMENTS: Record<number, PatchedDeployment | undefined> = {
   143: {
     market: "0xf10a7E612579456401E4d59df7d446158FE7ee9F",
     receipt: "0x6a8CD838489dbafB974A2cB08C86847BE55ea95c",
-    renderer: "0x655477765425bd1A2E1289af9760836E22eD4209",
+    renderer: "0x1D864f5b369D63287532D0CC8ed59b057666d540", // trading-card art, swapped in 2026-10-09
     livingPatch: true,
     usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
     deployBlock: 111660653,
