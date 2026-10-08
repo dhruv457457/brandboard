@@ -17,6 +17,16 @@ function samePageOn(path: string): string {
   return path;
 }
 
+/**
+ * Whether a network has a site to go to. Without NEXT_PUBLIC_*_URL set, a site points at localhost, which is only
+ * useful when you are on localhost yourself: on the real site it would be a dead link.
+ */
+export function networkAvailable(chain: 10143 | 143): boolean {
+  const url = NETWORK_SITES[chain].url;
+  if (!/localhost|127\.0\.0\.1/.test(url)) return true;
+  return typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+}
+
 export function networkUrl(chain: 10143 | 143, path: string) {
   return `${NETWORK_SITES[chain].url.replace(/\/$/, "")}${samePageOn(path)}`;
 }
@@ -68,6 +78,7 @@ export function NetworkOptions({ onPick }: { onPick?: () => void }) {
 
 /** The warning before a visitor moves to mainnet: real USDC, an MVP, so small amounts. */
 export function MainnetNotice({ href, onClose }: { href: string; onClose: () => void }) {
+  const open = networkAvailable(143);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", esc);
@@ -78,14 +89,15 @@ export function MainnetNotice({ href, onClose }: { href: string; onClose: () => 
       <div role="dialog" aria-modal="true" aria-labelledby="mainnet-title" onMouseDown={(e) => e.stopPropagation()}
         className="card-surface w-full max-w-[420px] p-6 grid gap-3">
         <span className="w-10 h-10 rounded-full grid place-items-center bg-[var(--accent-soft)] text-[var(--accent-text)]"><TriangleAlert size={20} /></span>
-        <h2 id="mainnet-title" className="text-xl font-extrabold">Mainnet uses real USDC</h2>
+        <h2 id="mainnet-title" className="text-xl font-extrabold">{open ? "Mainnet uses real USDC" : "Mainnet opens soon"}</h2>
         <p className="text-sm text-[var(--muted)]">
-          Patched is an MVP and the contracts are unaudited, so use small amounts. Every bid, stake and payout here is real USDC on Monad mainnet.
-          Testnet has free test money if you just want to try things.
+          {open
+            ? "Patched is an MVP and the contracts are unaudited, so use small amounts. Every bid, stake and payout here is real USDC on Monad mainnet. Testnet has free test money if you just want to try things."
+            : "The contracts are live on Monad mainnet with real USDC, but this site isn't open there yet. Everything works on testnet with free test money, so try it there for now."}
         </p>
-        <div className="grid gap-2 sm:grid-cols-2 mt-1">
-          <button type="button" onClick={onClose} className="btn-base btn-primary justify-center">Stay on testnet</button>
-          <a href={href} className="btn-base justify-center no-underline">Go to mainnet</a>
+        <div className={open ? "grid gap-2 sm:grid-cols-2 mt-1" : "grid mt-1"}>
+          <button type="button" onClick={onClose} className="btn-base btn-primary justify-center">{open ? "Stay on testnet" : "Got it"}</button>
+          {open && <a href={href} className="btn-base justify-center no-underline">Go to mainnet</a>}
         </div>
       </div>
     </div>
