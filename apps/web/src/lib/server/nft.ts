@@ -1,7 +1,7 @@
 import "server-only";
 import { patchedMarketAbi } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
-import { readHolder, readTokenView, type TokenData } from "@/lib/nft/token";
+import { CARD_PROFILE_COLUMNS, readHolder, readTokenView, withProfiles, type CardProfile, type TokenData } from "@/lib/nft/token";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export interface NftPage {
@@ -28,7 +28,9 @@ export async function getNftPage(tokenId: bigint): Promise<NftPage | null> {
 
   const id = BigInt(token.listingId);
   const read = <T,>(p: Promise<T>) => p.then((v) => v, () => null);
-  const [resalePrice, ...rows] = await Promise.all([
+  const [{ data: people }, resalePrice, ...rows] = await Promise.all([
+    Promise.resolve(supabaseAdmin().from("profiles").select(CARD_PROFILE_COLUMNS).in("wallet", [token.winner.toLowerCase(), token.creator.toLowerCase()]))
+      .catch(() => ({ data: null })),
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "resalePrice", args: [tokenId] }),
     ...Array.from({ length: token.proofsDone }, (_, m) =>
       Promise.all([
@@ -46,7 +48,8 @@ export async function getNftPage(tokenId: bigint): Promise<NftPage | null> {
     at: at ? Number(at) : 0,
     hash: ms?.proofHash ?? "0x",
   }));
-  return { token, receipt, holder, resalePrice, proofs };
+  const profileOf = (w: string) => (people as (CardProfile & { wallet: string })[] | null)?.find((p) => p.wallet === w.toLowerCase()) ?? null;
+  return { token: withProfiles(token, profileOf(token.winner), profileOf(token.creator)), receipt, holder, resalePrice, proofs };
 }
 
 export interface TimelineEvent {

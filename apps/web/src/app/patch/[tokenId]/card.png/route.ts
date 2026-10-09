@@ -15,7 +15,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tokenId
   const t = page.token;
   const showsPhoto = t.stage === "printed" || t.stage === "seen" || t.stage === "delivered";
   const photo = showsPhoto ? await photoDataUrl(ipfsUrl(t.coverURI)) : null;
-  const png = await cardPng(cardSvg(t, { id: "og", photo }));
+  // The names come from the profiles; the logo and face stay off, as the renderer can't fetch outside pictures.
+  const png = await cardPng(cardSvg({ ...t, brandLogo: null, creatorAvatar: null }, { id: "og", photo }));
   return new Response(new Uint8Array(png), {
     headers: {
       "content-type": "image/png",

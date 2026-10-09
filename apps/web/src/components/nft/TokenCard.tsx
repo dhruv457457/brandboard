@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { patchReceiptAbi } from "@patched/shared";
 import { publicClient, RECEIPT } from "@/lib/config";
-import { cardSvg, readTokenView, tokenPath, type TokenData } from "@/lib/nft/token";
+import { CARD_PROFILE_COLUMNS, cardSvg, readTokenView, tokenPath, withProfiles, type CardProfile, type TokenData } from "@/lib/nft/token";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Tilt } from "./Tilt";
@@ -39,26 +39,22 @@ export function loadToken(tokenId: string): Promise<TokenData | null> {
 }
 
 /**
- * Names for the card. The chain only knows a brand or creator name if that person saved one on-chain, which most
- * wallets never did, so the card would show a short address. The profile on Patched has the name; ask for it once per
- * wallet and keep it for this tab. The same cleaning the contract applies: letters, digits, space . - _
+ * The Patched profile behind a wallet, asked for once per wallet and kept for this tab. It has the pictures, and the
+ * right name for each role (the chain keeps one name per wallet), so the card prefers it to the on-chain name.
  */
-interface Names { brand: string; person: string; logo: string | null; avatar: string | null }
-const names = new Map<string, Promise<Names | null>>();
-const clean = (v: string | null | undefined) => (v ?? "").replace(/[^A-Za-z0-9 ._-]/g, "").trim().slice(0, 24);
-function profileNames(wallet: string): Promise<Names | null> {
+const profiles = new Map<string, Promise<CardProfile | null>>();
+function profileOf(wallet: string): Promise<CardProfile | null> {
   const key = wallet.toLowerCase();
-  if (!names.has(key)) {
-    names.set(key, Promise.resolve(supabase().from("profiles").select("display_name, brand_name, handle, brand_logo_url, avatar_url").eq("wallet", key).maybeSingle())
-      .then(({ data }) => (data ? { brand: clean(data.brand_name) || clean(data.display_name) || clean(data.handle), person: clean(data.handle) || clean(data.display_name), logo: data.brand_logo_url ?? null, avatar: data.avatar_url ?? null } : null))
+  if (!profiles.has(key)) {
+    profiles.set(key, Promise.resolve(supabase().from("profiles").select(CARD_PROFILE_COLUMNS).eq("wallet", key).maybeSingle())
+      .then(({ data }) => (data as CardProfile | null) ?? null)
       .catch(() => null));
   }
-  return names.get(key)!;
+  return profiles.get(key)!;
 }
-/** A token with the profile names and pictures filled in (the chain has neither pictures nor, often, names). */
 async function withNames(t: TokenData): Promise<TokenData> {
-  const [b, c] = await Promise.all([profileNames(t.winner), profileNames(t.creator)]);
-  return { ...t, brand: t.brand || b?.brand || "", creatorName: t.creatorName || c?.person || "", brandLogo: b?.logo ?? null, creatorAvatar: c?.avatar ?? null };
+  const [winner, creator] = await Promise.all([profileOf(t.winner), profileOf(t.creator)]);
+  return withProfiles(t, winner, creator);
 }
 
 /**

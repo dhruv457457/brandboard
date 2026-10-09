@@ -49,7 +49,7 @@ export default async function PatchPage({ params }: Params) {
   const db = supabase();
   const [timeline, { data: people }] = await Promise.all([
     getTimeline(t.listingId).catch(() => [] as TimelineEvent[]),
-    db.from("profiles").select("wallet, handle, display_name, brand_name, brand_logo_url, avatar_url").in("wallet", [t.creator.toLowerCase(), holder.toLowerCase(), t.winner.toLowerCase()]),
+    db.from("profiles").select("wallet, handle, display_name, brand_name").in("wallet", [t.creator.toLowerCase(), holder.toLowerCase()]),
   ]);
   const creator = people?.find((p) => p.wallet === t.creator.toLowerCase());
   const holderProfile = people?.find((p) => p.wallet === holder.toLowerCase());
@@ -58,8 +58,7 @@ export default async function PatchPage({ params }: Params) {
   const holderHref = `/${holderProfile?.handle ?? holder.toLowerCase()}`;
 
   const photo = t.stage === "printed" || t.stage === "seen" || t.stage === "delivered" ? ipfsUrl(t.coverURI) : null;
-  const winnerProfile = people?.find((p) => p.wallet === t.winner.toLowerCase());
-  const svg = cardSvg(t, { id: "page", photo, brandLogo: winnerProfile?.brand_logo_url ?? null, creatorAvatar: creator?.avatar_url ?? null });
+  const svg = cardSvg(t, { id: "page", photo });
   const f = facts(t);
   const proofTx = new Map(timeline.filter((e) => e.kind === "proof").map((e) => [e.milestone, e.tx]));
   const rows: ProofRow[] = proofs.map((p) => ({ ...p, hash: p.hash, tx: proofTx.get(p.milestone) }));

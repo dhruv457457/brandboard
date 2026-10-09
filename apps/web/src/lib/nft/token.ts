@@ -96,6 +96,36 @@ export async function readHolder(client: PublicClient, tokenId: bigint, listingI
   return { receipt, holder };
 }
 
+/** The profile columns the card's names and pictures come from. */
+export const CARD_PROFILE_COLUMNS = "wallet, display_name, brand_name, handle, brand_logo_url, avatar_url";
+export interface CardProfile {
+  display_name: string | null;
+  brand_name: string | null;
+  handle: string | null;
+  brand_logo_url: string | null;
+  avatar_url: string | null;
+}
+
+/** The same cleaning the contract applies to names (letters, digits, space . - _), so the card draws the same text. */
+const cleanName = (v: string | null | undefined) => (v ?? "").replace(/[^A-Za-z0-9 ._-]/g, "").trim().slice(0, 24);
+
+/**
+ * A token with the Patched profile names and pictures filled in. The chain keeps one name per wallet, shared by the
+ * creator and brand roles, so a creator who also sponsors shows their brand name as the creator. The profile knows
+ * which is which: the creator is their handle, the winner their brand. The on-chain name is only the fallback.
+ */
+export function withProfiles(t: TokenData, winner?: CardProfile | null, creator?: CardProfile | null): TokenData {
+  const brand = winner ? cleanName(winner.brand_name) || cleanName(winner.display_name) || cleanName(winner.handle) : "";
+  const person = creator ? cleanName(creator.handle) || cleanName(creator.display_name) : "";
+  return {
+    ...t,
+    brand: brand || t.brand,
+    creatorName: person || t.creatorName,
+    brandLogo: t.brandLogo ?? winner?.brand_logo_url ?? null,
+    creatorAvatar: t.creatorAvatar ?? creator?.avatar_url ?? null,
+  };
+}
+
 /** The card's name for the brand or creator: the chosen name, else a short address. */
 export function displayBrand(t: TokenData) {
   return t.brand || shortAddress(t.winner);
