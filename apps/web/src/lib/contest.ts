@@ -2,8 +2,8 @@
 
 export const CONTEST = "get-patched-week";
 export const CONTEST_EVENT_SLUG = "get-patched-week";
-/** Entries close here: 2026-10-11 09:00 IST. */
-export const DEADLINE = Date.parse("2026-10-11T03:30:00Z");
+/** Entries close here: 2026-10-12 09:00 IST (extended by a day from Oct 11). */
+export const DEADLINE = Date.parse("2026-10-12T03:30:00Z");
 /** The contest opened 2026-10-08 00:00 IST; only actions after this count for step 3. */
 export const OPENS = Date.parse("2026-10-07T18:30:00Z");
 export const TELEGRAM_URL = "https://t.me/patchedworld";

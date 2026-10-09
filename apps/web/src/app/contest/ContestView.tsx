@@ -103,7 +103,7 @@ export function ContestView({ cover }: { cover: string | null }) {
         </section>
         <Timeline />
         <section id="enter" className="grid gap-7 scroll-mt-24">
-          <Heading eyebrow="Your turn" title={<>Get in before <span className="whitespace-nowrap">Oct 11</span></>} note="takes two minutes" />
+          <Heading eyebrow="Your turn" title={<>Get in before <span className="whitespace-nowrap">Oct 12</span></>} note="takes two minutes" />
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
             <EntryForm data={data} onSaved={() => void load()} />
             <div className="hidden lg:grid gap-4 sticky top-6">
@@ -149,7 +149,7 @@ function Hero({ data, cover, loaded, onEnter, onJoin, joining }: { data: Contest
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-8 sm:gap-10 p-5 sm:p-10 lg:p-14">
         <div className="grid gap-5 sm:gap-6 content-start">
           <span className="inline-flex w-fit items-center gap-2.5 rounded-full border-2 border-[var(--ink)] bg-[var(--paper)] px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap">
-            <span className="ct-dot" /> <span className="sm:hidden">Contest · Oct 8 to 11</span><span className="hidden sm:inline">Community contest · Oct 8 to 11</span>
+            <span className="ct-dot" /> <span className="sm:hidden">Contest · Oct 8 to 12</span><span className="hidden sm:inline">Community contest · Oct 8 to 12</span>
           </span>
           <h1 className="m-0 font-display font-extrabold leading-[0.94] tracking-[-0.04em] text-[clamp(50px,13vw,92px)]">
             Get <span className="ct-mark">Patched</span>
@@ -161,7 +161,7 @@ function Hero({ data, cover, loaded, onEnter, onJoin, joining }: { data: Contest
             Use Patched. Post about it. <b>Get paid on Monad.</b> Even with 12 followers.
           </p>
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2.5">
-            {["$30 USDC", "3 winners", "Ends Oct 11, 9 AM IST"].map((t, i) => (
+            {["$30 USDC", "3 winners", "Extended: ends Oct 12, 9 AM IST"].map((t, i) => (
               <li key={t}><Patch tone={[2, 3, 1][i]!} rotate={[-2, 2, -1][i]!} className="px-3.5 py-2 font-display font-extrabold text-[15px]" style={{ borderRadius: 14 }}>{t}</Patch></li>
             ))}
           </ul>
@@ -368,9 +368,10 @@ function Tracks() {
 const DAYS = [
   { at: Date.parse("2026-10-07T18:30:00Z"), date: "Oct 8", title: "Contest opens", body: "Join the Telegram, sign in with X and look around the event." },
   { at: Date.parse("2026-10-08T18:30:00Z"), date: "Oct 9", title: "List and bid", body: "List your fit, bid on someone's. Set bidding to 12 to 24 hours so payouts land in time." },
-  { at: Date.parse("2026-10-09T18:30:00Z"), date: "Oct 10", title: "Proofs and payouts", body: "Show you showed up, get paid. The entry form is posted in the Telegram that evening." },
-  { at: DEADLINE, date: "Oct 11 · 9 AM IST", title: "Entries close, the draw runs", body: "The first Monad block after the deadline picks the lucky-draw winner. Anyone can check it." },
-  { at: DEADLINE + 6 * 3_600_000, date: "Oct 11", title: "Winners paid on Monad", body: "Three payments, three transaction links, posted here and on X." },
+  { at: Date.parse("2026-10-09T18:30:00Z"), date: "Oct 10", title: "Proofs and payouts", body: "Show you showed up, get paid." },
+  { at: Date.parse("2026-10-10T18:30:00Z"), date: "Oct 11", title: "One more day", body: "We added a day. List, bid, post about it and send your entry. Last call in the evening." },
+  { at: DEADLINE, date: "Oct 12 · 9 AM IST", title: "Entries close, the draw runs", body: "The first Monad block after the deadline picks the lucky-draw winner. Anyone can check it." },
+  { at: DEADLINE + 6 * 3_600_000, date: "Oct 12", title: "Winners paid on Monad", body: "Three payments, three transaction links, posted here and on X." },
 ];
 
 function Timeline() {
@@ -414,7 +415,7 @@ const FAQ: [string, React.ReactNode][] = [
   ["How many entries can I have?", "One per person. Sending the form again before the deadline updates your entry."],
   ["Do I need followers?", "No. Best post is judged on creativity and honesty, not views, so a small account can win."],
   ["What does the listing tip mean?", "Set bidding to 12 to 24 hours and turn on the quick-proof setting (testnet). That way bids close and payouts land before the contest ends."],
-  ["How is the lucky draw fair?", "At the deadline the entry list is fixed. The hash of the first Monad testnet block after 9 AM IST on Oct 11 picks the index. The block number and hash are shown on this page so you can check it yourself."],
+  ["How is the lucky draw fair?", "At the deadline the entry list is fixed. The hash of the first Monad testnet block after 9 AM IST on Oct 12 picks the index. The block number and hash are shown on this page so you can check it yourself."],
   ["What do you do with my email?", "Only contact winners. It is never shown on the page and the database refuses to hand it out to the public."],
   ["Who runs this?", <>The Patched team: <a href={X_URL} target="_blank" rel="noopener noreferrer">@Patched_world</a> and <a href="https://x.com/dhruvpanch0li" target="_blank" rel="noopener noreferrer">@dhruvpanch0li</a>. It is a practice round before ETHGlobal Mumbai and is not affiliated with ETHGlobal.</>],
 ];

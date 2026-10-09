@@ -147,7 +147,7 @@ function Fairness({ draw }: { draw: DrawResult | null }) {
       <h3 className="m-0 flex items-center gap-2 font-display font-extrabold text-xl"><ShieldCheck size={20} className="text-[var(--green)]" /> Provably fair</h3>
       <ol className="m-0 pl-5 grid gap-1.5 text-[14px] leading-snug text-[var(--muted)]">
         <li>At the deadline the entry list is fixed, oldest entry first.</li>
-        <li>We take the hash of the first Monad testnet block after Oct 11, 9 AM IST.</li>
+        <li>We take the hash of the first Monad testnet block after Oct 12, 9 AM IST.</li>
         <li className="font-mono text-[12.5px] text-[var(--ink)]">winner = entries[ BigInt(blockHash) % entries.length ]</li>
         <li>Everything below is public, so anyone can re-check it.</li>
       </ol>
@@ -163,7 +163,7 @@ function Fairness({ draw }: { draw: DrawResult | null }) {
           <dd className="m-0 font-mono">{draw.index} {draw.winner ? `(@${draw.winner})` : ""}</dd>
         </dl>
       ) : (
-        <p className="m-0 text-[13px] font-semibold text-[var(--accent-text)]">The draw runs on Oct 11, 9 AM IST. The block number, hash and winner appear here.</p>
+        <p className="m-0 text-[13px] font-semibold text-[var(--accent-text)]">The draw runs on Oct 12, 9 AM IST. The block number, hash and winner appear here.</p>
       )}
     </div>
   );
