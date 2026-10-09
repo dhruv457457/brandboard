@@ -6,7 +6,7 @@
 
 **Word budget:** about 280 words at 150 a minute. The script below is about 275.
 
-**Update before recording (Oct 11):** the traction line, with numbers from `npx tsx scripts/metrics.mts` (see [../context/06-community-and-traction.md](../context/06-community-and-traction.md)). Never round up. Testnet numbers are fine if you say "on testnet".
+**Update before recording (after the contest closes, Oct 12 9 AM IST):** the traction line, with numbers from `npx tsx scripts/metrics.mts` (see [../context/06-community-and-traction.md](../context/06-community-and-traction.md)). Never round up. Testnet numbers are fine if you say "on testnet".
 
 ## Script
 

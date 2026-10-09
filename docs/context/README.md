@@ -31,7 +31,7 @@ Last updated: **2026-10-09**. This folder is the one place to read to understand
 | Contract tests | 134 passing (unit, fuzz, invariant, upgrade, fork) |
 | Privy features in use | 14 distinct uses, from sign-in to policy-limited server wallets (see [02-privy.md](02-privy.md)) |
 | Real users (testnet) | 14 profiles, 7 with X, 4 creators, 10 listings, 8 bids from 4 brands, $93 of bids (our own wallets left out) |
-| Contest | Get Patched Week, Oct 8 to Oct 11 09:00 IST, $30 USDC in prizes |
+| Contest | Get Patched Week, Oct 8 to Oct 12 09:00 IST (extended by a day), $30 USDC in prizes |
 
 ## Before you change anything
 

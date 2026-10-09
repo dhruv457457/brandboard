@@ -81,8 +81,8 @@ Day to day, Dhruv builds and markets alone right now, so every plan here should 
 | 3 | Keep the indexer and keeper running for chain 143 (pg_cron on the mainnet site, or a second cron) | code + Dhruv | check |
 | 4 | **One real $5 mainnet cycle** (list, bid, outbid, close, proof, pay); add the hashes to `docs/evidence.md` | both | to do |
 | 5 | Verify the mainnet contracts on Sourcify | code | to do |
-| 6 | Contest: close Oct 11 09:00 IST, run the draw, pay 3 × $10 on mainnet, post the tx links | Dhruv | Oct 11 |
-| 7 | Update the deck's traction slide with Oct 11 numbers (`metrics.mts`) | Dhruv | Oct 11 |
+| 6 | Contest: close Oct 12 09:00 IST, run the draw, pay 3 × $10 on mainnet, post the tx links | Dhruv | Oct 12 |
+| 7 | Update the deck's traction slide with Oct 12 numbers (`metrics.mts`) | Dhruv | Oct 12 |
 | 8 | Demo video (≤3 min, show the explorer) and pitch video (≤2 min) | Dhruv | to do |
 | 9 | README: the Medium link for the Privy write-up; mainnet evidence | code | to do |
 | 10 | Live checks: demo-account guards, auto-bid raise flow, campaign budget aggregation, price formatting | code | to do |

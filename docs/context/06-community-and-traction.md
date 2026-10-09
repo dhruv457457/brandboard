@@ -24,7 +24,7 @@ A 3-day contest that gets real people through the whole loop (sign in with X, li
 
 | | |
 |---|---|
-| When | Oct 8 00:00 IST to **Oct 11 09:00 IST** (`DEADLINE` = 2026-10-11T03:30Z) |
+| When | Oct 8 00:00 IST to **Oct 12 09:00 IST** (`DEADLINE` = 2026-10-12T03:30Z). Extended by one day on Oct 9; the event's end in `patched_events` moved with it, so Studio still offers the event on Oct 11 |
 | Event | "Get Patched Week Mumbai", testnet event **#5**, `https://monad.patched.world/e/get-patched-week`. Created from the open-admin Privy wallet, tx `0x3ae86464…3504` |
 | Page | `https://monad.patched.world/contest` (`app/contest/ContestView.tsx`) |
 | Prizes | $30 in real USDC on Monad mainnet: 3 × $10, paid by hand, with the transaction links posted publicly |
@@ -64,7 +64,7 @@ A 3-day contest that gets real people through the whole loop (sign in with X, li
 
 `lib/contestTrack.ts` counts three anonymous steps once per browser (a random id kept in `localStorage`, nothing personal): **view** (opened the page), **join** (tapped "Count me in"), **form** (started the entry form). They are sent to `/api/contest/track` and stored in `contest_funnel`. Vercel Analytics covers page views site-wide.
 
-**Funnel today (Oct 9, 13:30 UTC):** 12 views → 4 joined → 3 started the form → **0 entries** submitted. The thread and the Telegram reminder need to push people from "started" to "submitted" before Oct 11, 09:00 IST.
+**Funnel today (Oct 9, 13:30 UTC):** 12 views → 4 joined → 3 started the form → **0 entries** submitted. The thread and the Telegram reminder need to push people from "started" to "submitted" before Oct 12, 09:00 IST.
 
 ## Traction numbers
 
@@ -108,11 +108,11 @@ npx tsx scripts/metrics.mts                            # testnet
 NEXT_PUBLIC_CHAIN_ID=143 npx tsx scripts/metrics.mts   # mainnet
 ```
 
-Update the deck's traction slide and this file after the contest closes on Oct 11.
+Update the deck's traction slide and this file after the contest closes on Oct 12.
 
 ## What would move the numbers most before Oct 12
 
 1. **Contest entries.** The 3 people who started the form: remind them in Telegram and by X reply; post a "how to enter in 2 minutes" video.
 2. **One real mainnet cycle with real USDC**, even at $5: a real creator, a real brand, a real payout, with explorer links. Only one rival in track 3 showed mainnet transactions.
 3. **Real creators.** The founder's network (the deck's creator, 70M+ Instagram views) listing actual event outfits.
-4. **Before and after** numbers on the traction slide: Oct 8 vs Oct 11.
+4. **Before and after** numbers on the traction slide: Oct 8 vs Oct 12.

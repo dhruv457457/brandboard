@@ -15,7 +15,7 @@ Hosts allowed: YouTube (unlisted is fine), Loom, Vimeo. Upload each, check the l
 
 1. **Privy bounty video first** (today). It reuses most of the demo setup, and its parts are short and independent.
 2. **Technical demo** next. It has one time-critical beat (see below).
-3. **Pitch** last, once the contest numbers are in (Oct 11), so the traction line is current.
+3. **Pitch** last, once the contest numbers are in (Oct 12, 9 AM IST), so the traction line is current.
 
 ## Do this first: one deadline that can't slip
 
