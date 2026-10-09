@@ -356,4 +356,4 @@ The report is in `apps/web/e2e/report/` (`npx playwright show-report e2e/report`
 
 ## More
 
-[Product spec](docs/SPEC.md) · [Contracts](docs/contracts.md) · [Design system](docs/design-system.md) · [Data model](docs/data-model.md) · [Agent guide](AGENTS.md) · [X @Patched_world](https://x.com/Patched_world) · [Telegram](https://t.me/+TrSZaCSMngo3YWQ9)
+[Full project context](docs/context/README.md) · [Product spec](docs/SPEC.md) · [Contracts](docs/contracts.md) · [Design system](docs/design-system.md) · [Data model](docs/data-model.md) · [Agent guide](AGENTS.md) · [X @Patched_world](https://x.com/Patched_world) · [Telegram](https://t.me/+TrSZaCSMngo3YWQ9)

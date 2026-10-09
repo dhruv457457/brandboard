@@ -20,7 +20,7 @@ Every patch is its **own live auction**: floor price, buy-now price, +5% (min +$
 
 Winning a patch mints a **PatchReceipt NFT**. The NFT *is* the patch spot: its holder gets refunds and dispute rights, and it can be resold on Patched with a 5% royalty to the creator.
 
-Full product spec: [docs/SPEC.md](docs/SPEC.md). Contract API: [docs/contracts.md](docs/contracts.md). Design system: [docs/design-system.md](docs/design-system.md). Data model: [docs/data-model.md](docs/data-model.md).
+**Current full context (product, Privy, contracts, infra, community, GTM, roadmap): [docs/context/](docs/context/README.md). Start there.** Full product spec: [docs/SPEC.md](docs/SPEC.md). Contract API: [docs/contracts.md](docs/contracts.md). Design system: [docs/design-system.md](docs/design-system.md). Data model: [docs/data-model.md](docs/data-model.md).
 
 ## Hackathon context
 
