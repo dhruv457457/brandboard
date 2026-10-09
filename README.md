@@ -15,7 +15,8 @@
   <a href="https://t.me/+TrSZaCSMngo3YWQ9">Telegram</a> ·
   <a href="docs/contracts.md">Contracts</a> ·
   <a href="docs/privy.md">Privy in detail</a> ·
-  <a href="docs/evidence.md">On-chain evidence</a>
+  <a href="docs/evidence.md">On-chain evidence</a> ·
+  <a href="docs/context/README.md">Full project context</a>
 </p>
 
 <p align="center">
@@ -25,6 +26,18 @@
   <img alt="Tests" src="https://img.shields.io/badge/contract%20tests-134%20passing-1F8A4C?style=flat-square">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-0B0B0C?style=flat-square">
 </p>
+
+## At a glance
+
+| | |
+|---|---|
+| **The problem** | A creator sold 13 logo spots on her Token2049 outfit and raised $9,200 in under 48 hours, then fought rejected payments, a hand-built website and fixed prices. Millions of people at events are looking at outfits, cars and team hoodies, and none of that attention can be sold safely. |
+| **What we built** | A live auction for every logo spot, paid in USDC, held in on-chain escrow and released only when the creator proves they showed up. Winning a spot mints a patch NFT that redraws itself as the creator delivers. |
+| **Live now** | [monad.patched.world](https://monad.patched.world): Monad testnet for play, and **Monad mainnet with real Circle USDC**, on the same address. A switch in the sidebar changes the chain. |
+| **Proven on-chain** | The whole money loop (list, bid, outbid refund, auto-bid, sweep, campaign, close, proof, dispute, payout) ran as [25 transactions](docs/evidence.md). 134 contract tests, including fuzz and a solvency invariant. |
+| **Privy, beyond login** | 14 Privy features in production: embedded wallets, gas sponsorship, signers with policies, policy-limited server wallets, budgets enforced by Privy aggregations, wallets made for X handles before people sign up, passkey MFA, and more. [How each one works](docs/privy.md). |
+| **Real people** | 14 real users and 10 listings by 4 creators on testnet so far (our own wallets left out), a Telegram community, and the Get Patched Week contest running until Oct 12. |
+| **Try it in one tap** | Sign in → **Use the demo account**. No email, no seed phrase, no extension. |
 
 ## What is Patched
 
@@ -44,7 +57,7 @@ Every creator gets their own page at `yourname.monad.patched.world`, so there is
 
 ### Where it came from
 
-Before Token2049, a popular creator, [vanshu.eth](https://token2049.vanshu.fun/), posted her event outfit and offered brands the logo spots on it. Brands wanted in. Then:
+Before Token2049, a popular creator, [vanshu.eth](https://token2049.vanshu.fun/), posted her event outfit and offered brands the logo spots on it. Brands wanted in: 13 spots sold and $9,200 came in within 48 hours, and her post reached 1.5M views. Then:
 
 - **Her payments got rejected.** Brands paying from abroad hit international transaction rejections at Razorpay.
 - **She had to build and run a whole website** just to show the spots and take orders.
@@ -68,9 +81,10 @@ Patched is the answer to all three: USDC straight to a wallet, a page made for y
 1. Open [monad.patched.world](https://monad.patched.world), press **Sign in**, then **Use the demo account**. One tap signs you in as a brand with its own wallet, on test money only: no email, no seed phrase, no extension.
 2. Open a listing, tap a spot and bid. There is no wallet pop-up and no gas prompt. If someone outbids you, your USDC comes back in the same transaction.
 3. On a spot, turn on **Auto-bid**. Settings → Security shows exactly what Patched may do, with a one-tap Revoke.
-4. Want to sell? Sign in with your own email or X, press **Create**, upload a photo and publish. New listings go live within seconds.
+4. Want to sell? Sign in with your own email or X, press **Create**, pick the event (the bidding time fits itself to it), upload a photo and publish. New listings go live within seconds.
+5. Look around: **Patchwork** on Home turns an event into a live graph of who sponsored whom. Press **Replay** to watch it build, and **Find me** to see where you sit.
 
-The demo account can't add a passkey (it would lock out the next person). Test USDC on testnet comes from Circle's faucet, token `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+New wallet with $0? The moment a bid needs more than you have, Patched opens the steps: copy your address, paste it into [Circle's faucet](https://faucet.circle.com) on Monad Testnet, and your balance updates by itself. The demo account can't add a passkey (it would lock out the next person). Test USDC token: `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
 
 ## Three surfaces
 
@@ -88,6 +102,15 @@ Patched is already out of the lab. We build in public and post what we ship.
 - **X:** [@Patched_world](https://x.com/Patched_world). Demos, build updates and the hand-drawn patches we make for the launch outfit.
 - **Telegram:** [the Patched test group](https://t.me/+TrSZaCSMngo3YWQ9) (public link: [t.me/patchedworld](https://t.me/patchedworld)). Early users are in it already, trying the product on testnet and telling us what to fix.
 - **A real first creator.** The idea comes from [vanshu.eth](https://token2049.vanshu.fun/), who sold logo spots on her Token2049 outfit before Patched existed.
+- **Get Patched Week.** A community contest (Oct 8 to 12, $30 in real USDC prizes on Monad mainnet) where people list, bid and post proof for real. The lucky draw is picked by a Monad block hash, so anyone can check it: [monad.patched.world/contest](https://monad.patched.world/contest).
+- **Building with Privy, in public.** We wrote up everything we learned building on Privy. Privy's CEO replied asking what Privy could improve, and we sent our list: permits and 7702 delegations, passkeys only on big amounts, webhooks for small teams, gas credits in USDC.
+
+| On testnet so far (our own wallets left out) | |
+|---|---|
+| Real users | 14 (7 signed in with X) |
+| Listings | 10, by 4 creators: outfits, cars and team hoodies |
+| Real bids | 8, from 4 brands |
+| X | 3.4K impressions in a week from a 4-week-old account |
 
 It is early and we say so: a small group, posting regularly, shipping every few days. If you are a creator with an audience or a brand that wants a spot, say hi in the group.
 
@@ -258,7 +281,9 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 - **Welcome.** New visitors sign in on a page that plays the whole story (sign in, draw spots, brands bid, show up, get paid) across outfits, vehicles and team hoodies, then pick a name, a handle (checked live) and whether they sell spots, sponsor or both.
 - **Settings** (`/settings`): profile, brand (name, logo, website, verified badge), security (passkey, wallet export) and network, in one place.
 - **Listing tools:** a creator's listing page, Manage screen and Share kit are tabs of one bar.
-- **Testnet and mainnet:** each runs as its own site from the same code. A switch at the bottom of the sidebar (and in the wallet panel and Settings) moves between them and keeps you on the same page where it exists. Going to mainnet first says it is a test run.
+- **Testnet and mainnet, one address:** a switch at the bottom of the sidebar (and in the wallet panel and Settings) moves `monad.patched.world` between Monad testnet and Monad mainnet. The address stays the same; only the chain changes. Going to mainnet first says it uses real USDC.
+- **Create follows the event:** pick an event and the bidding time fits itself to it, with the event's dates shown and one timeline from bidding to the last proof.
+- **Empty wallet, clear steps:** a bid, sweep, auto-bid, stake or campaign that needs more than the wallet holds opens Add money with what's missing and the faucet steps, address included.
 
 </details>
 
