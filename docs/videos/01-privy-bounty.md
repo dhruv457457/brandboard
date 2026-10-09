@@ -13,7 +13,7 @@ Dhruv speaks; no AI voice. The script is in plain, short sentences, easy to say 
 | Part | Time | What's on screen |
 |---|---|---|
 | Title card (the only slide) | 0:00–0:10 | "Patched × Privy · Every dollar on Patched runs through Privy", and say the demo and pitch are in the other two videos |
-| Live tour, 7 features | 0:08–1:40 | the live site, a caption per feature |
+| Live tour, 7 features | 0:10–1:40 | the live site, a caption per feature |
 | Feedback: the blog and Henri's thread | 1:40–1:56 | the Medium post, then the X thread with Henri's question and reply highlighted |
 | End card | 1:56–2:00 | `monad.patched.world` · Sign in → Use the demo account · links to the demo and pitch videos |
 
@@ -30,7 +30,7 @@ Captions go bottom-left, the same place every time.
 **Screen:** one slide: the Patched logo × the Privy logo, "Every dollar on Patched runs through Privy". A small line under it: "Full demo and pitch: our other two videos".
 **Say:** "Hi, I'm Dhruv. Our full demo and pitch are in the other two videos. This one is just about Privy. On Patched, every dollar moves through Privy. Let me show you."
 
-### 0:08 – 0:20 · Sign in · caption: **PRIVY · Login + embedded wallet**
+### 0:10 – 0:20 · Sign in · caption: **PRIVY · Login + embedded wallet**
 **Screen:** Sign in → Sign in with X → you're in → open the wallet panel (address, balance). Flash the "Use the demo account" button.
 **Say:** "I sign in with X. That's it. Privy made me a wallet right away. No seed phrase, no extension."
 
