@@ -85,7 +85,8 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
       .then((b) => setBalance(Number(b) / 1e6)).catch(() => {});
   }, [c.walletAddress]);
 
-  // The log, live: new actions arrive over Realtime and the balance follows them.
+  // The log, live: new actions arrive over Realtime and the balance follows them. Every action can also change the
+  // status (funded, ended) and the spots held, which the server reads, so those are fetched again too.
   useEffect(() => {
     const db = supabase();
     const load = () => db.from("brand_campaign_actions").select("id, kind, text, amount, tx_hash, created_at").eq("campaign_id", c.id)
@@ -93,14 +94,14 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
     void load();
     loadBalance();
     const channel = db.channel(`campaign:${c.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "brand_campaign_actions", filter: `campaign_id=eq.${c.id}` }, () => { void load(); loadBalance(); })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "brand_campaign_actions", filter: `campaign_id=eq.${c.id}` }, () => { void load(); loadBalance(); router.refresh(); })
       .subscribe();
     const t = setInterval(loadBalance, 15_000);
     return () => {
       void db.removeChannel(channel);
       clearInterval(t);
     };
-  }, [c.id, loadBalance]);
+  }, [c.id, loadBalance, router]);
 
   async function control(body: Record<string, unknown>, done: string) {
     setBusy(JSON.stringify(body));

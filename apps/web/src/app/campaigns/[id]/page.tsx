@@ -19,12 +19,15 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     db.from("profiles").select("brand_name, brand_logo_url, handle").eq("wallet", c.brand).maybeSingle(),
     db.from("listing_cards").select("listing_id, metadata, creator, creator_handle, creator_name").eq("chain_id", c.chain_id).eq("event_id", c.event_id),
   ]);
-  const ids = (listings ?? []).map((l) => l.listing_id);
+  // Only the spots this campaign bid on and the brand still leads; the brand's own bids at the event aren't its doing.
+  const { data: bids } = await db.from("brand_campaign_actions").select("listing_id, patch_id").eq("campaign_id", c.id).eq("kind", "bid").not("listing_id", "is", null);
+  const mine = new Set((bids ?? []).map((b) => `${b.listing_id}:${b.patch_id}`));
+  const ids = (listings ?? []).map((l) => l.listing_id).filter((id) => [...mine].some((k) => k.startsWith(`${id}:`)));
   const { data: patches } = ids.length
     ? await db.from("patches").select("listing_id, patch_id, label, top_bid").eq("chain_id", CHAIN_ID).eq("top_bidder", c.brand).in("listing_id", ids)
     : { data: [] as { listing_id: number; patch_id: number; label: string; top_bid: number }[] };
 
-  const held: HeldSpot[] = (patches ?? []).map((p) => {
+  const held: HeldSpot[] = (patches ?? []).filter((p) => mine.has(`${p.listing_id}:${p.patch_id}`)).map((p) => {
     const l = listings?.find((x) => x.listing_id === p.listing_id);
     const meta = l?.metadata as { title?: string; patches?: { id: number; name: string }[] } | null;
     return {
