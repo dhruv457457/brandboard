@@ -11,9 +11,10 @@ import { toast } from "@/components/ui/Toast";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { useTx } from "@/lib/market/useTx";
 import { friendlyError } from "@/lib/market/useBid";
+import { requireFunds } from "@/lib/market/funds";
 import { useStepUp } from "@/lib/market/stepUp";
 import { campaignAggregation, campaignRules, campaignRulesInWords } from "@/lib/market/campaignPolicy";
-import { CHAIN_ID, MARKET, USDC, publicClient } from "@/lib/config";
+import { CHAIN_ID, MARKET, USDC } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 export interface BuilderEvent {
@@ -99,8 +100,7 @@ export function CampaignBuilder({ events }: { events: BuilderEvent[] }) {
     const amount = BigInt(budget) * 1_000_000n;
     try {
       setBusy("Checking your balance…");
-      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
-      if (balance < amount) throw new Error("insufficient USDC");
+      await requireFunds(walletAddress, amount, "campaign budget");
       await stepUp.ensure(amount);
       setBusy("Privy is setting up the campaign wallet…");
       const res = await authedFetch("/api/campaigns", {

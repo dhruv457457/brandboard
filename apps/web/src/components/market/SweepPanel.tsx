@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData } from "viem";
 import { ChevronDown, Layers } from "lucide-react";
 import { patchSweeperAbi } from "@patched/shared";
 import { Card } from "@/components/ui/Card";
@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { formatUsdc } from "@/lib/format";
-import { SWEEPER, USDC, publicClient } from "@/lib/config";
+import { SWEEPER, publicClient } from "@/lib/config";
 import type { LivePatch } from "@/lib/market/types";
 import { friendlyError } from "@/lib/market/useBid";
+import { requireFunds } from "@/lib/market/funds";
 import { usePermitOrApprove } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
 import { useStepUp } from "@/lib/market/stepUp";
@@ -62,8 +63,7 @@ export function SweepPanel({ listingId, patches, minNext, me }: Props) {
     try {
       const ids = chosen.map((p) => p.id);
       const amounts = chosen.map((p) => minNext(p));
-      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress!] });
-      if (balance < total) throw new Error("insufficient USDC");
+      await requireFunds(walletAddress!, total, "sweep");
       await stepUp.ensure(total);
       // A permit where the wallet supports it, otherwise an approve first (Privy wallets, see usePermitOrApprove).
       const permit = await authorize(SWEEPER!, total);

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData, erc20Abi } from "viem";
+import { BaseError, ContractFunctionRevertedError, createWalletClient, custom, encodeFunctionData } from "viem";
 import { CONTRACT_ERRORS, patchedMarketAbi } from "@patched/shared";
-import { CHAIN, CHAIN_ID, MARKET, USDC, publicClient, GAS_SPONSORED, TEST_TOKEN } from "@/lib/config";
+import { CHAIN, CHAIN_ID, MARKET, publicClient, GAS_SPONSORED, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
+import { requireFunds } from "@/lib/market/funds";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { STEP_UP_USD, useStepUp } from "@/lib/market/stepUp";
 import { usePermitOrApprove } from "@/lib/market/permit";
@@ -39,7 +40,9 @@ export function friendlyError(err: unknown, fallback = "The bid didn't go throug
   if (/insufficient/i.test(msg))
     return TEST_TOKEN
       ? "Not enough test USD in your wallet. Get 1,000 free from the faucet on My bids."
-      : "Not enough USDC in your wallet for this bid.";
+      : PLAY_MONEY
+        ? "Not enough USDC in your wallet. Get free test USDC from the faucet (steps in the window that opened), then try again."
+        : "Not enough USDC in your wallet. Add some, then try again.";
   return fallback;
 }
 
@@ -73,8 +76,8 @@ export function useBid() {
       // Big bids: passkey check through Privy MFA before anything is signed.
       await stepUp.ensure(amount);
       setStatus("signing");
-      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
-      if (balance < amount) throw new Error("insufficient USDC");
+      // Short of money (a new wallet starts at $0): the Add money sheet opens with the faucet steps.
+      await requireFunds(walletAddress, amount, "bid");
 
       // External wallets pay their own gas; check before asking them to sign anything.
       let external: ReturnType<typeof createWalletClient> | null = null;

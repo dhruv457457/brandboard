@@ -6,6 +6,7 @@ import { patchAutoBidderAbi } from "@patched/shared";
 import { AUTO_BIDDER, USDC, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { friendlyError } from "@/lib/market/useBid";
+import { requireFunds } from "@/lib/market/funds";
 import { usePermitOrApprove } from "@/lib/market/permit";
 import { useTx } from "@/lib/market/useTx";
 import { useStepUp } from "@/lib/market/stepUp";
@@ -89,8 +90,7 @@ export function useAutoBid() {
   function enable(listingId: number, patchId: number, max: bigint) {
     return run(async () => {
       if (!walletAddress || !mode) throw new Error("not signed in");
-      const balance = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] });
-      if (balance < max) throw new Error("insufficient USDC");
+      await requireFunds(walletAddress, max, "auto-bid limit");
       // A high maximum lets Patched spend that much for you, so it gets the same passkey check as a big bid.
       await stepUp.ensure(max);
 

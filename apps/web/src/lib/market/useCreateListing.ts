@@ -7,6 +7,7 @@ import { MARKET, USDC, publicClient } from "@/lib/config";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useAuthedFetch } from "@/lib/authedFetch";
 import { friendlyError } from "./useBid";
+import { showShortfall } from "./funds";
 import { useTx } from "./useTx";
 import { useEnsureOnchainName } from "@/lib/market/useOnchainName";
 
@@ -50,7 +51,10 @@ export function useCreateListing() {
         publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [walletAddress] }),
         publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: "allowance", args: [walletAddress, MARKET] }),
       ]);
-      if (balance < input.bond) throw new Error("insufficient USDC for the bond");
+      if (balance < input.bond) {
+        showShortfall(balance, input.bond, "listing stake");
+        throw new Error("insufficient USDC for the bond");
+      }
       if (allowance < input.bond) {
         setStep((stage = "approving"));
         await send(USDC, encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [MARKET, input.bond] }));
