@@ -15,7 +15,7 @@ Dhruv speaks; no AI voice. The script is in plain, short sentences, easy to say 
 | Title card (the only slide) | 0:00–0:08 | "Patched × Privy · Every dollar on Patched runs through Privy" |
 | Live tour, 7 features | 0:08–1:40 | the live site, a caption per feature |
 | Feedback: the blog and Henri's thread | 1:40–1:56 | the Medium post, then the X thread with Henri's question and reply highlighted |
-| End card | 1:56–2:00 | `monad.patched.world` · Sign in → Use the demo account |
+| End card | 1:54–2:00 | `monad.patched.world` · Sign in → Use the demo account · links to the demo and pitch videos |
 
 **Why the blog and Henri go at the end, not the start:**
 - The first 20 seconds should show Privy working: that's what the judges score.
@@ -32,7 +32,7 @@ Captions go bottom-left, the same place every time.
 
 ### 0:08 – 0:20 · Sign in · caption: **PRIVY · Login + embedded wallet**
 **Screen:** Sign in → Sign in with X → you're in → open the wallet panel (address, balance). Flash the "Use the demo account" button.
-**Say:** "I sign in with X. That's it. Privy made me a wallet right away. No seed phrase, no extension. And judges get a one-tap demo account."
+**Say:** "I sign in with X. That's it. Privy made me a wallet right away. No seed phrase, no extension."
 
 ### 0:20 – 0:32 · Bid · caption: **PRIVY · Gas sponsorship**
 **Screen:** tap a spot → Bid → "You lead" → open the transaction on the explorer.
@@ -62,16 +62,16 @@ Captions go bottom-left, the same place every time.
 **Screen:** the Medium post "No bank, no seed phrase, no gas: how Privy runs every dollar on patched.world" (1.4K views). Then the X thread: Henri's "Any feedback on building w privy? Things we can improve?!", our replies, and his answer "Will look into USDC funding for the sponsorship, the 7702 feedback and conditional MFA."
 **Say:** "We wrote up everything we learned, and Henri asked what Privy could do better. Our wishes: ask for a passkey only on big amounts, webhooks without the enterprise plan, and topping up gas with USDC. He said they'll look into it."
 
-### 1:56 – 2:00 · End card
-**Screen:** `monad.patched.world` · Sign in → Use the demo account.
-**Say:** "Patched. Get patched, get paid."
+### 1:54 – 2:00 · End card
+**Screen:** `monad.patched.world` · "Sign in → Use the demo account (one tap, test money)" · "Full demo: <link> · Pitch: <link>" (paste the YouTube links of the two videos already recorded).
+**Say:** "That's the Privy side. The full demo and our pitch are in our other two videos. Get patched, get paid."
 
 ## If you're over 2:00
 
 Cut in this order:
 1. The safety line (keep the captions on screen, say nothing).
-2. "And judges get a one-tap demo account."
-3. "Even our admin wallet can't touch fees or upgrades."
+2. "Even our admin wallet can't touch fees or upgrades."
+3. On the end card, say only "That's the Privy side. Get patched, get paid." The links to the other videos stay on screen.
 
 Never cut auto-bid, the campaign or the X offer: no other team has those.
 
