@@ -1,84 +1,93 @@
-# Video 1 · Privy bounty (target 2:50, hard stop 3:00)
+# Video 1 · Privy bounty (2:00 max)
 
-**What the judges look for:** "a demo that clearly shows what Privy powers", with bonus points for meaningfully using several Privy features. Login alone doesn't qualify.
+Dhruv speaks; no AI voice. The script is in plain, short sentences, easy to say out loud, about 270 words. That's 1:50 at a relaxed pace, which leaves a little air.
 
-**So the video is a countdown of Privy features, each one visible on the live site, each one with a caption.** No slides, apart from one optional half-second end card. Every beat names the Privy feature, shows it working, and, where money moves, shows the transaction on the Monad explorer.
+## The trick that makes 2 minutes enough
 
-Feature map (the caption text, in order):
+1. **Record your voice first,** at your normal speed, one section at a time. Re-do any line you trip on.
+2. **Then lay the screen recording under it** and speed the footage up to fit each line: 1.2–1.4× for clicking, 2–4× for waiting (a transaction, the rival bid). Your voice stays at 1.0×. A voice sped past 1.1× sounds rushed.
+3. **The captions carry the technical words** (signers, policies, aggregation), so you don't have to say them. You say what happens; the caption says which Privy feature did it.
 
-| # | Caption (bottom-left) | Shown by |
+## Structure
+
+| Part | Time | What's on screen |
 |---|---|---|
-| 1 | PRIVY · Headless login, our own design | the sign-in card |
-| 2 | PRIVY · Embedded wallet, made at sign-in | wallet panel |
-| 3 | PRIVY · Test accounts (one-tap demo) | "Use the demo account" |
-| 4 | PRIVY · Gas sponsorship, no pop-up | a bid + explorer |
-| 5 | PRIVY · Signers + policy (auto-bid) | auto-bid answers a rival |
-| 6 | PRIVY · One-tap revoke | Settings → Auto-bid permission |
-| 7 | PRIVY · Server wallet + brand-written policy | campaign builder |
-| 8 | PRIVY · Aggregation: budget enforced by Privy | campaign activity |
-| 9 | PRIVY · Pregenerated wallets (Patch anyone on X) | an offer to an X handle |
-| 10 | PRIVY · Server wallets: keeper, approver, open admin | admin + explorer |
-| 11 | PRIVY · Passkey MFA for big money | Settings → Passkey |
-| 12 | PRIVY · Linked accounts: verified brand, X reach | Settings → Your brand; profile |
-| 13 | PRIVY · Wallet export | Settings → Export key |
-| 14 | PRIVY · Server-side auth | (said in the outro) |
+| Title card (the only slide) | 0:00–0:08 | "Patched × Privy · Every dollar on Patched runs through Privy" |
+| Live tour, 7 features | 0:08–1:40 | the live site, a caption per feature |
+| Feedback: the blog and Henri's thread | 1:40–1:56 | the Medium post, then the X thread with Henri's question and reply highlighted |
+| End card | 1:56–2:00 | `monad.patched.world` · Sign in → Use the demo account |
 
-## Prep (15 minutes before)
+**Why the blog and Henri go at the end, not the start:**
+- The first 20 seconds should show Privy working: that's what the judges score.
+- The thread is the best closer. It shows we didn't only use Privy, we gave useful feedback, and Privy's CEO answered it.
+- Last impressions stick.
 
-1. Window A (incognito): **signed out**, on `monad.patched.world` (you'll sign in on camera).
-2. Window B (normal): signed in as @dhruvpanch0li.
-3. **Campaign, made 10 minutes early in Window A**, so it has history to show:
-   - `/campaigns/new`, event Get Patched Week, **Total budget $6**, **Most it pays for one spot $5**, cheapest first, ends tomorrow;
-   - fund it from the demo wallet;
-   - wait for the keeper (it runs every minute) until the campaign page lists its bids and, ideally, a bid **Privy refused** because it would pass the budget.
-   - If no refusal shows, use the existing evidence row T9b (`0x2a5d3397…`) in the voice-over instead of claiming one on screen.
-4. Terminal ready with the rival bid command for listing 14 (see [README](README.md#prep-checklist-both-screen-videos)).
-5. For the X offer: an X handle you're allowed to use that isn't on Patched yet (a friend's, or a second account of yours). The offer is real on testnet: it pregenerates a Privy account for that handle.
+## The script
 
-## Script
+Captions go bottom-left, the same place every time.
 
-Timings are targets. **VO** is the voice-over; **Screen** is what you do.
+### 0:00 – 0:08 · Title card
+**Screen:** one slide: the Patched logo × the Privy logo, "Every dollar on Patched runs through Privy".
+**Say:** "Hi, I'm Dhruv. On Patched, brands bid to put their logo on a creator's outfit. Every dollar on it moves through Privy. Let me show you."
 
-### 0:00 – 0:10 · Hook
-- **Screen:** the landing page, scroll a little.
-- **VO:** "Patched is a live USDC auction for the logo spots on creators' outfits, cars and team hoodies, on Monad. Every wallet, signature and payment in it runs on Privy. Here are fourteen Privy features, live, in under three minutes."
+### 0:08 – 0:20 · Sign in · caption: **PRIVY · Login + embedded wallet**
+**Screen:** Sign in → Sign in with X → you're in → open the wallet panel (address, balance). Flash the "Use the demo account" button.
+**Say:** "I sign in with X. That's it. Privy made me a wallet right away. No seed phrase, no extension. And judges get a one-tap demo account."
 
-### 0:10 – 0:28 · Login, embedded wallet, test account (captions 1, 2, 3)
-- **Screen (Window A):** Sign in → our sign-in card (point at X *Recommended*, email, wallet) → **Use the demo account** → you land in the app → click your name at the bottom of the sidebar → the wallet panel: address, **$37** balance.
-- **VO:** "This is our own sign-in screen, built on Privy's headless hooks: X, email, or your own wallet. X and email users get a Privy embedded wallet the moment they sign in. No seed phrase, no extension. For judges, a Privy test account signs you in with one tap, on test money only."
+### 0:20 – 0:32 · Bid · caption: **PRIVY · Gas sponsorship**
+**Screen:** tap a spot → Bid → "You lead" → open the transaction on the explorer.
+**Say:** "Now I bid. No pop-up. No gas. Privy pays the gas, and here's my bid on Monad."
 
-### 0:28 – 0:50 · A bid with no pop-up and no gas (caption 4)
-- **Screen:** open listing **#14** → tap **shirt pocket** → the brand check ("go with this branding?") → yes → **Bid $10** → the "You lead" toast → open the transaction on the explorer (activity row → explorer link). Point at **from** = the embedded wallet.
-- **VO:** "Tap a spot and bid. No wallet pop-up and no gas: the embedded wallet approves the exact amount and bids, both gas-sponsored by Privy. There's the transaction on Monad."
+### 0:32 – 0:50 · Auto-bid · caption: **PRIVY · Signers + policy**
+**Screen:** Auto-bid → max $15 → on. The rival bot outbids (sped up). The spot flips back to you; the "auto-bid placed" toast.
+**Say:** "This one's my favourite. I say: keep me on top, up to fifteen dollars. Patched gets permission on my wallet, but Privy only lets it bid on this spot, up to fifteen. Someone outbids me... and it bids back in seconds."
 
-### 0:50 – 1:20 · Auto-bid as a Privy signer (captions 5, 6)
-- **Screen:** on the same spot open **Auto-bid** → max **$15** → turn it on. Then switch to the terminal and run the rival bid (`SPOT=0`). Back to Window A: within a few seconds the spot flips back to you, and the toast and bell say auto-bid placed a bid. Then **Settings → Auto-bid permission**: the rule, the maximum, the **Revoke** button (don't press it yet if you need it later).
-- **VO:** "Auto-bid: keep me on top up to fifteen dollars. This adds Patched as a signer on my own wallet, with a Privy policy that allows exactly one thing: bids on this spot, up to fifteen. A rival bids... and Patched bids back from my wallet within seconds. Anything outside that policy, Privy refuses. And I can revoke it in one tap."
+### 0:50 – 1:08 · Campaign · caption: **PRIVY · Server wallet + policy + budget**
+**Screen:** the campaign page: "Privy guards this wallet", the bids list, the **Privy blocked** row.
+**Say:** "Brands can go bigger. Spend a hundred dollars at this event, max forty a spot. Each campaign gets its own Privy wallet, and my rules become its rules. Privy keeps the total, and blocks the bid that would go over."
 
-### 1:20 – 1:50 · Campaigns: a wallet, a policy and a budget the brand writes (captions 7, 8)
-- **Screen:** `/campaigns/new`: show the fields (**Where it bids**, **Total budget**, **Most it pays for one spot**), then the policy panel ("Privy guards this wallet"): plain words, then the JSON. Then open the campaign you made in prep: its bids, and the refused one.
-- **VO:** "A campaign: spend up to six dollars at this event, never more than five a spot. Each campaign gets its own Privy server wallet, and these settings become its policy. Here it is in plain words, and as the JSON Privy enforces. The budget is a Privy aggregation: Privy keeps the running total and refuses the bid that would go over. Here's the campaign bidding, and the bid Privy refused."
+### 1:08 – 1:20 · Patch anyone on X · caption: **PRIVY · Pregenerated wallets**
+**Screen:** Automate → Patch anyone on X → type a handle → their X profile → create → the offer page.
+**Say:** "I can even pay someone who's never used Patched. I type their X handle, and Privy makes their wallet right now. When they sign in with X, the money's already theirs."
 
-### 1:50 – 2:12 · Patch anyone on X: pregenerated wallets (caption 9)
-- **Screen:** `/automate` → **Patch anyone on X** → type the handle → their X profile shows → $5, the event → create → the offer page: the money waiting in its own wallet, **Share on X**.
-- **VO:** "Patch anyone on X. I offer five dollars to an X account that has never used Patched. Privy creates their account and wallet right now, linked to their X login. The money waits in its own policy-limited wallet. When they sign in with X, it's already theirs, and it can even pay their listing stake."
+### 1:20 – 1:32 · Behind the scenes · caption: **PRIVY · Server wallets with policies**
+**Screen:** `/admin` with the "open for judges" note → the explorer on a keeper payout.
+**Say:** "Behind the scenes, Privy wallets close the auctions and pay the creators. Each one can only do its one job. Even our admin wallet can't touch fees or upgrades."
 
-### 2:12 – 2:32 · Server wallets with policies (caption 10)
-- **Screen:** `/admin` (the "Open admin for the hackathon demo" note) → **Proofs and disputes** (or a listing approval) → then the explorer on a keeper transaction (for example the listing #12 payout or a `closeBidding`), pointing at the keeper address.
-- **VO:** "Everything that has to happen on time runs on Privy server wallets, each locked by a policy. The keeper can only close auctions, release payments, mark no-shows and answer auto-bids. The approver can only put new listings live. And admin is open on purpose for judges, through a wallet that can approve, fast-track and settle disputes, and nothing else: no fees, no treasury, no upgrades."
+### 1:32 – 1:40 · Safety · caption: **PRIVY · Passkeys · Verified brands · Export**
+**Screen:** Settings → Passkey → Your brand → Export key (cut before the key shows).
+**Say:** "Big bids need a passkey. Brands verify with a work email. And your wallet is yours: export it anytime."
 
-### 2:32 – 2:50 · Passkeys, linked accounts, export (captions 11, 12, 13)
-- **Screen (Window B, Dhruv):** **Settings** → **Passkey** ("Set up passkey", or on) → **Your brand** → verify with a work email → **Your wallet is yours** → **Export key** (cut before the key appears) → your profile header with your X picture and follower count.
-- **VO:** "Bids and budgets over a thousand dollars need a passkey, through Privy MFA. Brands link a work email to get verified, and creators' X reach comes from the X account Privy links. And the wallet is yours: export it any time."
+### 1:40 – 1:56 · Building with Privy
+**Screen:** the Medium post "No bank, no seed phrase, no gas: how Privy runs every dollar on patched.world" (1.4K views). Then the X thread: Henri's "Any feedback on building w privy? Things we can improve?!", our replies, and his answer "Will look into USDC funding for the sponsorship, the 7702 feedback and conditional MFA."
+**Say:** "We wrote up everything we learned, and Henri asked what Privy could do better. Our wishes: ask for a passkey only on big amounts, webhooks without the enterprise plan, and topping up gas with USDC. He said they'll look into it."
 
-### 2:50 – 3:00 · Outro (caption 14)
-- **Screen:** the README section "Built on Monad and Privy" on GitHub, or back to the landing page.
-- **VO:** "Every API call is checked against the Privy token on the server. Fourteen Privy features, all live on monad.patched.world. The README links each one to its code."
+### 1:56 – 2:00 · End card
+**Screen:** `monad.patched.world` · Sign in → Use the demo account.
+**Say:** "Patched. Get patched, get paid."
 
-## If you're over time
+## If you're over 2:00
 
-Cut in this order: export (keep passkey), the X-reach line, the revoke click (say it instead). Never cut auto-bid, campaigns or X offers: they are what no other team has.
+Cut in this order:
+1. The safety line (keep the captions on screen, say nothing).
+2. "And judges get a one-tap demo account."
+3. "Even our admin wallet can't touch fees or upgrades."
 
-## What to write in the Privy bounty text field
+Never cut auto-bid, the campaign or the X offer: no other team has those.
 
-A short version of [../context/02-privy.md](../context/02-privy.md): the "who signs what" table and the lessons list. The README table is the public version.
+## Saying it well
+
+- Smile on the first line. It changes how the voice sounds.
+- Pause at every full stop. The `...` before "and it bids back" is a real pause: let the screen catch up.
+- Numbers as words: "fifteen dollars", "a hundred dollars".
+- If a word is hard, change it. The meaning matters, not the exact text.
+
+## Prep
+
+The same setup as the [README](README.md#prep-checklist-both-screen-videos), plus:
+- **Campaign:** the "brave at Get Patched Week Mumbai" campaign is live. To get a **Privy blocked** row:
+  1. Let the rival bot outbid it a few times until its $100 is used up.
+  2. Top up $10.
+  3. Its next bid would pass $100, and Privy refuses it.
+- **X offer:** a handle you're allowed to use that isn't on Patched yet.
+- **The thread:** a clean screenshot, dark or light, with Henri's question and his reply highlighted (a yellow box or a zoom). Crop out notifications and other tweets.

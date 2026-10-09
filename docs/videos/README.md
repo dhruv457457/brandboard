@@ -4,7 +4,7 @@ Three videos for the Metropolis submission (deadline **Oct 14, 09:29 IST**; we s
 
 | # | Video | Form field | Limit | Rules from the form | Script |
 |---|---|---|---|---|---|
-| 1 | **Privy bounty** | Bounties → Privy | keep it ≤ 3 min | Privy's rule: "Using Privy only for login/authentication will not qualify." Judges want a demo that clearly shows what Privy powers, with bonus points for several Privy features | [01-privy-bounty.md](01-privy-bounty.md) |
+| 1 | **Privy bounty** | Bounties → Privy | **≤ 2 min** | Privy's rule: "Using Privy only for login/authentication will not qualify." Judges want a demo that clearly shows what Privy powers, with bonus points for several Privy features | [01-privy-bounty.md](01-privy-bounty.md) |
 | 2 | **Technical demo** | Demo and pitch → demo | **≤ 3 min** | "Must run on Monad Mainnet or Testnet. Show the working product, not slides or a code walkthrough." | [02-technical-demo.md](02-technical-demo.md) |
 | 3 | **Pitch** | Demo and pitch → pitch | **≤ 2 min** | "Introduce your team, the problem you solve, and why you are building it." | [03-pitch.md](03-pitch.md) |
 | – | Promo (optional) | Optional promotion | ≤ 30 s | Not judged; used on X after the hackathon | reuse the Remotion ad: the `Ad` composition is exactly 30 s (900 frames at 30 fps); the newest render is `marketing/video/out/patched-ad-v5.mp4`. Watch it first: anything it shows must still be true |
