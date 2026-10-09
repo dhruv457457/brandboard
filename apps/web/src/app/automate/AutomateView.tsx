@@ -55,6 +55,9 @@ export function AutomateView() {
     {
       icon: Zap,
       title: "Auto-bid",
+      id: "auto-bid",
+      need: "I want one particular spot and don't want to lose it",
+      example: "Keep me on top of Dhruv's left sleeve, up to $40.",
       text: "Pick a spot and a maximum. When someone outbids you, Patched bids again from your own wallet, never above that maximum.",
       privy: "A Privy signer on your wallet, limited by a policy to those spots and that maximum. Revoke it any time in Settings.",
       count: counts.autoBids,
@@ -66,6 +69,9 @@ export function AutomateView() {
     {
       icon: Megaphone,
       title: "Campaign",
+      id: "campaign",
+      need: "I want my logo all over an event, not one spot",
+      example: "Spend up to $300 at Token2049, never more than $40 a spot.",
       text: "Set a budget and a price cap per spot. Patched spreads your logo across every open spot at an event until the money is used.",
       privy: "Its own Privy wallet and policy. A budget aggregation refuses any bid that would go past the budget.",
       count: counts.campaigns,
@@ -77,6 +83,9 @@ export function AutomateView() {
     {
       icon: AtSign,
       title: "Patch anyone on X",
+      id: "x-offer",
+      need: "I want someone who isn't on Patched yet",
+      example: "$50 to @vanshu for a spot on her outfit at Token2049.",
       text: "Offer a spot to any X account, even one that isn't on Patched yet. They sign in with X, claim it and list.",
       privy: "A Privy wallet made ahead of time for their X account, so the offer can be funded before they ever sign up.",
       count: counts.offers,
@@ -97,9 +106,24 @@ export function AutomateView() {
         </p>
       </header>
 
+      <section aria-label="Which one do I need?" className="rounded-3xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] p-2">
+        <p className="px-3 pt-2 pb-1 eyebrow">Which one do I need?</p>
+        <ul className="grid list-none m-0 p-0">
+          {cards.map((c) => (
+            <li key={c.id}>
+              <a href={`#${c.id}`} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 no-underline text-[var(--ink)] hover:bg-[var(--soft)]">
+                <span className="w-8 h-8 rounded-xl bg-[var(--accent-soft)] text-[var(--accent-text)] grid place-items-center flex-none"><c.icon size={16} /></span>
+                <span className="flex-1 min-w-0 text-[15px]">&ldquo;{c.need}&rdquo;</span>
+                <span className="text-sm font-bold whitespace-nowrap inline-flex items-center gap-1">{c.title} <ArrowRight size={14} /></span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="grid gap-4 md:grid-cols-3">
         {cards.map((c) => (
-          <Card key={c.title} className="p-5 grid gap-4 content-between">
+          <Card key={c.title} id={c.id} className="p-5 grid gap-4 content-between scroll-mt-6">
             <div className="grid gap-3">
               <span className="flex items-center justify-between gap-3">
                 <span className="w-11 h-11 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent-text)] grid place-items-center"><c.icon size={22} /></span>
@@ -109,6 +133,7 @@ export function AutomateView() {
               </span>
               <h2 className="text-xl font-extrabold">{c.title}</h2>
               <p className="text-sm text-[var(--muted)]">{c.text}</p>
+              <p className="text-sm rounded-xl bg-[var(--accent-soft)] px-3 py-2 font-semibold">Example: {c.example}</p>
               <p className="text-xs text-[var(--muted)] flex gap-2 items-start border-t-[1.5px] border-[var(--soft)] pt-3">
                 <ShieldCheck size={15} className="flex-none mt-0.5 text-[var(--accent-text)]" /> {c.privy}
               </p>

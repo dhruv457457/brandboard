@@ -4,7 +4,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { isHome } from "@/lib/routes";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bell, Bot, CalendarDays, CircleDollarSign, Home, LogIn, Megaphone, MoreHorizontal, Plus, Search, UserRound, type LucideIcon } from "lucide-react";
+import { Bell, Bot, CalendarDays, CircleDollarSign, Home, LogIn, Megaphone, Moon, MoreHorizontal, Plus, Search, Stamp, Sun, UserRound, type LucideIcon } from "lucide-react";
+import { useTheme } from "@/lib/theme";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
 import { useBalances } from "@/lib/useBalances";
@@ -86,6 +87,7 @@ export function Sidebar() {
       </Link>
 
       <div className="mt-auto grid gap-1">
+        <ThemeButton />
         <NetworkToggle />
         {!ready ? (
           <span className="block h-[60px] rounded-full bg-[var(--soft)] motion-safe:animate-pulse" aria-hidden="true" />
@@ -102,6 +104,19 @@ export function Sidebar() {
   );
 }
 
+/** Light or dark, one click away at the bottom of the sidebar (the wallet panel has it too). */
+function ThemeButton() {
+  const { theme, toggleTheme } = useTheme();
+  const dark = theme === "dark";
+  return (
+    <button type="button" onClick={toggleTheme} title={dark ? "Light mode" : "Dark mode"} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      className="flex items-center gap-2 rounded-full hover:bg-[var(--soft)] px-2 h-10 w-full justify-center xl:justify-start xl:px-3">
+      <span className="w-9 grid place-items-center flex-none">{dark ? <Sun size={18} /> : <Moon size={18} />}</span>
+      <span className="hidden xl:inline text-sm font-semibold">{dark ? "Light mode" : "Dark mode"}</span>
+    </button>
+  );
+}
+
 /** Your own places, kept in the sidebar so they are one click away: auto mode, campaigns and earnings. */
 function AccountNav() {
   const pathname = usePathname();
@@ -114,6 +129,7 @@ function AccountNav() {
     { href: "/automate", label: "Automate", icon: Bot, active: pathname.startsWith("/automate") },
     { href: `${me}?tab=campaigns`, label: "Campaigns", icon: Megaphone, active: onMe && tab === "campaigns" },
     { href: `${me}?tab=earnings`, label: "Earnings", icon: CircleDollarSign, active: onMe && tab === "earnings" },
+    { href: `${me}?tab=sponsoring`, label: "Patch NFTs", icon: Stamp, active: onMe && tab === "sponsoring" },
   ];
   return (
     <nav className="grid gap-1 mt-2 pt-2 border-t-[1.5px] border-[var(--soft)]" aria-label="Your tools">
