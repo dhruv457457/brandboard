@@ -34,7 +34,13 @@ export interface CardInput {
   photo?: string;
   /** System fonts only: what a marketplace shows without web fonts. */
   system?: boolean;
+  /** The brand's logo and the creator's photo (http(s) or data: image URLs). Web only: the on-chain card has none. */
+  brandLogo?: string | null;
+  creatorAvatar?: string | null;
 }
+
+/** Only real image URLs go into the card (no javascript:, no quotes breaking out of the attribute). */
+const imageUrl = (u?: string | null) => (u && /^(https:\/\/|data:image\/)[^"<>\s]+$/.test(u) ? u : null);
 
 const PASTEL = ["#BDEBD3", "#D9CCFF", "#FFE58F", "#BFE3FF", "#FFC9DA"];
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -142,17 +148,19 @@ export function patchCard(o: CardInput): string {
   const price = `$${fmtUsd(o.amount)}`;
   const at = o.surface === "Car" ? "translate(500 430) scale(.36) rotate(-3)" : "translate(500 380) scale(.36) rotate(-3)";
 
-  const defs = `<defs><linearGradient id="tier-${id}" x1="0" y1="0" x2="1" y2="1">${TIER_FRAME[tier]}</linearGradient>${tier === "Gold" ? `<linearGradient id="sheen-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient>` : ""}<pattern id="satin-${id}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="3.5" height="9" fill="#fff" opacity=".28"/></pattern><pattern id="dots-${id}" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.2" fill="#E2DDD0"/></pattern><pattern id="half-${id}" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="9" cy="9" r="3" fill="#fff" opacity=".45"/></pattern>${stage === "refunded" ? `<filter id="grey-${id}"><feColorMatrix type="saturate" values="0.1"/></filter>` : ""}</defs>`;
+  const logo = imageUrl(o.brandLogo);
+  const avatar = imageUrl(o.creatorAvatar);
+  const defs = `<defs><clipPath id="logoclip-${id}"><circle cx="166" cy="122" r="36"/></clipPath><clipPath id="patchclip-${id}"><path d="${sh.d}" transform="scale(.8)"/></clipPath><clipPath id="faceclip-${id}"><circle cx="156" cy="733" r="26"/></clipPath><linearGradient id="tier-${id}" x1="0" y1="0" x2="1" y2="1">${TIER_FRAME[tier]}</linearGradient>${tier === "Gold" ? `<linearGradient id="sheen-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient>` : ""}<pattern id="satin-${id}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="3.5" height="9" fill="#fff" opacity=".28"/></pattern><pattern id="dots-${id}" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.2" fill="#E2DDD0"/></pattern><pattern id="half-${id}" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="9" cy="9" r="3" fill="#fff" opacity=".45"/></pattern>${stage === "refunded" ? `<filter id="grey-${id}"><feColorMatrix type="saturate" values="0.1"/></filter>` : ""}</defs>`;
 
   // The card: hard shadow, thread-coloured frame, cream panel, brand name and the price coin.
-  const frame = `<rect x="70" y="40" width="860" height="930" rx="44" fill="${INK}" transform="translate(14 14)"/><rect x="70" y="40" width="860" height="930" rx="44" fill="url(#tier-${id})" stroke="${INK}" stroke-width="8"/>${tier === "Gold" ? `<rect x="70" y="40" width="860" height="930" rx="44" fill="url(#sheen-${id})"/>` : ""}<rect x="100" y="70" width="800" height="870" rx="28" fill="#F4EFE3" stroke="${INK}" stroke-width="5"/><text x="130" y="140" font-family="${F.display}" font-weight="800" font-size="${fit(o.brand, 480, 60)}" fill="${INK}">${esc(o.brand)}</text><circle cx="815" cy="118" r="56" fill="${ORANGE}" stroke="${INK}" stroke-width="5"/><text x="815" y="114" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${price.length <= 4 ? 32 : price.length <= 6 ? 26 : 20}" fill="#fff">${price}</text><text x="815" y="140" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="15" fill="#fff">USDC</text>`;
+  const frame = `<rect x="70" y="40" width="860" height="930" rx="44" fill="${INK}" transform="translate(14 14)"/><rect x="70" y="40" width="860" height="930" rx="44" fill="url(#tier-${id})" stroke="${INK}" stroke-width="8"/>${tier === "Gold" ? `<rect x="70" y="40" width="860" height="930" rx="44" fill="url(#sheen-${id})"/>` : ""}<rect x="100" y="70" width="800" height="870" rx="28" fill="#F4EFE3" stroke="${INK}" stroke-width="5"/>${logo ? `<circle cx="166" cy="122" r="40" fill="#fff" stroke="${INK}" stroke-width="5"/><image href="${esc(logo)}" x="130" y="86" width="72" height="72" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoclip-${id})"/>` : ""}<text x="${logo ? 222 : 130}" y="140" font-family="${F.display}" font-weight="800" font-size="${fit(o.brand, logo ? 400 : 480, 60)}" fill="${INK}">${esc(o.brand)}</text><circle cx="815" cy="118" r="56" fill="${ORANGE}" stroke="${INK}" stroke-width="5"/><text x="815" y="114" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${price.length <= 4 ? 32 : price.length <= 6 ? 26 : 20}" fill="#fff">${price}</text><text x="815" y="140" text-anchor="middle" font-family="${F.mono}" font-weight="700" font-size="15" fill="#fff">USDC</text>`;
 
   // The art window: the garment, and the patch sewn on (or unpicked after a refund).
   const size = fit(o.brand, sh.maxW, 108);
   const patch =
     stage === "refunded"
       ? `<path d="${sh.d}" transform="${at}" fill="none" stroke="${INK}" stroke-opacity=".6" stroke-width="10" stroke-dasharray="4 16" stroke-linecap="round"/>`
-      : `<g transform="${at}"><path d="${sh.d}" transform="translate(14 16)" fill="${INK}"/><path d="${sh.d}" fill="${PASTEL[o.patchId % 5]}"/><path d="${sh.d}" fill="url(#satin-${id})"/><path d="${sh.d}" fill="none" stroke="url(#tier-${id})" stroke-width="22"/><path d="${sh.d}" fill="none" stroke="${INK}" stroke-opacity=".35" stroke-width="22" stroke-dasharray="2.5 4.5"/><path d="${sh.d}" transform="scale(.84)" fill="none" stroke="${INK}" stroke-opacity=".55" stroke-width="4" stroke-dasharray="12 8"/><text x="0" y="${Math.floor((size * 35) / 100)}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${size}" fill="${INK}">${esc(o.brand)}</text></g>`;
+      : `<g transform="${at}"><path d="${sh.d}" transform="translate(14 16)" fill="${INK}"/><path d="${sh.d}" fill="${PASTEL[o.patchId % 5]}"/><path d="${sh.d}" fill="url(#satin-${id})"/><path d="${sh.d}" fill="none" stroke="url(#tier-${id})" stroke-width="22"/><path d="${sh.d}" fill="none" stroke="${INK}" stroke-opacity=".35" stroke-width="22" stroke-dasharray="2.5 4.5"/><path d="${sh.d}" transform="scale(.84)" fill="none" stroke="${INK}" stroke-opacity=".55" stroke-width="4" stroke-dasharray="12 8"/>${logo ? `<rect x="-260" y="-150" width="520" height="300" fill="#fff" opacity=".55" clip-path="url(#patchclip-${id})"/><image href="${esc(logo)}" x="-230" y="-140" width="460" height="280" preserveAspectRatio="xMidYMid meet" clip-path="url(#patchclip-${id})"/>` : `<text x="0" y="${Math.floor((size * 35) / 100)}" text-anchor="middle" font-family="${F.display}" font-weight="800" font-size="${size}" fill="${INK}">${esc(o.brand)}</text>`}</g>`;
   const window = `<rect x="130" y="180" width="740" height="430" rx="18" fill="${FABRIC[o.surface].window}" stroke="${INK}" stroke-width="5"/><rect x="130" y="180" width="740" height="430" rx="18" fill="url(#half-${id})"/>${GARMENT[o.surface]}${patch}`;
 
   // Passport stamps, one per proven step; then the refund stamp or the dispute tape over the window.
@@ -176,7 +184,7 @@ export function patchCard(o: CardInput): string {
 
   const who = `@${o.creator}`;
   const flavourText = o.sponsorNo === 1 ? `The first brand to back ${who}.` : o.sponsorNo > 1 ? `Sponsor #${o.sponsorNo} of ${who}.` : `A spot on ${who}.`;
-  const flavour = `<text x="130" y="742" font-family="${F.body}" font-style="italic" font-size="26" fill="#5F5B53">${esc(flavourText)}</text>`;
+  const flavour = `${avatar ? `<circle cx="156" cy="733" r="29" fill="#fff" stroke="${INK}" stroke-width="4"/><image href="${esc(avatar)}" x="130" y="707" width="52" height="52" preserveAspectRatio="xMidYMid slice" clip-path="url(#faceclip-${id})"/>` : ""}<text x="${avatar ? 196 : 130}" y="742" font-family="${F.body}" font-style="italic" font-size="26" fill="#5F5B53">${esc(flavourText)}</text>`;
 
   const steps = ["WON", "PRINTED", stage === "seen" ? `SEEN ${o.seen}/${o.seenOf}` : "SEEN", "DELIVERED"];
   const track = steps

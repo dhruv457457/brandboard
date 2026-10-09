@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { formatUsdc, parseUsdc } from "@/lib/format";
 import { useAutoBid } from "@/lib/market/useAutoBid";
+import { useProfile } from "@/lib/profile";
+import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
+import { requireBrand, shouldAskBrand } from "@/components/market/BrandSetup";
 
 const usd = (v: bigint) => formatUsdc(Number(v) / 1e6);
 
@@ -23,6 +26,8 @@ interface Props {
 /** "Keep me on top up to $X": turn auto-bid on, change it or turn it off for one patch. */
 export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disabled }: Props) {
   const auto = useAutoBid();
+  const { profile } = useProfile();
+  const { walletAddress } = usePatchedAuth();
   const [active, setActive] = useState<bigint | null>(null);
   const [text, setText] = useState("");
   // Once the brand types, a load that lands late must not overwrite what they typed.
@@ -65,6 +70,8 @@ export function AutoBidPanel({ listingId, patchId, label, minNext, buyNow, disab
   const on = (active ?? 0n) > 0n;
 
   async function save() {
+    // Auto-bid bids as your brand, so the same brand check as a normal bid comes first.
+    if (shouldAskBrand(profile, listingId, walletAddress) && !(await requireBrand(listingId))) return;
     const ok = await auto.enable(listingId, patchId, max);
     if (ok) {
       setActive(max);

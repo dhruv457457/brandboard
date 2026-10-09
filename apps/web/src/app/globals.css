@@ -550,3 +550,47 @@ html[data-signed-in] body:has(.landing-only) .boot-loader {
 @keyframes roadMove {
   to { background-position-x: -84px; }
 }
+
+/* Patch NFT: a slow rainbow glow behind the card and a light sweep across it, like a foil trading card. */
+@property --nft-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.nft-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.nft-glow::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  z-index: -1;
+  border-radius: 32px;
+  background: conic-gradient(from var(--nft-angle), #ff5a1f, #ffd400, #7fd9a8, #7fd3ff, #836ef9, #ff8ad8, #ff5a1f);
+  filter: blur(26px);
+  opacity: 0.78;
+  animation: nftSpin 7s linear infinite;
+}
+
+.nft-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, rgba(255, 220, 160, 0.35) 52%, transparent 65%);
+  background-size: 260% 100%;
+  mix-blend-mode: soft-light;
+  animation: nftSheen 5s ease-in-out infinite;
+}
+
+@keyframes nftSpin {
+  to { --nft-angle: 360deg; }
+}
+
+@keyframes nftSheen {
+  0%, 15% { background-position: 120% 0; }
+  60%, 100% { background-position: -40% 0; }
+}

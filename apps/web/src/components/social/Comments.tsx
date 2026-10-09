@@ -20,7 +20,14 @@ export interface CommentSpot {
  * A free, one-line-each thread under a listing. Anyone signed in can write; a comment can be about one spot
  * ("Abs is going to look great"). The author and the listing's creator can remove one.
  */
-export function Comments({ listingId, spots, isCreator = false }: { listingId: number; spots: CommentSpot[]; isCreator?: boolean }) {
+export function Comments({ listingId, spots, isCreator = false, compact = false, href }: {
+  listingId: number;
+  spots: CommentSpot[];
+  isCreator?: boolean;
+  /** The Home feed: no heading or spot chips, only the newest few, and a link to the rest. */
+  compact?: boolean;
+  href?: string;
+}) {
   const { authenticated, login, ready } = usePatchedAuth();
   const authedFetch = useAuthedFetch();
   const [comments, setComments] = useState<ListingComment[] | null>(null);
@@ -78,18 +85,23 @@ export function Comments({ listingId, spots, isCreator = false }: { listingId: n
   const label = (id: number | null) => (id === null ? null : spots.find((s) => s.id === id)?.label ?? `Spot ${id + 1}`);
 
   return (
-    <section className="grid gap-3" aria-label="Comments">
-      <h2 className="font-extrabold text-xl flex items-center gap-2">
-        <MessageCircle size={18} className="text-[var(--accent-text)]" /> Comments{comments && comments.length > 0 ? ` · ${comments.length}` : ""}
-      </h2>
+    <section id={compact ? undefined : "comments"} className={compact ? "grid gap-2.5" : "grid gap-3 scroll-mt-20"} aria-label="Comments">
+      {!compact && (
+        <h2 className="font-extrabold text-xl flex items-center gap-2">
+          <MessageCircle size={18} className="text-[var(--accent-text)]" /> Comments{comments && comments.length > 0 ? ` · ${comments.length}` : ""}
+        </h2>
+      )}
 
       {comments === null ? (
         <p className="text-sm text-[var(--muted)] inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading</p>
       ) : comments.length === 0 ? (
-        <p className="text-sm text-[var(--muted)]">No comments yet. Cheer someone on, ask a question, or say which spot you want.</p>
+        <p className="text-sm text-[var(--muted)]">{compact ? "No comments yet. Be the first." : "No comments yet. Cheer someone on, ask a question, or say which spot you want."}</p>
       ) : (
         <ul className="grid gap-3 list-none m-0 p-0">
-          {comments.map((c) => (
+          {compact && comments.length > 3 && href && (
+            <li><a href={`${href}#comments`} className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--ink)]">View all {comments.length} comments</a></li>
+          )}
+          {(compact ? comments.slice(-3) : comments).map((c) => (
             <li key={c.id} className="flex gap-2.5">
               <Avatar src={c.author.avatar} name={c.author.name} wallet={c.author.wallet} size={34} />
               <div className="min-w-0 flex-1 grid gap-0.5">
@@ -128,7 +140,7 @@ export function Comments({ listingId, spots, isCreator = false }: { listingId: n
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </div>
-        {spots.length > 0 && (
+        {!compact && spots.length > 0 && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="About which spot">
             <button type="button" aria-pressed={spot === ""} onClick={() => setSpot("")}
               className={cn("text-xs font-semibold rounded-full px-2.5 py-1 border-[1.5px]", spot === "" ? "border-[var(--line)] bg-[var(--soft)]" : "border-[var(--soft)] text-[var(--muted)]")}>

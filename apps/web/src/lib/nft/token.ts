@@ -12,6 +12,9 @@ const SURFACES: CardSurface[] = ["Outfit", "Car", "Team hoodie"];
 /** What `PatchedMarket.tokenView` returns. */
 export interface TokenData {
   tokenId: bigint;
+  /** Pictures from the profiles (not on-chain): the winning brand's logo and the creator's photo. */
+  brandLogo?: string | null;
+  creatorAvatar?: string | null;
   listingId: number;
   patchId: number;
   surface: CardSurface;
@@ -102,9 +105,11 @@ export function displayCreator(t: TokenData) {
 }
 
 /** What the card draws. `photo` is only used by the website, never on-chain. */
-export function toCardInput(t: TokenData, opts: { id: string; photo?: string | null; system?: boolean } ): CardInput {
+export function toCardInput(t: TokenData, opts: { id: string; photo?: string | null; system?: boolean; brandLogo?: string | null; creatorAvatar?: string | null } ): CardInput {
   return {
     id: opts.id,
+    brandLogo: opts.brandLogo ?? t.brandLogo ?? null,
+    creatorAvatar: opts.creatorAvatar ?? t.creatorAvatar ?? null,
     brand: displayBrand(t),
     label: t.label,
     event: t.eventName || t.surface,
@@ -124,7 +129,7 @@ export function toCardInput(t: TokenData, opts: { id: string; photo?: string | n
   };
 }
 
-export const cardSvg = (t: TokenData, opts: { id: string; photo?: string | null; system?: boolean }) => patchCard(toCardInput(t, opts));
+export const cardSvg = (t: TokenData, opts: { id: string; photo?: string | null; system?: boolean; brandLogo?: string | null; creatorAvatar?: string | null }) => patchCard(toCardInput(t, opts));
 
 /** Short facts for the page and the traits list. */
 export function facts(t: TokenData) {

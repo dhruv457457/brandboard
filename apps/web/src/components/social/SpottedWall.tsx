@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ReportButton } from "./ReportButton";
-import { Camera, Flame, Heart, ImagePlus, Loader2, X, Zap } from "lucide-react";
+import { ReactionBar } from "./Reactions";
+import { Camera, ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { toast } from "@/components/ui/Toast";
@@ -202,47 +203,4 @@ function SpotSheet({ open, onClose, choices, onPosted }: { open: boolean; onClos
   );
 }
 
-const REACTIONS = [
-  { kind: "flame", Icon: Flame, label: "Fire" },
-  { kind: "zap", Icon: Zap, label: "Cheer" },
-  { kind: "heart", Icon: Heart, label: "Love" },
-] as const;
-
-/** Three icon reactions on a photo: tap to add yours, tap again to take it back. Flips at once, rolls back on an error. */
-export function ReactionBar({ postId, initial, onSignIn }: { postId: string; initial?: SpottedPost["reactions"]; onSignIn: () => void }) {
-  const { authenticated } = usePatchedAuth();
-  const authedFetch = useAuthedFetch();
-  const [state, setState] = useState<SpottedPost["reactions"]>(initial ?? { counts: { flame: 0, zap: 0, heart: 0 }, mine: [] });
-  useEffect(() => {
-    if (initial) setState(initial);
-  }, [initial]);
-
-  async function toggle(kind: (typeof REACTIONS)[number]["kind"]) {
-    if (!authenticated) return onSignIn();
-    const on = !state.mine.includes(kind);
-    const before = state;
-    setState({
-      counts: { ...state.counts, [kind]: Math.max(0, state.counts[kind] + (on ? 1 : -1)) },
-      mine: on ? [...state.mine, kind] : state.mine.filter((k) => k !== kind),
-    });
-    const res = await authedFetch("/api/reactions", {
-      method: on ? "POST" : "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ postId, kind }),
-    }).catch(() => null);
-    if (res?.ok) setState((await res.json()) as SpottedPost["reactions"]);
-    else setState(before);
-  }
-
-  return (
-    <div className="flex gap-1.5" role="group" aria-label="Reactions">
-      {REACTIONS.map(({ kind, Icon, label }) => {
-        const on = state.mine.includes(kind);
-        return (
-          <button key={kind} type="button" onClick={() => toggle(kind)} aria-pressed={on} aria-label={`${label}${state.counts[kind] ? `, ${state.counts[kind]}` : ""}`}
-            className={`inline-flex items-center gap-1 h-7 px-2 rounded-full border-[1.5px] text-xs font-semibold ${on ? "bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-text)]" : "border-[var(--soft)] text-[var(--muted)] hover:border-[var(--line)]"}`}>
-            <Icon size={13} /> {state.counts[kind] > 0 && <span className="font-mono">{state.counts[kind]}</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+export { ReactionBar } from "./Reactions";

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppHref } from "@/lib/appHref";
 import { publicUrl } from "@/lib/handles";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy, ChevronDown } from "lucide-react";
+import { ArrowRight, BadgeCheck, Pause, Play, Check, Clock, Crown, ExternalLink, Link2, Lock, Plus, Repeat, ShieldCheck, Trophy, ChevronDown, Gavel } from "lucide-react";
 import NumberFlow from "@number-flow/react";
 import { LogoMark } from "@/components/brand/Logo";
 import { Avatar as WalletAvatar } from "@/components/ui/Avatar";
@@ -560,9 +560,16 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                             <b className="font-mono text-lg tabular-nums">
                               <NumberFlow value={Number(p.topBid > 0n ? p.topBid : p.floor) / 1e6} format={USD_FORMAT} />
                             </b>
-                            <span className={cn("text-[11px]", mine ? "text-[var(--green)] font-semibold" : "text-[var(--muted)]")}>
-                              {p.bought ? "bought" : mine ? "you lead" : p.topBid > 0n ? `${history.length} bid${history.length === 1 ? "" : "s"}` : "starts at"}
-                            </span>
+                            {biddingOpen && !p.bought && !isCreator && !mine ? (
+                              // A real button look, so it is obvious each spot can be bid on (the whole row opens the bid box).
+                              <span className={cn("mt-1 inline-flex items-center gap-1 h-7 px-3 rounded-full text-xs font-bold border-[1.5px] border-[var(--ink)] transition-colors", open ? "bg-[var(--ink)] text-[var(--paper)]" : "bg-[var(--accent)] text-[#0B0B0C] shadow-[2px_2px_0_var(--shadow)]")}>
+                                <Gavel size={12} /> {open ? "Bidding" : "Bid"}
+                              </span>
+                            ) : (
+                              <span className={cn("text-[11px]", mine ? "text-[var(--green)] font-semibold" : "text-[var(--muted)]")}>
+                                {p.bought ? "bought" : mine ? "you lead" : p.topBid > 0n ? `${history.length} bid${history.length === 1 ? "" : "s"}` : "starts at"}
+                              </span>
+                            )}
                           </span>
                           <span className="sm:hidden col-span-2 flex items-center gap-2 text-sm pl-11 min-w-0"><Leader p={p} me={me} /></span>
                         </button>

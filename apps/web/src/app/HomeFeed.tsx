@@ -9,7 +9,7 @@ import { MonadLogo, PrivyLogo } from "@/components/brand/PartnerLogos";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap } from "lucide-react";
+import { BadgeCheck, CalendarDays, Car, Clock, Gavel, Link2, MapPin, Plus, Search, Shirt, Sparkles, Users, Zap, MessageCircle } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import { OffersForYou } from "@/components/market/OffersForYou";
 import { FundYourWallet } from "@/components/wallet/FundYourWallet";
@@ -25,7 +25,8 @@ import type { ListingCard } from "@/lib/market/server";
 import type { FeedEvent, FeedItem } from "@/lib/market/feed";
 import { cn } from "@/lib/utils";
 import { useAuthedFetch } from "@/lib/authedFetch";
-import { ReactionBar } from "@/components/social/SpottedWall";
+import { ReactionBar, type Reactions } from "@/components/social/Reactions";
+import { Comments } from "@/components/social/Comments";
 import { ViewSwitch } from "@/components/graph/ViewSwitch";
 import { ContestBanner } from "@/components/contest/ContestBanner";
 import type { SpottedPost } from "@/lib/spotted";
@@ -109,6 +110,20 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     };
   }, [ready, authenticated, authedFetch, tab]);
   const [reactions, setReactions] = useState<Record<string, SpottedPost["reactions"]>>({});
+  // Reactions on the "listed spots" posts, loaded the same way.
+  const [listingReactions, setListingReactions] = useState<Record<string, Reactions>>({});
+  const listingIds = useMemo(() => [...new Set(items.flatMap((i) => (i.kind === "listing" ? [i.listingId] : [])))].slice(0, 40), [items]);
+  useEffect(() => {
+    if (!ready || !listingIds.length) return;
+    let alive = true;
+    authedFetch(`/api/reactions?listings=${listingIds.join(",")}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((j) => alive && setListingReactions(j as Record<string, Reactions>))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [ready, listingIds, authenticated, authedFetch]);
   const spottedIds = useMemo(() => items.flatMap((i) => (i.kind === "spotted" ? [i.postId] : [])), [items]);
   useEffect(() => {
     if (!ready || !spottedIds.length) return;
@@ -190,7 +205,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
               if (!card) return null;
               return (
                 <li key={it.key} className="border-b-[1.5px] border-[var(--soft)]">
-                  {it.kind === "listing" && <ListingPost card={card} time={it.time} mounted={mounted} />}
+                  {it.kind === "listing" && <ListingPost card={card} time={it.time} mounted={mounted} reactions={listingReactions[String(card.id)]} />}
                   {it.kind === "bid" && <BidPost item={it} card={card} mounted={mounted} />}
                   {it.kind === "proof" && <ProofPost item={it} card={card} mounted={mounted} />}
                   {it.kind === "spotted" && <SpottedPostCard item={it} card={card} mounted={mounted} reactions={reactions[it.postId]} />}
@@ -331,8 +346,10 @@ function copyLink(href: string) {
 }
 
 /** A new listing: the photo with its spots, the price to start, and Bid. */
-function ListingPost({ card, time, mounted }: { card: ListingCard; time: number; mounted: boolean }) {
+function ListingPost({ card, time, mounted, reactions }: { card: ListingCard; time: number; mounted: boolean; reactions?: Reactions }) {
   const router = useRouter();
+  const { login } = usePatchedAuth();
+  const [talk, setTalk] = useState(false);
   const floors = card.patches.map((p) => Number(p.floor) / 1e6);
   const from = floors.length ? Math.min(...floors) : 0;
   const cd = formatCountdown(card.biddingEndsAt);
@@ -368,12 +385,22 @@ function ListingPost({ card, time, mounted }: { card: ListingCard; time: number;
           {card.patchesWithBids > 0 && <span><b className="text-[var(--ink)] font-mono">{formatUsdc(Number(card.topBidsTotal) / 1e6)}</b> bid so far</span>}
           {live && <span className="inline-flex items-center gap-1"><Clock size={13} /> {mounted ? `ends in ${cd.text}` : "live"}</span>}
         </div>
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
           <Link href={card.href} className="btn-base btn-small btn-primary">
             <Gavel size={14} /> {live ? (open > 0 ? `Bid · ${open} open` : "Outbid") : "View"}
           </Link>
-          <button className="btn-base btn-small btn-ghost" onClick={() => copyLink(card.href)}><Link2 size={14} /> Share</button>
+          <ReactionBar listingId={card.id} initial={reactions} onSignIn={login} />
+          <button type="button" aria-expanded={talk} onClick={() => setTalk((v) => !v)}
+            className={cn("inline-flex items-center gap-1 h-7 px-2.5 rounded-full border-[1.5px] text-xs font-semibold", talk ? "border-[var(--line)] text-[var(--ink)]" : "border-[var(--soft)] text-[var(--muted)] hover:border-[var(--line)] hover:text-[var(--ink)]")}>
+            <MessageCircle size={13} /> Comment
+          </button>
+          <button className="btn-base btn-small btn-ghost ml-auto" onClick={() => copyLink(card.href)}><Link2 size={14} /> Share</button>
         </div>
+        {talk && (
+          <div onClick={(e) => e.stopPropagation()} className="cursor-auto">
+            <Comments listingId={card.id} spots={[]} compact href={card.href} />
+          </div>
+        )}
       </div>
     </article>
   );

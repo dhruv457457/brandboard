@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, Circle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, Circle, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Pill";
 import { SvgCard } from "@/components/nft/TokenCard";
@@ -49,7 +49,7 @@ export default async function PatchPage({ params }: Params) {
   const db = supabase();
   const [timeline, { data: people }] = await Promise.all([
     getTimeline(t.listingId).catch(() => [] as TimelineEvent[]),
-    db.from("profiles").select("wallet, handle, display_name, brand_name").in("wallet", [t.creator.toLowerCase(), holder.toLowerCase()]),
+    db.from("profiles").select("wallet, handle, display_name, brand_name, brand_logo_url, avatar_url").in("wallet", [t.creator.toLowerCase(), holder.toLowerCase(), t.winner.toLowerCase()]),
   ]);
   const creator = people?.find((p) => p.wallet === t.creator.toLowerCase());
   const holderProfile = people?.find((p) => p.wallet === holder.toLowerCase());
@@ -58,7 +58,8 @@ export default async function PatchPage({ params }: Params) {
   const holderHref = `/${holderProfile?.handle ?? holder.toLowerCase()}`;
 
   const photo = t.stage === "printed" || t.stage === "seen" || t.stage === "delivered" ? ipfsUrl(t.coverURI) : null;
-  const svg = cardSvg(t, { id: "page", photo });
+  const winnerProfile = people?.find((p) => p.wallet === t.winner.toLowerCase());
+  const svg = cardSvg(t, { id: "page", photo, brandLogo: winnerProfile?.brand_logo_url ?? null, creatorAvatar: creator?.avatar_url ?? null });
   const f = facts(t);
   const proofTx = new Map(timeline.filter((e) => e.kind === "proof").map((e) => [e.milestone, e.tx]));
   const rows: ProofRow[] = proofs.map((p) => ({ ...p, hash: p.hash, tx: proofTx.get(p.milestone) }));
@@ -83,10 +84,15 @@ export default async function PatchPage({ params }: Params) {
     : `${displayBrand(t)} sponsors ${displayCreator(t)} on Patched. The patch NFT updates as they deliver.`;
 
   return (
-    <main className="wrap pt-8 pb-24 grid gap-8">
+    <main className="wrap pt-6 pb-24 grid gap-6">
+      <nav className="flex items-center gap-2 flex-wrap" aria-label="Back">
+        <Link href={listingHref} className="btn-base btn-small no-underline"><ArrowLeft size={14} /> Back to the listing</Link>
+        <Link href={creatorHref} className="btn-base btn-small btn-ghost no-underline">{displayCreator(t)}&apos;s page</Link>
+        <Link href="/explore" className="btn-base btn-small btn-ghost no-underline">Explore</Link>
+      </nav>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,520px)_1fr] items-start">
         <div className="grid gap-4">
-          <SvgCard svg={svg} label={`${t.label} patch, ${t.stage}`} />
+          <SvgCard svg={svg} label={`${t.label} patch, ${t.stage}`} glow />
           <ShareRow text={shareText} path={tokenUrl} />
         </div>
 

@@ -11,8 +11,18 @@ import { cn } from "@/lib/utils";
 const FRAME = "block rounded-[22px] overflow-hidden border-2 border-[var(--ink)] shadow-[5px_5px_0_var(--ink)] [&>svg]:block [&>svg]:w-full [&>svg]:h-auto bg-[var(--soft)]";
 
 /** A card already drawn as SVG markup (from lib/patchCard.ts, which escapes every name). */
-export function SvgCard({ svg, label, className }: { svg: string; label: string; className?: string }) {
-  return <div role="img" aria-label={label} className={cn(FRAME, className)} dangerouslySetInnerHTML={{ __html: svg }} />;
+export function SvgCard({ svg, label, className, glow = false }: { svg: string; label: string; className?: string; glow?: boolean }) {
+  const card = <div role="img" aria-label={label} className={cn(FRAME, className)} dangerouslySetInnerHTML={{ __html: svg }} />;
+  if (!glow) return card;
+  // The big card on a patch page: a slow rainbow glow behind it and a light sweep across it, like a foil trading card.
+  return (
+    <div className="nft-glow">
+      <div className="relative">
+        {card}
+        <span className="nft-sheen" aria-hidden="true" />
+      </div>
+    </div>
+  );
 }
 
 /** Token state is one RPC call each; keep what this tab already fetched. */
@@ -32,23 +42,22 @@ export function loadToken(tokenId: string): Promise<TokenData | null> {
  * wallets never did, so the card would show a short address. The profile on Patched has the name; ask for it once per
  * wallet and keep it for this tab. The same cleaning the contract applies: letters, digits, space . - _
  */
-interface Names { brand: string; person: string }
+interface Names { brand: string; person: string; logo: string | null; avatar: string | null }
 const names = new Map<string, Promise<Names | null>>();
 const clean = (v: string | null | undefined) => (v ?? "").replace(/[^A-Za-z0-9 ._-]/g, "").trim().slice(0, 24);
 function profileNames(wallet: string): Promise<Names | null> {
   const key = wallet.toLowerCase();
   if (!names.has(key)) {
-    names.set(key, Promise.resolve(supabase().from("profiles").select("display_name, brand_name, handle").eq("wallet", key).maybeSingle())
-      .then(({ data }) => (data ? { brand: clean(data.brand_name) || clean(data.display_name) || clean(data.handle), person: clean(data.handle) || clean(data.display_name) } : null))
+    names.set(key, Promise.resolve(supabase().from("profiles").select("display_name, brand_name, handle, brand_logo_url, avatar_url").eq("wallet", key).maybeSingle())
+      .then(({ data }) => (data ? { brand: clean(data.brand_name) || clean(data.display_name) || clean(data.handle), person: clean(data.handle) || clean(data.display_name), logo: data.brand_logo_url ?? null, avatar: data.avatar_url ?? null } : null))
       .catch(() => null));
   }
   return names.get(key)!;
 }
-/** A token with the profile names filled in wherever the chain has none. */
+/** A token with the profile names and pictures filled in (the chain has neither pictures nor, often, names). */
 async function withNames(t: TokenData): Promise<TokenData> {
-  if (t.brand && t.creatorName) return t;
-  const [b, c] = await Promise.all([t.brand ? null : profileNames(t.winner), t.creatorName ? null : profileNames(t.creator)]);
-  return { ...t, brand: t.brand || b?.brand || "", creatorName: t.creatorName || c?.person || "" };
+  const [b, c] = await Promise.all([profileNames(t.winner), profileNames(t.creator)]);
+  return { ...t, brand: t.brand || b?.brand || "", creatorName: t.creatorName || c?.person || "", brandLogo: b?.logo ?? null, creatorAvatar: c?.avatar ?? null };
 }
 
 /**
