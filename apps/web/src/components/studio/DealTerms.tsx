@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { CalendarDays, Camera, Check, MapPin, Plus, Printer, Route, Trash2, Zap } from "lucide-react";
+import { ArrowRight, CalendarDays, Camera, Check, MapPin, Plus, Printer, Route, Trash2, Zap } from "lucide-react";
 import { DELIVERABLES, X_POST, type DealDraft, type Kind, type PayoutPreset, type PlannedMilestone } from "@/lib/market/dealPlan";
 import { cn } from "@/lib/utils";
 
@@ -20,12 +20,14 @@ const iconFor = (name: string) => (/print/i.test(name) ? Printer : /day/i.test(n
  * The deal, step 3 of creating a listing: how long, how the creator gets paid (a live payout bar), and what every
  * brand gets. Everything here goes into the listing metadata and the on-chain milestones.
  */
-export function DealTerms({ kind, draft, onChange, plan, eventName }: {
+export function DealTerms({ kind, draft, onChange, plan, event, biddingEndsAt }: {
   kind: Kind;
   draft: DealDraft;
   onChange: (d: DealDraft) => void;
   plan: PlannedMilestone[];
-  eventName: string | null;
+  event: { name: string; startsAt: number; endsAt: number } | null;
+  /** When bidding ends (ms), once the page knows the time; the timeline starts there. */
+  biddingEndsAt: number | null;
 }) {
   const reduce = useReducedMotion();
   const set = (patch: Partial<DealDraft>) => onChange({ ...draft, ...patch });
@@ -72,6 +74,21 @@ export function DealTerms({ kind, draft, onChange, plan, eventName }: {
             </button>
           ))}
         </div>
+
+        {/* The whole deal in date order, so the proof dates below make sense. */}
+        {biddingEndsAt !== null && plan.length > 0 && (
+          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1.5 list-none m-0 px-3.5 py-2.5 rounded-2xl bg-[var(--soft)] text-sm" aria-label="Your timeline">
+            <li><b>Bidding ends</b> <span className="text-[var(--muted)]">{when(biddingEndsAt)}</span></li>
+            {event && (
+              <>
+                <li aria-hidden="true"><ArrowRight size={13} className="text-[var(--muted)]" /></li>
+                <li><b>{event.name}</b> <span className="text-[var(--muted)]">{when(event.startsAt)} – {when(event.endsAt)}</span></li>
+              </>
+            )}
+            <li aria-hidden="true"><ArrowRight size={13} className="text-[var(--muted)]" /></li>
+            <li><b>Last proof</b> <span className="text-[var(--muted)]">by {when(plan[plan.length - 1].deadline)}</span></li>
+          </ol>
+        )}
 
         {/* The live payout bar */}
         <div className="flex h-[52px] rounded-2xl overflow-hidden gap-[3px]" aria-hidden="true">
@@ -135,7 +152,11 @@ export function DealTerms({ kind, draft, onChange, plan, eventName }: {
             </div>
           </div>
         )}
-        {eventName && <p className="text-xs text-[var(--muted)]">Dates follow {eventName}. Proof after the event is due 3 days after it ends.</p>}
+        <p className="text-xs text-[var(--muted)]">
+          {event
+            ? `The dates follow ${event.name}: the print proof is due when it starts (or a day after bidding ends, if that's later), and the last proof 3 days after it ends.`
+            : "With no event, proofs start 5 days after bidding ends."}
+        </p>
       </section>
 
       <section className="grid gap-1 pt-6">

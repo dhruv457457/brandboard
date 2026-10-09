@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Camera, Car, Check, ChevronDown, Lightbulb, Loader2, Plus, RefreshCw, Shirt, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Camera, Car, Check, ChevronDown, Lightbulb, Loader2, Plus, RefreshCw, Shirt, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { SurfaceFigure } from "@/components/surface/SurfaceFigure";
 import type { PatchData } from "@/components/surface/Patch";
 import { Button } from "@/components/ui/Button";
@@ -108,6 +108,29 @@ const fmtDuration = (ms: number) => {
   if (mins % 60 === 0) return `${mins / 60} hour${mins === 60 ? "" : "s"}`;
   return `${mins} min`;
 };
+const HOUR = 60 * MIN;
+const fmtDay = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const fmtWhen = (t: number) => new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+/** "Oct 8 – Oct 12 · happening now" / "Nov 5 – Nov 7 · starts in 26 days": the event's dates where they're picked. */
+function eventWhen(e: StudioEvent, now: number): string {
+  const dates = `${fmtDay(e.startsAt)} – ${fmtDay(e.endsAt)}`;
+  if (now >= e.startsAt) return `${dates} · happening now`;
+  const days = Math.ceil((e.startsAt - now) / DAY);
+  return `${dates} · starts in ${days} day${days === 1 ? "" : "s"}`;
+}
+
+/**
+ * How long bidding should run for an event: until the day before it starts, so the creator has a day to print the
+ * winning logos; or, once it has started, until it ends. Null without an event, or once it's over.
+ */
+function eventFit(e: StudioEvent | undefined, now: number): { ms: number; label: string } | null {
+  if (!e) return null;
+  if (now < e.startsAt - DAY) return { ms: e.startsAt - DAY - now, label: `Until ${fmtDay(e.startsAt - DAY)}, the day before` };
+  if (now < e.endsAt) return { ms: e.endsAt - now, label: `Until it ends, ${fmtWhen(e.endsAt)}` };
+  return null;
+}
+
 const PROOF_STEPS = [
   { ms: 0, label: "Event dates" },
   { ms: 3 * MIN, label: "3 min apart" },
@@ -165,6 +188,35 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
     return () => clearInterval(t);
   }, []);
 
+  // Bidding time as a number and a unit people read easily: hours under three days, whole days after that (rounded
+  // down, so it never runs past the moment it was fitted to).
+  function setDuration(ms: number) {
+    const hours = Math.floor(ms / HOUR);
+    if (hours < 1) {
+      setBidAmount(String(Math.max(1, Math.floor(ms / MIN))));
+      setBidUnit("min");
+    } else if (hours < 72) {
+      setBidAmount(String(hours));
+      setBidUnit("hour");
+    } else {
+      setBidAmount(String(Math.floor(hours / 24)));
+      setBidUnit("day");
+    }
+  }
+  // Picking an event sets the bidding time to fit it, so nobody has to work out the days themselves.
+  function fitTo(e: StudioEvent | undefined) {
+    const f = eventFit(e, Date.now());
+    if (f && f.ms >= bidLimits(demo).min) setDuration(Math.min(f.ms, bidLimits(demo).max));
+  }
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (now === null || fitted.current) return;
+    fitted.current = true;
+    fitTo(events.find((e) => e.id === eventId));
+    // Once, for the event the page opened on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
+
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [styleKey, setStyleKey] = useState<string>("current");
   const [customStyle, setCustomStyle] = useState("");
@@ -193,6 +245,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
   const bond = BigInt(minBond);
   const cap = Number(newCreatorCap) / 1e6;
   const event = events.find((e) => e.id === eventId);
+  const fit = now ? eventFit(event, now) : null;
   const buyNowTotal = patches.reduce((s, p) => s + p.buyNow, 0);
   const sidePatches = patches.filter((p) => p.side === side);
   const plan = useMemo(() => planMilestones({ kind, draft: deal, biddingEndsAt: Date.now() + bidMs, event, demoStepMs: demo && proofStepMs ? proofStepMs : undefined }), [kind, deal, bidMs, event, demo, proofStepMs]);
@@ -362,6 +415,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
       if (!title.trim()) return "Give your listing a title.";
       if (bidMs < bidLimit.min) return `Bidding has to run at least ${fmtDuration(bidLimit.min)}.`;
       if (bidMs > bidLimit.max) return `Bidding can run at most ${fmtDuration(bidLimit.max)}.`;
+      if (event && Date.now() + bidMs > event.endsAt) return `Bidding would end after ${event.name} is over (${fmtWhen(event.endsAt)}). Pick a shorter time.`;
     }
     if (i === 1) {
       if (!patches.length) return "Add at least one spot.";
@@ -493,12 +547,18 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
                     onChange={(e) => setTitle(e.target.value)} />
                 </Field>
                 <div className="grid sm:grid-cols-2 gap-5">
-                  <Field label="Event">
-                    <select className={INPUT} value={eventId} onChange={(e) => setEventId(Number(e.target.value))}>
-                      {events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                      <option value={0}>No specific event</option>
-                    </select>
-                  </Field>
+                  <div className="grid gap-1.5 min-w-0">
+                    <Field label="Event">
+                      <select className={INPUT} value={eventId} onChange={(e) => { const id = Number(e.target.value); setEventId(id); fitTo(events.find((x) => x.id === id)); }}>
+                        {events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        <option value={0}>No specific event</option>
+                      </select>
+                    </Field>
+                    <span className="text-xs text-[var(--muted)] inline-flex items-center gap-1.5">
+                      <CalendarDays size={13} className="flex-none" />
+                      {event ? (now ? eventWhen(event, now) : "") : "No event: your proof dates start 5 days after bidding ends."}
+                    </span>
+                  </div>
                   <div className="grid gap-1.5 min-w-0">
                     <span className="field-label">Bidding runs for</span>
                     <div className="flex gap-2 min-w-0">
@@ -512,14 +572,16 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
                       <Pills value={bidUnit} onPick={setBidUnit} label="Unit" options={BID_UNITS.filter((u) => demo || u.unit !== "min").map((u) => ({ value: u.unit, label: u.label }))} />
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
+                      {fit && fit.ms >= bidLimit.min && (
+                        <button type="button" onClick={() => setDuration(Math.min(fit.ms, bidLimit.max))}
+                          className="h-7 px-2.5 rounded-full border-[1.5px] border-[var(--accent)] bg-[var(--accent-soft)] text-xs font-semibold inline-flex items-center gap-1"><CalendarDays size={12} /> {fit.label}</button>
+                      )}
                       {BID_PRESETS.filter((q) => demo || !q.demo).map((q) => (
                         <button key={q.label} type="button" onClick={() => { setBidAmount(String(q.n)); setBidUnit(q.unit); }}
                           className="h-7 px-2.5 rounded-full border-[1.5px] border-[var(--soft)] text-xs font-semibold hover:border-[var(--muted)]">{q.label}</button>
                       ))}
                     </div>
-                    <span className={cn("text-xs", bidMs < bidLimit.min || bidMs > bidLimit.max ? "text-[var(--red)]" : "text-[var(--muted)]")}>
-                      {bidMs < bidLimit.min ? `At least ${fmtDuration(bidLimit.min)}.` : bidMs > bidLimit.max ? `At most ${fmtDuration(bidLimit.max)}.` : `Ends ${now ? new Date(now + bidMs).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}`}
-                    </span>
+                    <BidEndNote now={now} bidMs={bidMs} limit={bidLimit} event={event} />
                   </div>
                 </div>
               </>
@@ -682,7 +744,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
             {stepId === "deal" && (
               <>
                 <StepHead title="Set your deal" sub="How you get paid and what every brand gets. Brands see all of this before they bid." />
-                <DealTerms kind={kind} draft={deal} onChange={setDeal} plan={plan} eventName={event?.name ?? null} />
+                <DealTerms kind={kind} draft={deal} onChange={setDeal} plan={plan} event={event ?? null} biddingEndsAt={now === null ? null : now + bidMs} />
                 {demo && (
                   <div className="grid gap-2 rounded-2xl bg-[var(--soft)] p-4">
                     <span className="field-label">Demo timing <span className="font-normal text-[var(--muted)]">(test network only)</span></span>
@@ -731,7 +793,7 @@ export function StudioEditor({ events, minBond, newCreatorCap, initialEventId, o
                   <Row label="Spots" value={String(patches.length)} />
                   <Row label="If every spot sells at buy-now" value={formatUsdc(buyNowTotal)} />
                   <Row label="Your stake, returned when you deliver" value={formatUsdc(Number(bond) / 1e6)} />
-                  <p className="text-xs text-[var(--muted)] mt-1">Listings go live after a quick review by the Patched team.</p>
+                  <p className="text-xs text-[var(--muted)] mt-1">Your listing goes live within seconds of publishing.</p>
                 </div>
                 {error && <p className="text-sm text-[var(--red)]" role="alert">{error}</p>}
               </>
@@ -820,6 +882,24 @@ function StepHead({ title, sub }: { title: string; sub: string }) {
       <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{title}</h2>
       <p className="text-[var(--muted)]">{sub}</p>
     </div>
+  );
+}
+
+/** Under the bidding time: when it ends, and how that sits against the event. */
+function BidEndNote({ now, bidMs, limit, event }: { now: number | null; bidMs: number; limit: { min: number; max: number }; event?: StudioEvent }) {
+  if (bidMs < limit.min) return <span className="text-xs text-[var(--red)]">At least {fmtDuration(limit.min)}.</span>;
+  if (bidMs > limit.max) return <span className="text-xs text-[var(--red)]">At most {fmtDuration(limit.max)}.</span>;
+  if (now === null) return <span className="text-xs">&nbsp;</span>;
+  const end = now + bidMs;
+  if (event && end > event.endsAt)
+    return <span role="alert" className="text-xs font-semibold text-[var(--red)]">Ends {fmtWhen(end)}, after {event.name} is over. Pick a shorter time.</span>;
+  if (event && now < event.startsAt && end > event.startsAt - DAY)
+    return <span className="text-xs font-semibold text-[var(--accent-text)]">Ends {fmtWhen(end)}, less than a day before {event.name} starts. That leaves little time to print the logos.</span>;
+  const days = event && now < event.startsAt ? Math.floor((event.startsAt - end) / DAY) : 0;
+  return (
+    <span className="text-xs text-[var(--muted)]">
+      Ends {fmtWhen(end)}{event ? (now < event.startsAt ? `, ${days} day${days === 1 ? "" : "s"} before ${event.name} starts` : `, before ${event.name} ends`) : ""}.
+    </span>
   );
 }
 
