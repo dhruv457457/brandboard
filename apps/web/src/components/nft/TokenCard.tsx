@@ -7,20 +7,21 @@ import { publicClient, RECEIPT } from "@/lib/config";
 import { cardSvg, readTokenView, tokenPath, type TokenData } from "@/lib/nft/token";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { Tilt } from "./Tilt";
 
 const FRAME = "block rounded-[22px] overflow-hidden border-2 border-[var(--ink)] shadow-[5px_5px_0_var(--ink)] [&>svg]:block [&>svg]:w-full [&>svg]:h-auto bg-[var(--soft)]";
 
 /** A card already drawn as SVG markup (from lib/patchCard.ts, which escapes every name). */
 export function SvgCard({ svg, label, className, glow = false }: { svg: string; label: string; className?: string; glow?: boolean }) {
   const card = <div role="img" aria-label={label} className={cn(FRAME, className)} dangerouslySetInnerHTML={{ __html: svg }} />;
-  if (!glow) return card;
+  if (!glow) return <Tilt>{card}</Tilt>;
   // The big card on a patch page: a slow rainbow glow behind it and a light sweep across it, like a foil trading card.
   return (
     <div className="nft-glow">
-      <div className="relative">
+      <Tilt max={10}>
         {card}
         <span className="nft-sheen" aria-hidden="true" />
-      </div>
+      </Tilt>
     </div>
   );
 }
@@ -97,10 +98,10 @@ export function TokenCard({ tokenId, token, link = true, className }: { tokenId:
     return () => { live = false; };
   }, [tokenId, token]);
 
-  if (data === undefined) return <div className={cn(FRAME, "aspect-square animate-pulse", className)} aria-label="Loading patch" />;
+  if (data === undefined) return <Tilt><div className={cn(FRAME, "aspect-square animate-pulse", className)} aria-label="Loading patch" /></Tilt>;
   if (data === null) {
     // eslint-disable-next-line @next/next/no-img-element
-    return fallback ? <img src={fallback} alt="Patch receipt" className={cn(FRAME, "w-full", className)} /> : <div className={cn(FRAME, "aspect-square grid place-items-center text-sm muted", className)}>Patch unavailable</div>;
+    return <Tilt>{fallback ? <img src={fallback} alt="Patch receipt" className={cn(FRAME, "w-full", className)} /> : <div className={cn(FRAME, "aspect-square grid place-items-center text-sm muted", className)}>Patch unavailable</div>}</Tilt>;
   }
   const card = <SvgCard svg={cardSvg(data, { id: `c${uid}` })} label={`${data.label} patch, ${data.stage}`} className={className} />;
   return link ? <Link href={tokenPath(tokenId)} className="block no-underline" aria-label={`Open patch ${data.listingId}-${data.patchId}`}>{card}</Link> : card;

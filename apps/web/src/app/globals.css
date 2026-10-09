@@ -594,3 +594,14 @@ html[data-signed-in] body:has(.landing-only) .boot-loader {
   0%, 15% { background-position: 120% 0; }
   60%, 100% { background-position: -40% 0; }
 }
+
+/* Cards that lean towards the cursor (components/nft/Tilt.tsx): a soft light follows the pointer. */
+.tilt-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--glare, 0);
+  transition: opacity 0.3s ease;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08) 35%, transparent 60%);
+  mix-blend-mode: overlay;
+}
