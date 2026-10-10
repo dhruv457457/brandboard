@@ -2,7 +2,7 @@
 
 **Rules:** "Introduce your team, the problem you solve, and why you are building it." Up to 2 minutes.
 
-**Deck:** `D:\RESUMEs\Patched-pitch v4.pptx` (16 slides). **Teleprompter:** https://claude.ai/artifact/UgYhr31p2M3GeXsXpZhxKD
+**Deck:** `D:\RESUMEs\Patched-pitch v5.pptx` (16 slides). **Teleprompter:** https://claude.ai/artifact/UgYhr31p2M3GeXsXpZhxKD
 
 **Story order:** hello → team → problem → proof it's real (vanshu.eth) → what we built → how it works → why people come → Privy → Patchwork → how we make money → go-to-market → traction → the live contest → thanks → try it.
 
