@@ -15,6 +15,14 @@ export function handleProblem(h: string): string | null {
   return null;
 }
 
+/** Can this handle be a web address (yourname.monad.patched.world)? Dots and underscores can't. */
+export const isSubdomainHandle = (h: string) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(h);
+
+/** The nearest handle that can be a web address: "benny___5" becomes "benny-5". */
+export function addressHandle(h: string): string {
+  return h.toLowerCase().replace(/[._]+/g, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "").slice(0, 31);
+}
+
 /**
  * The creator-subdomain base: NEXT_PUBLIC_HANDLE_DOMAIN, or (in the browser, when that wasn't set at build time) the live
  * site's own domain, so monad.patched.world and dhruv.monad.patched.world both share dhruv.monad.patched.world links.

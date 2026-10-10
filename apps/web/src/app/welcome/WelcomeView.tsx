@@ -12,7 +12,7 @@ import { useProfile } from "@/lib/profile";
 import { useSignedIn } from "@/lib/signedIn";
 import { loadDemoLogin, useIsDemoAccount, type DemoLogin } from "@/lib/demoAccount";
 import { useInjectedWallets, type InjectedWallet } from "@/lib/injectedWallets";
-import { handleProblem } from "@/lib/handles";
+import { addressHandle, handleProblem, isSubdomainHandle } from "@/lib/handles";
 import { STEP_UP_USD } from "@/lib/market/stepUp";
 import { GAS_SPONSORED, PLAY_MONEY, TEST_TOKEN } from "@/lib/config";
 import { useBalances } from "@/lib/useBalances";
@@ -409,7 +409,7 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
     if (!profile || filled.current) return;
     filled.current = true;
     setName(profile.display_name ?? xHandle ?? "");
-    setHandle(profile.handle ?? xHandle?.toLowerCase() ?? "");
+    setHandle(profile.handle ?? (xHandle ? addressHandle(xHandle) : ""));
   }, [profile, xHandle]);
 
   // Live check, a moment after typing stops.
@@ -463,6 +463,10 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
             className="flex-1 min-w-0 bg-transparent text-base" style={{ outline: "none" }} />
         </span>
         {check && <span className={cn("text-sm font-semibold", check.ok ? "text-[var(--green)]" : "text-[var(--red)]")} role="status">{check.text}</span>}
+        {handle && !handleProblem(handle.trim()) && (isSubdomainHandle(handle.trim())
+          ? <span className="text-xs text-[var(--muted)]">Your page: <b>{handle.trim()}.monad.patched.world</b></span>
+          : <span className="text-xs text-[var(--muted)]">Dots and underscores can't be a web address, so your page would be monad.patched.world/{handle.trim()}.{" "}
+              <button type="button" className="font-semibold underline" onClick={() => setHandle(addressHandle(handle))}>Use {addressHandle(handle)}.monad.patched.world</button></span>)}
       </label>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-semibold mb-2">I&apos;m here to</legend>

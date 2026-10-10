@@ -3,7 +3,7 @@ import { getSessionUser, unauthorized } from "@/lib/server/auth";
 import { lookupX } from "@/lib/server/xLookup";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
-import { handleProblem } from "@/lib/handles";
+import { addressHandle, handleProblem } from "@/lib/handles";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,8 @@ export async function GET(req: Request) {
     }
     return Response.json(pick(existing));
   }
-  const handle = await freeHandle(user.xHandle?.toLowerCase() ?? null);
+  // A handle from X can have underscores or dots, which can't be a web address: start from the nearest one that can.
+  const handle = await freeHandle(user.xHandle ? addressHandle(user.xHandle) : null);
   const { data, error } = await db
     .from("profiles")
     .insert({

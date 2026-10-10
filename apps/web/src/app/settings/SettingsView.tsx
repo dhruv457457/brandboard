@@ -1,6 +1,7 @@
 "use client";
 
 import { SignInPrompt } from "@/components/ui/SignInPrompt";
+import { addressHandle, handleProblem, isSubdomainHandle } from "@/lib/handles";
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -109,6 +110,10 @@ function ProfileSettings() {
           <span className="text-[var(--muted)] font-mono">patched/</span>
           <input className={INPUT + " flex-1"} maxLength={31} value={form.handle} placeholder="yourname" onChange={(e) => setForm({ ...form, handle: e.target.value.toLowerCase() })} />
         </div>
+        {form.handle && !handleProblem(form.handle) && (isSubdomainHandle(form.handle)
+          ? <span className="text-xs text-[var(--muted)]">Your page: <b>{form.handle}.monad.patched.world</b></span>
+          : <span className="text-xs text-[var(--muted)]">Dots and underscores can't be a web address, so your page is monad.patched.world/{form.handle}.{" "}
+              <button type="button" className="font-semibold underline" onClick={() => setForm({ ...form, handle: addressHandle(form.handle) })}>Use {addressHandle(form.handle)}.monad.patched.world</button></span>)}
       </label>
       <label className="grid gap-1"><span className="field-label">Bio</span>
         <textarea className={INPUT} rows={3} maxLength={200} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
