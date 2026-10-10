@@ -1,39 +1,47 @@
-# Video 3 · Pitch (target 1:55, hard stop 2:00)
+# Video 3 · Pitch (2:00 max)
 
 **Rules:** "Introduce your team, the problem you solve, and why you are building it." Up to 2 minutes.
 
-**Format:** you on camera for the opening and the close; short cutaways of the live site (no slides) behind the middle. The cutaways can be clips from the technical demo recording. One take per section is easier than one take for all of it.
+**Deck:** `D:\RESUMEs\Patched-pitch v3.pptx` (12 slides, real screenshots, no stock art). Teleprompter: https://claude.ai/artifact/UgYhr31p2M3GeXsXpZhxKD
 
-**Word budget:** about 280 words at 150 a minute. The script below is about 275.
+**Format:** you on camera for slides 1 to 3 and the last slide; voice over the slides in between. About 325 words: 2:10 at a natural pace, **1:58 at 1.1×** in the edit.
 
-**Update before recording (after the contest closes, Oct 12 9 AM IST):** the traction line, with numbers from `npx tsx scripts/metrics.mts` (see [../context/06-community-and-traction.md](../context/06-community-and-traction.md)). Never round up. Testnet numbers are fine if you say "on testnet".
+**Before recording, update the contest numbers** (slide 7 and the line in the script). Pull them with the snippets in [../context/06-community-and-traction.md](../context/06-community-and-traction.md): people joined, entries, and the bids on event #5.
 
 ## Script
 
-### 0:00 – 0:12 · Hook (on camera)
-"Hi, I'm Dhruv, and this is Patched. At every crypto event, thousands of people look at what creators wear, drive and hack in. That attention is worth real money, and today nobody can sell it properly."
+**Slide 1 · Patched** (on camera)
+"Hi, I'm Dhruv, and this is Patched. Creators sell logo spots on what they wear, drive or build, and brands bid for those spots in USDC."
 
-### 0:12 – 0:40 · The problem, through one real story (on camera, then a cutaway of a listing)
-"Before Token2049, the creator vanshu.eth sold thirteen logo spots on her event outfit and raised nine thousand dollars in two days. It nearly broke her. Brands paying from abroad got their payments rejected. She had to build a website just to take orders. And every spot had a fixed price, so the brand that wanted it most couldn't even outbid anyone. Brands have the other half of the problem: they pay up front and just hope the creator shows up."
+**Slide 2 · Team** (on camera)
+"I build it. Suhani, in Canada, talks to brands. And Ananya, whose videos have over seventy million views, brings the creators."
 
-### 0:40 – 1:10 · What we built (cutaways: Studio, a bid landing, the NFT turning Delivered)
-"Patched is the market for it. A creator uploads a photo, AI turns it into a canvas, and they mark the spots. Brands bid on every spot in a live USDC auction on Monad, and if you're outbid, your money comes back in the same transaction. The money waits in escrow and is paid in steps, only when the creator posts proof. The winning brand gets a patch NFT that updates as the creator delivers. Patched takes one percent."
+**Slide 3 · The story** (on camera)
+"The idea comes from vanshu.eth. Before Token2049 she sold thirteen logo spots on her outfit and raised nine thousand dollars in two days. But brands abroad had their payments rejected, she had to build a website just to take orders, and every price was fixed, so nobody could outbid anyone."
 
-### 1:10 – 1:25 · Why now, why on Monad and Privy (cutaway: sign-in, a one-tap bid)
-"Monad makes the auction feel live: a bid lands in about a second. Privy makes the wallet disappear: sign in with X, bid with no pop-up and no gas, and let auto-bid or a campaign bid for you, on wallets Privy locks down."
+**Slide 4 · How it works** (voice over)
+"Patched fixes each of those. A creator uploads a photo and marks the spots. Brands bid on every spot, live, in USDC, and if you're outbid your money comes back in the same transaction. The money waits in escrow, and the creator is paid only after posting proof from the event. The winner gets a patch NFT that updates as the creator delivers."
 
-### 1:25 – 1:42 · Traction and what's next (cutaway: the contest page, the Telegram group, Patchwork)
-"We launched on testnet this month: [N] creators have listed [N] outfits, cars and team hoodies, brands are bidding, and our Get Patched Week contest just ran with our Telegram community. Mainnet is live with real USDC. Next is ETHGlobal Mumbai, where hacker teams sell their hoodie spots."
+**Slide 5 · Patchwork** (voice over)
+"Every bid, win and spotted photo is an event on-chain. Patchwork turns them into a graph of the whole event."
 
-### 1:42 – 1:57 · Team and close (on camera)
-"I build Patched: ten-plus hackathon wins. Suhani runs our outreach to brands, and Ananya, a creator with seventy million views, brings the creators. Your fit is ad space. Get patched. Get paid."
+**Slide 6 · Privy** (voice over)
+"Privy runs the money. A brand can let Patched bid for them, or set a budget for a whole event, and Privy enforces those rules. A bid outside them is refused."
 
-## Notes
+**Slide 7 · The contest** (voice over)
+"Right now we're running Get Patched Week, a community contest with thirty dollars in real USDC prizes. It ends Monday, October twelve. Ten people have joined and three have entered so far, and there are eighteen bids on its listings. Bidding uses test USDC, but the prizes are real, and the lucky draw is picked by a Monad block hash that anyone can check."
 
-- **Team:** the deck lists Dhruv (builder), Suhani Sharma (outreach) and Ananya Pancholi (creator). If you present the team differently, change the close; keep it to one sentence each.
-- **Facts used and where they come from:**
-  - vanshu.eth: 13 spots, $9,200 in under 48 hours, 1.5M views (pitch deck, slide 4).
-  - 1% fee: `feeBps = 100` on mainnet.
-  - About a second per bid: live updates within about 2 seconds on the site.
-- **Delivery:** look at the lens, not the screen; record in a quiet room; natural light from the front; a plain background or the Patched patch on the wall. A clip-on mic beats a laptop mic by a lot.
-- **Subtitles:** add burned-in captions. Many judges watch muted at first.
+**Slides 8 and 9 · Numbers and next** (voice over)
+"On testnet, nineteen real accounts have made thirteen listings, and the contracts are live on Monad mainnet with real USDC. Next is ETHGlobal Mumbai in November, where hacker teams can sell their hoodie spots."
+
+**Slide 12 · Try it** (on camera)
+"You can try it at monad.patched.world. Sign in, then use the demo account. Thank you."
+
+Slides 10 (Privy and QuickNode) and 11 (mentors) are for the deck, not the pitch: skip them in the video.
+
+## Saying it well
+
+- Plain voice, like telling a friend. No big pauses, no emphasis tricks.
+- Slides 1 to 3 on camera, looking at the lens. Then switch to the slides.
+- Numbers as words, and say the contest numbers as of the moment you record.
+- If a sentence is hard to say, change it. The meaning matters, not the exact words.
