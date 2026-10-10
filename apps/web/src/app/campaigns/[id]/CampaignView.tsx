@@ -75,6 +75,8 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
   const isOwner = walletAddress?.toLowerCase() === c.brand;
   const [balance, setBalance] = useState<number | null>(null);
   const [actions, setActions] = useState<ActionRow[]>([]);
+  // Totals come from their own queries: the log below shows only the newest rows, and a run of refusals shouldn't push the bids out of the sums.
+  const [totals, setTotals] = useState<{ spent: number; bids: number; blocked: number } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [topUp, setTopUp] = useState(100);
   const [mounted, setMounted] = useState(false);
@@ -91,10 +93,19 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
     const db = supabase();
     const load = () => db.from("brand_campaign_actions").select("id, kind, text, amount, tx_hash, created_at").eq("campaign_id", c.id)
       .order("created_at", { ascending: false }).limit(40).then(({ data }) => setActions((data ?? []) as ActionRow[]));
+    const loadTotals = async () => {
+      const [bids, blocked] = await Promise.all([
+        db.from("brand_campaign_actions").select("amount").eq("campaign_id", c.id).eq("kind", "bid"),
+        db.from("brand_campaign_actions").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("kind", "blocked"),
+      ]);
+      const rows = bids.data ?? [];
+      setTotals({ spent: rows.reduce((s, r) => s + Number(r.amount ?? 0) / 1e6, 0), bids: rows.length, blocked: blocked.count ?? 0 });
+    };
     void load();
+    void loadTotals();
     loadBalance();
     const channel = db.channel(`campaign:${c.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "brand_campaign_actions", filter: `campaign_id=eq.${c.id}` }, () => { void load(); loadBalance(); router.refresh(); })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "brand_campaign_actions", filter: `campaign_id=eq.${c.id}` }, () => { void load(); void loadTotals(); loadBalance(); router.refresh(); })
       .subscribe();
     const t = setInterval(loadBalance, 15_000);
     return () => {
@@ -132,10 +143,17 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
   }
 
   // Spent = what went into bids (each is in escrow now, or refunded to your own wallet if outbid).
-  const spent = actions.filter((a) => a.kind === "bid").reduce((sum, a) => sum + Number(a.amount ?? 0) / 1e6, 0);
+  const spent = totals?.spent ?? actions.filter((a) => a.kind === "bid").reduce((sum, a) => sum + Number(a.amount ?? 0) / 1e6, 0);
   const total = spent + (balance ?? 0);
-  const bids = actions.filter((a) => a.kind === "bid").length;
-  const blocked = actions.filter((a) => a.kind === "blocked").length;
+  const bids = totals?.bids ?? actions.filter((a) => a.kind === "bid").length;
+  const blocked = totals?.blocked ?? actions.filter((a) => a.kind === "blocked").length;
+  // The log: a run of the same refusal is one row with a count.
+  const log = actions.reduce<(ActionRow & { times: number })[]>((rows, a) => {
+    const last = rows[rows.length - 1];
+    if (last && a.kind === "blocked" && last.kind === "blocked" && last.text === a.text) last.times++;
+    else rows.push({ ...a, times: 1 });
+    return rows;
+  }, []);
   const words = campaignRulesInWords({ maxPerSpot: c.maxPerSpot, budget: c.budget, endsAt: c.endsAt, eventName: c.eventName, privyTotal: !!c.aggregationId, startsAt: c.startsAt });
   const s = STATUS[c.status];
   const name = c.brandName ?? formatShortAddress(c.brand);
@@ -203,10 +221,10 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
               <p className="text-[var(--muted)]">Nothing yet.</p>
             ) : (
               <ol className="grid gap-1 list-none m-0 p-0">
-                {actions.map((a) => (
+                {log.map((a) => (
                   <li key={a.id} className={cn("flex gap-3 px-3 py-2.5 rounded-xl text-[15px]", a.kind === "blocked" && "bg-[var(--accent-soft)]")}>
                     <span className="font-mono text-xs text-[var(--muted)] w-16 flex-none pt-0.5">{mounted ? formatTimeAgo(a.created_at) : ""}</span>
-                    <span className="flex-1">{a.kind === "blocked" && <b>Privy blocked · </b>}{a.text}</span>
+                    <span className="flex-1">{a.kind === "blocked" && <b>Privy blocked · </b>}{a.text}{a.times > 1 && <b className="text-[var(--muted)]"> · {a.times} times</b>}</span>
                     <ExplorerLink tx={a.tx_hash} />
                   </li>
                 ))}

@@ -265,6 +265,14 @@ async function tick(c: CampaignRow) {
     } catch (err) {
       if (isPolicyViolation(err)) {
         const overBudget = c.aggregation_id && (await spentSoFar(c.id)) + p.amount > BigInt(c.budget);
+        // The same refusal comes back every minute until something changes: say it once an hour, not 60 times.
+        const since = new Date(Date.now() - 3600_000).toISOString();
+        const { data: again } = await db.from("brand_campaign_actions").select("id").eq("campaign_id", c.id).eq("kind", "blocked")
+          .eq("listing_id", p.listingId).eq("patch_id", p.patchId).eq("amount", p.amount.toString()).gte("created_at", since).limit(1);
+        if (again?.length) {
+          if (overBudget) break;
+          continue;
+        }
         await log(c.id, {
           kind: "blocked",
           text: overBudget
