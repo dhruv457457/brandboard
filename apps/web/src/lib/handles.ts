@@ -43,9 +43,11 @@ export function publicUrl(path: string, origin = typeof window === "undefined" ?
   const domain = handleDomain();
   const m = path.match(/^\/([^/?#]+)(.*)$/);
   const handle = m?.[1].toLowerCase();
-  // Subdomains only take letters, digits and dashes; wallet addresses keep the long form.
-  if (domain && handle && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(handle) && !RESERVED_HANDLES.has(handle) && !/^0x[0-9a-f]{40}$/.test(handle)) {
-    return `https://${handle}.${domain}${m![2]}`;
+  // Subdomains only take letters, digits and dashes, so "patched_world" is served as patched-world.<domain> (the page
+  // finds the handle again from that); wallet addresses keep the long form.
+  const label = handle ? addressHandle(handle) : "";
+  if (domain && handle && isSubdomainHandle(label) && !RESERVED_HANDLES.has(handle) && !RESERVED_HANDLES.has(label) && !/^0x[0-9a-f]{40}$/.test(handle)) {
+    return `https://${label}.${domain}${m![2]}`;
   }
   return `${origin}${path}`;
 }

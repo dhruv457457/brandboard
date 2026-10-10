@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { addressHandle } from "@/lib/handles";
 import { fetchDelivery, fetchListingView } from "@/lib/market/server";
 import { toWire } from "@/lib/market/types";
 import { ListingRoom } from "./ListingRoom";
@@ -13,7 +14,9 @@ export default async function ListingPage({ params }: { params: Promise<{ handle
   if (!listing) notFound();
   // One canonical URL per listing: /<creator handle or wallet>/<id>. Links like /listing/<id> land here too.
   const canonical = listing.creatorHandle ?? listing.creator;
-  if (decodeURIComponent(handle).toLowerCase() !== canonical.toLowerCase()) redirect(`/${canonical}/${id}`);
+  // (the address form, patched-world for patched_world, is the same creator: no redirect)
+  const asked = decodeURIComponent(handle).toLowerCase();
+  if (asked !== canonical.toLowerCase() && asked !== addressHandle(canonical)) redirect(`/${canonical}/${id}`);
   const delivery = listing.status >= 2 ? await fetchDelivery(id, listing.metadata) : null;
   return <ListingRoom initial={toWire(listing)} delivery={delivery ? toWire(delivery) : null} />;
 }

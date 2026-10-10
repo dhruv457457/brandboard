@@ -3,7 +3,7 @@ import { isAddress } from "viem";
 import { patchedMarketAbi } from "@patched/shared";
 import { MARKET, serverClient } from "@/lib/config";
 import { fetchListingCards, fetchListingView } from "@/lib/market/server";
-import { publicUrl } from "@/lib/handles";
+import { addressHandle, isSubdomainHandle, publicUrl } from "@/lib/handles";
 import { toWire } from "@/lib/market/types";
 import { supabase } from "@/lib/supabase";
 import { CHAIN_ID } from "@/lib/config";
@@ -32,9 +32,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   }
 
   const db = supabase();
-  const { data: profile } = isAddress(handle)
+  let { data: profile } = isAddress(handle)
     ? await db.from("profiles").select("*").eq("wallet", handle).maybeSingle()
     : await db.from("profiles").select("*").eq("handle", handle).maybeSingle();
+  // patched-world.monad.patched.world (a web address can't hold an underscore or a dot) is the page of patched_world.
+  if (!profile && !isAddress(handle) && isSubdomainHandle(handle)) {
+    const { data: like } = await db.from("profiles").select("*").ilike("handle", handle.replace(/-/g, "_")).limit(20);
+    profile = like?.find((p) => p.handle && addressHandle(p.handle) === handle) ?? null;
+  }
 
   const wallet = (profile?.wallet ?? (isAddress(handle) ? handle : null)) as `0x${string}` | null;
   if (!wallet) notFound();

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { RESERVED_HANDLES } from "@/lib/handles";
+import { addressHandle, RESERVED_HANDLES } from "@/lib/handles";
 
 /**
  * Creator subdomains: `dhruv.monad.patched.world` shows Dhruv's page and `dhruv.monad.patched.world/6` his listing 6,
@@ -67,7 +67,8 @@ function resolve(req: NextRequest): NextResponse {
     const who = m[1].toLowerCase();
     const listing = m[2] ? `/${m[2]}` : "/";
     // Handles with dots or underscores can't be subdomains; those stay on the main site.
-    if (who === handle) return to(`https://${host}${listing}${search}`);
+    // /patched_world on patched-world.<domain> is this very page: the short form.
+    if (who === handle || addressHandle(who) === handle) return to(`https://${host}${listing}${search}`);
     if (/^[a-z0-9-]+$/.test(who)) return to(`https://${who}.${base}${listing}${search}`);
   }
   return to(`https://${base}${pathname}${search}`);
