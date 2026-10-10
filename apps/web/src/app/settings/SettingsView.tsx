@@ -112,7 +112,7 @@ function ProfileSettings() {
         </div>
         {form.handle && !handleProblem(form.handle) && (isSubdomainHandle(form.handle)
           ? <span className="text-xs text-[var(--muted)]">Your page: <b>{form.handle}.monad.patched.world</b></span>
-          : <span className="text-xs text-[var(--muted)]">Dots and underscores can't be a web address, so your page is monad.patched.world/{form.handle}.{" "}
+          : <span className="text-xs text-[var(--muted)]">Dots and underscores can&apos;t be a web address, so your page is monad.patched.world/{form.handle}.{" "}
               <button type="button" className="font-semibold underline" onClick={() => setForm({ ...form, handle: addressHandle(form.handle) })}>Use {addressHandle(form.handle)}.monad.patched.world</button></span>)}
       </label>
       <label className="grid gap-1"><span className="field-label">Bio</span>

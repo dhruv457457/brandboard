@@ -465,7 +465,7 @@ function ProfileStep({ role, setRole, onDone }: { role: Role; setRole: (r: Role)
         {check && <span className={cn("text-sm font-semibold", check.ok ? "text-[var(--green)]" : "text-[var(--red)]")} role="status">{check.text}</span>}
         {handle && !handleProblem(handle.trim()) && (isSubdomainHandle(handle.trim())
           ? <span className="text-xs text-[var(--muted)]">Your page: <b>{handle.trim()}.monad.patched.world</b></span>
-          : <span className="text-xs text-[var(--muted)]">Dots and underscores can't be a web address, so your page would be monad.patched.world/{handle.trim()}.{" "}
+          : <span className="text-xs text-[var(--muted)]">Dots and underscores can&apos;t be a web address, so your page would be monad.patched.world/{handle.trim()}.{" "}
               <button type="button" className="font-semibold underline" onClick={() => setHandle(addressHandle(handle))}>Use {addressHandle(handle)}.monad.patched.world</button></span>)}
       </label>
       <fieldset className="grid gap-2">
