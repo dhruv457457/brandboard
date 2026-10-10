@@ -52,7 +52,7 @@
 "Right now we're running Get Patched Week, with thirty dollars in prizes. About fifty people opened the contest page and ten joined. The lucky draw is picked by a Monad block hash, so anyone can check it."
 
 **15 · Mentors** (skip slide 14 in the video)
-"Big thanks to our mentors, Hayder and Michal, and to Henri from Privy for the feedback."
+"Big thanks to our mentors, Hayder and Michal, and to Henri from Privy for all the feedback along the way."
 
-**16 · Try it** (on camera)
-"Try it at monad.patched.world. Sign in, tap Use the demo account, and you're bidding in seconds. Thanks!"
+**16 · Try it** (on camera, smile on the last line)
+"So that's Patched. If people look at what you wear, you should get paid for it. Try it at monad.patched.world, and if you just want a quick look, tap Use the demo account. Get patched, get paid. See you at the next event!"
