@@ -148,6 +148,11 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
     .filter((c) => c.status === 1 && c.biddingEndsAt > Date.now())
     .sort((a, b) => a.biddingEndsAt - b.biddingEndsAt)
     .slice(0, 4);
+  // The newest bids, for the rail (on desktop they live there instead of in the feed).
+  const recentBids = items
+    .filter((i): i is Extract<FeedItem, { kind: "bid" }> => i.kind === "bid")
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 6);
 
   if (view === "patchwork") {
     return (
@@ -204,7 +209,7 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
               const card = byId.get(it.listingId);
               if (!card) return null;
               return (
-                <li key={it.key} className="border-b-[1.5px] border-[var(--soft)]">
+                <li key={it.key} className={cn("border-b-[1.5px] border-[var(--soft)]", it.kind === "bid" && "lg:hidden")}>
                   {it.kind === "listing" && <ListingPost card={card} time={it.time} mounted={mounted} reactions={listingReactions[String(card.id)]} />}
                   {it.kind === "bid" && <BidPost item={it} card={card} mounted={mounted} />}
                   {it.kind === "proof" && <ProofPost item={it} card={card} mounted={mounted} />}
@@ -243,6 +248,14 @@ export function HomeFeed({ cards: wire, items, events }: HomeFeedProps) {
                 </span>
               </Link>
             ))}
+          </RailCard>
+        )}
+        {recentBids.length > 0 && (
+          <RailCard title="Recent bids">
+            {recentBids.map((it) => {
+              const card = byId.get(it.listingId);
+              return card ? <RailBid key={it.key} item={it} card={card} mounted={mounted} /> : null;
+            })}
           </RailCard>
         )}
         <p className="text-xs text-[var(--muted)] px-1 flex items-center gap-1.5 flex-wrap">Stablecoins on <MonadLogo height={11} className="text-[var(--ink)]" /> · wallets by <PrivyLogo height={11} className="text-[var(--ink)]" /></p>
@@ -500,6 +513,25 @@ function SearchBox() {
           className="flex-1 bg-transparent outline-none text-[15px]" />
       </label>
     </form>
+  );
+}
+
+/** One bid in the rail: who took which spot on whose listing, for how much. The whole row opens the listing. */
+function RailBid({ item, card, mounted }: { item: Extract<FeedItem, { kind: "bid" }>; card: ListingCard; mounted: boolean }) {
+  const patch = card.patches.find((p) => p.id === item.patchId);
+  return (
+    <Link href={`${card.href}#spots`} className="flex items-start gap-3 px-4 py-2.5 no-underline text-[var(--ink)] hover:bg-[var(--soft)]">
+      <Avatar src={item.logo} name={item.who} wallet={item.wallet} size={32} className="!rounded-lg flex-none mt-0.5" />
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="text-[14px] leading-snug">
+          <b>{item.who}</b> {item.buyNow ? "bought" : "took"}{" "}
+          <span className="inline-block rounded-md px-1 font-semibold border-[1.5px] border-[var(--line)] text-[#0B0B0C] text-[12px]" style={{ background: `var(--${PASTELS[item.patchId % PASTELS.length]})` }}>{patch?.label ?? `Spot ${item.patchId + 1}`}</span>
+          {" "}on <span className="font-semibold">{card.title}</span>
+        </span>
+        <span className="text-[12px] text-[var(--muted)]">{mounted ? formatTimeAgo(item.time) : ""}</span>
+      </span>
+      <b className="font-mono text-sm flex-none">{formatUsdc(item.amount)}</b>
+    </Link>
   );
 }
 

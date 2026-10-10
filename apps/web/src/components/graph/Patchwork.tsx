@@ -102,7 +102,11 @@ export function Patchwork({ eventId, onEvent, lead }: { eventId: number | null; 
       const engine = engineRef.current;
       if (!engine) return;
       if (live && !engine.replaying) engine.update(g);
-      else if (!live) engine.load(g);
+      else if (!live) {
+        engine.load(g);
+        // Open with a quick replay, so the event visibly builds itself (skipped for reduced motion).
+        if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(() => engineRef.current?.startReplay(0), 450);
+      }
     } catch {
       if (!live) setError("Couldn't load this event's graph.");
     }

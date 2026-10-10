@@ -605,7 +605,8 @@ export class PatchworkEngine {
   private tickReplay(now: number) {
     const r = this.replayState;
     if (!r) return;
-    const DUR = 22000;
+    // Quick: the whole event plays back in a few seconds, so everyone sees it connect without waiting.
+    const DUR = 6000;
     const p = Math.min(1, r.from + (now - r.start) / DUR);
     for (const n of this.nodes) {
       if (n.visible || n.t > p) continue;
