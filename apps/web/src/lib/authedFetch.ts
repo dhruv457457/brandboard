@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
+import { shrinkImage } from "@/lib/shrinkImage";
 
 /**
  * fetch() that sends the Privy access token so server routes can verify who is calling. The returned function never
@@ -19,6 +20,15 @@ export function useAuthedFetch() {
     const token = await latest.current();
     const headers = new Headers(init.headers);
     if (token) headers.set("authorization", `Bearer ${token}`);
-    return fetch(input, { ...init, headers });
+    if (input !== "/api/uploads" || !(init.body instanceof FormData)) return fetch(input, { ...init, headers });
+
+    // Uploads: shrink a big photo first, and turn the host's non-JSON refusals into the { error } the callers read.
+    const form = init.body;
+    const file = form.get("file");
+    if (file instanceof File) form.set("file", await shrinkImage(file, String(form.get("bucket") ?? "")));
+    const res = await fetch(input, { ...init, headers, body: form });
+    if (res.status === 413) return Response.json({ error: "That file is too big. Try a smaller photo." }, { status: 413 });
+    if (!res.ok && !(res.headers.get("content-type") ?? "").includes("json")) return Response.json({ error: "Upload failed. Try again." }, { status: res.status });
+    return res;
   }, []);
 }
