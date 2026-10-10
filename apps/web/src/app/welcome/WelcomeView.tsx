@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Droplets, Fingerprint, Loader2, Lock, Mail, ShieldCheck, Smartphone, Sparkles, Wallet, Zap } from "lucide-react";
@@ -9,6 +9,7 @@ import { StoryPanel } from "@/components/brand/StoryPanel";
 import { PrivyLogo } from "@/components/brand/PartnerLogos";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
 import { useProfile } from "@/lib/profile";
+import { useSignedIn } from "@/lib/signedIn";
 import { loadDemoLogin, useIsDemoAccount, type DemoLogin } from "@/lib/demoAccount";
 import { useInjectedWallets, type InjectedWallet } from "@/lib/injectedWallets";
 import { handleProblem } from "@/lib/handles";
@@ -57,6 +58,8 @@ function safeNext(next: string | null): string | null {
  */
 export function WelcomeView() {
   const { ready, authenticated, walletAddress } = usePatchedAuth();
+  // Before Privy has loaded: whether this browser was signed in last time (then there is nothing to show yet).
+  const remembered = useSignedIn();
   const router = useRouter();
   const [next, setNext] = useState<string | null>(null);
   const [step, setStep] = useState<"profile" | "bidding">("profile");
@@ -152,7 +155,9 @@ export function WelcomeView() {
       </section>
 
       <section className="order-first lg:order-none grid place-items-center px-5 py-8 lg:py-6 bg-[var(--paper)] min-w-0 lg:min-h-0 lg:overflow-y-auto">
-        {!ready ? (
+        {/* The sign-in card shows at once, even while Privy is still loading (a tap then waits for it); only someone
+            this browser remembers as signed in, or who is coming back from X, waits on a spinner. */}
+        {!ready && (remembered || fromX) ? (
           <Loader2 className="animate-spin text-[var(--muted)]" aria-label="Loading" />
         ) : !authenticated && fromX ? (
           <div className="grid justify-items-center gap-3 text-center">
@@ -183,7 +188,22 @@ export function WelcomeView() {
 
 /** Privy sign-in in Patched's design: X first, then an email code, then "I have a wallet" (pick any wallet in this browser). */
 function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
-  const { loginWithX, sendEmailCode, loginWithEmailCode, loginWithWallet, chooseWallet, openPrivyLogin } = usePatchedAuth();
+  const auth = usePatchedAuth();
+  const { openPrivyLogin } = auth;
+  // The card shows before Privy has finished loading. A tap that early waits for it (the button shows its spinner),
+  // then runs with the live functions rather than the not-ready ones this render captured.
+  const latest = useRef(auth);
+  latest.current = auth;
+  const whenReady = useCallback(async () => {
+    for (let i = 0; i < 300 && !latest.current.ready; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!latest.current.ready) throw new Error("Sign-in is still loading. Check your connection and try again.");
+    return latest.current;
+  }, []);
+  const loginWithX = async () => (await whenReady()).loginWithX();
+  const sendEmailCode = async (email: string) => (await whenReady()).sendEmailCode(email);
+  const loginWithEmailCode = async (code: string) => (await whenReady()).loginWithEmailCode(code);
+  const loginWithWallet = async (w: InjectedWallet) => (await whenReady()).loginWithWallet(w);
+  const chooseWallet = async (kind: "own" | "fresh", address: string) => (await whenReady()).chooseWallet(kind, address);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -241,6 +261,7 @@ function SignInCard({ onSetup }: { onSetup: (setting: boolean) => void }) {
       if (kind === "send") setSent(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
+      if (/still loading/.test(msg)) return setError(msg);
       setError(kind === "demo" ? "The demo account didn't sign in. Try again, or use X or email."
         : kind === "code" ? "That code didn't work. Check it, or send a new one." : /email/i.test(msg) ? "Check the email address." : "That didn't go through. Try again.");
     } finally {
