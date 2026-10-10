@@ -1,5 +1,28 @@
 # Video 3 · Pitch (2:00 after speed-up or cuts)
 
+## Suhani's version (deck v6)
+
+**Deck:** `D:\RESUMEs\Patched-pitch v6.pptx`, 14 slides, her script in each slide's speaker notes. About 408 words: roughly 2:37 at a natural pace, 2:00 at 1.3×, 1:52 at 1.4×. Dhruv's recording (deck v5, below) is the backup.
+
+**Numbers on the slides (Oct 10, 11 PM IST):** 85 visitors and 622 page views in 7 days (Vercel), 24 from Instagram and 29 from X; 19 real sign-ups, 6 creators, 13 listings, $245 in bids on testnet; contest funnel 52 opened → 16 tapped Count me in → 8 started the form → 3 entries (Shaurya, Gaurav, Benny, each with an X post), 10 joined; 27 in the Telegram. Re-check them before recording.
+
+1. **Patched:** "Hi, I'm Suhani, and this is Patched. Creators sell logo spots on what they wear, drive or build, and brands bid for those spots in USDC."
+2. **Team:** "We're a team of three. Dhruv built Patched end to end, Ananya runs our socials with over seventy million views on Instagram, and I bring in the brands and creators."
+3. **The problem:** "Here's the problem. At every event, people look at what creators wear. That attention is worth money, but there's no simple way to sell it."
+4. **It already happened:** "Before Token2049, vanshu.eth sold thirteen logo spots on her outfit for over nine thousand dollars in two days. But brands abroad couldn't pay her, she built a website just to take orders, and the prices were fixed."
+5. **So we built Patched:** "So we built Patched. USDC straight to a wallet from anywhere, a page in minutes, a live auction for every spot, and escrow that pays only when the creator shows up."
+6. **How it works:** "A creator uploads a photo and AI suggests the spots. Brands bid live, and if you're outbid, your money comes right back. After the event, the creator posts proof and gets paid."
+7. **Privy:** "And it doesn't feel like crypto: sign in with X, no seed phrase, no gas. Brands can auto-bid or set a campaign budget, and Privy makes sure it never overspends."
+8. **How we make money:** "We take one percent when the creator gets paid, and creators earn five percent on every resale. No token, just USDC."
+9. **How we get users:** "We start with creators, because brands follow attention. Ananya brings creators from her network, and at ETHGlobal Mumbai, hacker teams can list their hoodies in two minutes. Then I pitch the brands already sponsoring the event. And it spreads on its own, because every creator shares their page on X. Our goal by Mumbai: fifty creators, twenty brands, five thousand dollars in bids."
+10. **Traction:** "It's early, but it's real. Eighty-five people visited this week, mostly from Instagram and X. Nineteen people signed up, six creators made thirteen listings, and our contracts are live on Monad mainnet with real USDC."
+11. **Get Patched Week:** "This week we ran Get Patched Week, our first contest. Fifty-two people opened the page and ten joined."
+12. **People are posting:** "And people are posting about it on their own. Shaurya listed his hoodie, Gaurav listed his car, and Benny wrote a whole post about trying both sides. Our Telegram already has twenty-seven early testers."
+13. **Mentors:** "Thanks to our mentors, Hayder and Michal, and to Henri from Privy."
+14. **Try it:** "Try it at monad.patched.world and tap Use the demo account. Get patched, get paid!"
+
+## Dhruv's version (deck v5)
+
 **Rules:** "Introduce your team, the problem you solve, and why you are building it." Up to 2 minutes.
 
 **Deck:** `D:\RESUMEs\Patched-pitch v5.pptx` (16 slides). **Teleprompter:** https://claude.ai/artifact/UgYhr31p2M3GeXsXpZhxKD
