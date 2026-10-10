@@ -3,6 +3,7 @@
 // Server-only: never import this from browser code (it reads OPENROUTER_API_KEY).
 
 import sharp from "sharp";
+import { checkSpots } from "./spots";
 
 export type Surface = "outfit" | "car" | "hoodie";
 
@@ -139,15 +140,16 @@ export interface SuggestedPatch {
 export async function suggestLayout(image: string, surface: Surface, count = 5, view?: string): Promise<SuggestedPatch[]> {
   // Ask about the subject alone, then map the boxes back onto the full image.
   const box = await subjectCrop(image);
-  const patches = await suggestOn(box ? box.crop : image, surface, count, view, !!box);
-  if (!box) return patches;
-  return patches.map((p) => ({
+  // A model that errors or answers badly isn't the end: the spots are checked against the picture and topped up below.
+  const asked = await suggestOn(box ? box.crop : image, surface, count, view, !!box).catch(() => []);
+  const patches = !box ? asked : asked.map((p) => ({
     ...p,
     x: Math.round((box.x + (p.x * box.w) / 100) * 10) / 10,
     y: Math.round((box.y + (p.y * box.h) / 100) * 10) / 10,
     w: Math.round(((p.w * box.w) / 100) * 10) / 10,
     h: Math.round(((p.h * box.h) / 100) * 10) / 10,
   }));
+  return checkSpots(image, surface, patches, count);
 }
 
 async function suggestOn(image: string, surface: Surface, count: number, view: string | undefined, cropped: boolean): Promise<SuggestedPatch[]> {
