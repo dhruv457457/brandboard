@@ -96,10 +96,11 @@ export function CampaignView({ campaign: c, held }: { campaign: CampaignInfo; he
     const loadTotals = async () => {
       const [bids, blocked] = await Promise.all([
         db.from("brand_campaign_actions").select("amount").eq("campaign_id", c.id).eq("kind", "bid"),
-        db.from("brand_campaign_actions").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("kind", "blocked"),
+        // Refusals are counted by what was refused (a spot and an amount), not by every minute it came back.
+        db.from("brand_campaign_actions").select("listing_id, patch_id, amount").eq("campaign_id", c.id).eq("kind", "blocked").limit(10000),
       ]);
       const rows = bids.data ?? [];
-      setTotals({ spent: rows.reduce((s, r) => s + Number(r.amount ?? 0) / 1e6, 0), bids: rows.length, blocked: blocked.count ?? 0 });
+      setTotals({ spent: rows.reduce((s, r) => s + Number(r.amount ?? 0) / 1e6, 0), bids: rows.length, blocked: new Set((blocked.data ?? []).map((r) => `${r.listing_id}:${r.patch_id}:${r.amount}`)).size });
     };
     void load();
     void loadTotals();
