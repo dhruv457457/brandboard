@@ -42,8 +42,8 @@
 **10 · How we make money**
 "How we make money: one percent of every sale, when the creator gets paid. On a resale, the creator earns five percent. No token, no points, just USDC."
 
-**11 · Go-to-market**
-"We're starting where we already are: our own contest this week, then ETHGlobal Mumbai in November, where hacker teams sell their hoodie spots. And it spreads by itself, because every creator shares their page."
+**11 · How we get users**
+"So how do we get users? We start with creators, because brands follow attention. Ananya brings in creators from that seventy-million-view network. At ETHGlobal Mumbai, eight hundred builders show up, and hacker teams can list their hoodie from a QR code in two minutes. Then brands follow: Suhani pitches the teams already sponsoring the event, and a spot starts at ten dollars. After that, it spreads by itself. Every creator shares their page on X, and a brand can send an offer to any X handle. Our goal by ETHGlobal Mumbai is fifty creators, twenty brands, and five thousand dollars in bids."
 
 **12 · Traction**
 "It's early, but it's real. Seventy-eight people visited in the last few days, mostly from Instagram and X. On testnet, nineteen accounts made thirteen listings, and the contracts are live on Monad mainnet with real USDC."
