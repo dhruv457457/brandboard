@@ -95,6 +95,21 @@ New wallet with $0? The moment a bid needs more than you have, Patched opens the
 | Team hoodie | A team at a hackathon, paid out across the team | Team check-in, stage or demo photos, an X post |
 | Your own idea | Anything people will see at the event: a laptop lid on stage, a booth wall, a board | Photos with the logo in view, an X post |
 
+## Product map
+
+| Surface | What it does |
+|---|---|
+| **Home** | A feed of new listings, bids ("Nike unseated Kite and took Chest"), proofs and spotted photos, with likes and comments. Switch to **Patchwork** for the live graph of an event. |
+| **Creator page** | `yourname.monad.patched.world`: the creator's own site with the photo, live spots and bids. Editable in place, with a share kit and link previews. |
+| **Create** | Photo → AI canvas → AI-placed spots → the deal (payout split, proof dates fitted to the event) → publish. Live within seconds. |
+| **Listing** | Every spot is its own auction: one-tap bid, buy now, sweep, auto-bid, anti-snipe, instant outbid refunds, comments. |
+| **Automate** | Auto-bid (Patched as a policy-limited signer), campaigns (a budget Privy enforces), and "Patch anyone on X". |
+| **Events** | Cover, who's going, leaderboards, a live wall of bids, Spotted photos and Patchwork. |
+| **Patch NFTs** | `/patch/<id>`: the living card, its timeline with explorer links, a proof check, and resale. |
+| **Profile** | Listings, Collection, Sponsors, and (for you) Campaigns, Earnings and Bids. |
+| **Contest** | Get Patched Week: steps checked live, entries, and a lucky draw picked by a block hash. |
+| **Admin** | Reports, proofs and disputes, events. Open to anyone on play money, through a policy-limited wallet. |
+
 ## Community
 
 Patched is already out of the lab. We build in public and post what we ship.
@@ -194,6 +209,21 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 (the brand, in a browser, as the Privy test account).
 
 </details>
+
+## What is verified, and what isn't
+
+We would rather you trust the parts we can prove.
+
+| Claim | Status |
+|---|---|
+| The full money loop works on-chain | **Verified on testnet:** 25 transactions in [docs/evidence.md](docs/evidence.md) |
+| Mainnet contracts on real USDC | **Deployed** 2026-10-08 (addresses below). Not yet verified on a block explorer; no real-money cycle recorded yet |
+| Privy policies refuse anything outside them | **Checked by scripts** in `apps/web/scripts/privy-*-check` against the live policies |
+| Contract safety | 134 tests (unit, fuzz, solvency invariant, timing, upgrade). **No independent audit.** Owner, admin and treasury are one deployer key today; a multisig comes before real volume |
+| Gas sponsorship | On for testnet. On mainnet, wallets pay their own MON until sponsorship is switched on |
+| Traction | Testnet numbers, with our own wallets left out (`apps/web/scripts/metrics.mts`) |
+
+Open admin and the demo account exist for judging and only work on play money.
 
 ## Features
 
@@ -307,6 +337,19 @@ Re-run it: `apps/web/scripts/onchain-cycle.mts` (creator, admin and rival steps)
 
 </details>
 
+## Engineering
+
+The hard part is money moving between people who don't trust each other, through wallets they never see. Every boundary has an explicit check.
+
+- **Escrow you can reason about.** All USDC sits in one market contract. Outbid refunds happen in the same transaction (or are credited for withdrawal if a push fails). A solvency invariant test checks the contract always holds what it owes. Anti-snipe is capped by a hard end, deadlines shift if late bids squeeze the first proof, a pause never costs a creator their deadline, and a dispute nobody settles splits 50/50 after 30 days.
+- **Proof you can recheck.** Proof photos and a proof record go to IPFS; the contract stores `keccak256` of the record. Each patch page fetches it, hashes it in the browser and compares it with the chain.
+- **Keys we hold can only do one job.** The keeper, the approver, open admin, every campaign and every X offer is its own Privy server wallet, owned by our authorization key and limited by a policy to a few named contract calls. Anything else is refused by Privy with `policy_violation` (checked by script).
+- **Automation that can't overspend.** Auto-bid runs from the brand's own wallet through a Privy signer whose policy names the spot and the maximum; raising it needs the brand to approve a new policy. Campaign budgets are a Privy aggregation, so Privy, not our server, refuses the bid that would pass the budget.
+- **Retries that can't pay twice.** Every keeper and campaign send carries an idempotency key that describes the situation (action, listing, milestone, the top bid it answers), namespaced per chain.
+- **A server that never trusts the browser's wallet.** Every acting API route verifies the Privy access token; money routes read the wallet and verified emails from Privy itself. Rate limits on every write, moderation on everything public.
+- **An index that can be replayed.** The indexer reads every contract event into Postgres; notifications are unique per event, wallet and kind, so replaying blocks never duplicates anything. A cron keeps the keeper and index moving every minute.
+- **Two chains, one codebase.** Chain values live in config; testnet and mainnet are two builds of the same code behind one address. Demo shortcuts switch off by themselves on real money.
+
 ## Contracts
 
 | Contract | What it does |
@@ -379,6 +422,19 @@ The report is in `apps/web/e2e/report/` (`npx playwright show-report e2e/report`
 
 </details>
 
-## More
+## Documentation
 
-[Full project context](docs/context/README.md) · [Product spec](docs/SPEC.md) · [Contracts](docs/contracts.md) · [Design system](docs/design-system.md) · [Data model](docs/data-model.md) · [Agent guide](AGENTS.md) · [X @Patched_world](https://x.com/Patched_world) · [Telegram](https://t.me/+TrSZaCSMngo3YWQ9)
+| Document | What it covers |
+|---|---|
+| [Project context](docs/context/README.md) | The whole project in one place: product, Privy, contracts, infrastructure, Patchwork, community, go-to-market, roadmap |
+| [Privy in detail](docs/privy.md) | Every Privy feature we use, with the code for each |
+| [Contracts](docs/contracts.md) | The full contract API, events, errors, upgrades and deployments |
+| [On-chain evidence](docs/evidence.md) | Every transaction of the test cycle |
+| [Patchwork](docs/patchwork-graph-plan.md) | The live on-chain graph of an event |
+| [Patch NFT](docs/nft-plan.md) | The Living Patch card and how it changes |
+| [Design system](docs/design-system.md) | Colours, type, motion and components |
+| [Data model](docs/data-model.md) | The database tables |
+| [Security](SECURITY.md) | How to report a problem |
+| [Agent guide](AGENTS.md) | How AI agents work in this repo |
+
+[X @Patched_world](https://x.com/Patched_world) · [Telegram](https://t.me/patchedworld) · [monad.patched.world](https://monad.patched.world)
