@@ -56,6 +56,8 @@ export default function RootLayout({
       className={`${bricolage.variable} ${geist.variable} ${geistMono.variable}`}
     >
       <head>
+        {/* Privy's servers are asked for on every page: open the connection while the scripts download. */}
+        <link rel="preconnect" href="https://auth.privy.io" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

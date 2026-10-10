@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { patchedMarketAbi } from "@patched/shared";
 import { CHAIN_ID, MARKET, serverClient } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
@@ -5,12 +6,20 @@ import { StudioEditor, type StudioEvent, type StudioOffer } from "./StudioEditor
 
 export const dynamic = "force-dynamic";
 
-export default async function StudioPage({ searchParams }: { searchParams: Promise<{ event?: string; offer?: string }> }) {
-  const params = await searchParams;
+/** The market's stake and new-creator cap change only when an admin changes them: read them from the chain every 5 minutes, not on every visit. */
+const marketLimits = unstable_cache(async () => {
   const client = serverClient();
-  const [minBond, newCreatorCap, events] = await Promise.all([
+  const [minBond, newCreatorCap] = await Promise.all([
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "minBond" }),
     client.readContract({ address: MARKET, abi: patchedMarketAbi, functionName: "newCreatorCap" }),
+  ]);
+  return { minBond: minBond.toString(), newCreatorCap: newCreatorCap.toString() };
+}, ["studio-market-limits", String(CHAIN_ID)], { revalidate: 300 });
+
+export default async function StudioPage({ searchParams }: { searchParams: Promise<{ event?: string; offer?: string }> }) {
+  const params = await searchParams;
+  const [limits, events] = await Promise.all([
+    marketLimits(),
     supabase()
       .from("patched_events")
       .select("event_id, name, starts_at, ends_at")
@@ -36,5 +45,5 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
     }
   }
   const initialEventId = Number(params.event) || offer?.eventId || undefined;
-  return <StudioEditor events={list} minBond={minBond.toString()} newCreatorCap={newCreatorCap.toString()} initialEventId={initialEventId} offer={offer} />;
+  return <StudioEditor events={list} minBond={limits.minBond} newCreatorCap={limits.newCreatorCap} initialEventId={initialEventId} offer={offer} />;
 }
