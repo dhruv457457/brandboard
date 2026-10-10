@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://monad.patched.world"><b>Try it live</b></a> ·
+  <a href="https://youtu.be/TEMapx9b-CI"><b>Watch the pitch</b></a> ·
   <a href="https://x.com/Patched_world">X</a> ·
   <a href="https://t.me/+TrSZaCSMngo3YWQ9">Telegram</a> ·
   <a href="docs/contracts.md">Contracts</a> ·
