@@ -203,6 +203,55 @@ contract LivingPatchTest is BaseTest {
         assertGt(bytes(uri).length, 5000);
     }
 
+    function test_image_is_the_hosted_card_and_the_onchain_picture_is_kept() public {
+        uint256 id = _delivering();
+        uint256 tokenId = market.tokenIdOf(id, 0);
+        string memory json = _decode(_after(receipt.tokenURI(tokenId), "data:application/json;base64,"));
+        // image: the website's card for this token, with the stage in the link so a new stage is a new picture.
+        assertTrue(_has(json, string.concat('"image":"https://monad.patched.world/patch/', vm.toString(tokenId), '/card.png?v=0"')));
+        // image_onchain: what this contract draws itself, always present.
+        assertTrue(_has(json, '"image_onchain":"data:image/svg+xml;base64,'));
+        // Without a site URL the contract's own picture is the image.
+        PatchRenderer bare = new PatchRenderer(address(this), "");
+        string memory bareJson = _decode(_after(bare.tokenURI(address(market), tokenId), "data:application/json;base64,"));
+        assertTrue(_has(bareJson, '"image":"data:image/svg+xml;base64,'));
+    }
+
+    /// @dev Standard base64 to text (this OpenZeppelin version only encodes).
+    function _decode(string memory data) internal pure returns (string memory) {
+        bytes memory d = bytes(data);
+        bytes memory out = new bytes((d.length * 3) / 4);
+        uint256 n;
+        uint256 acc;
+        uint256 bits;
+        for (uint256 i; i < d.length; ++i) {
+            uint8 c = uint8(d[i]);
+            uint256 v;
+            if (c >= 65 && c <= 90) v = c - 65;
+            else if (c >= 97 && c <= 122) v = c - 71;
+            else if (c >= 48 && c <= 57) v = c + 4;
+            else if (c == 43) v = 62;
+            else if (c == 47) v = 63;
+            else continue; // '=' padding
+            acc = (acc << 6) | v;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                out[n++] = bytes1(uint8(acc >> bits));
+                acc &= (1 << bits) - 1;
+            }
+        }
+        assembly { mstore(out, n) }
+        return string(out);
+    }
+
+    function _after(string memory s, string memory prefix) internal pure returns (string memory) {
+        bytes memory b = bytes(s);
+        bytes memory out = new bytes(b.length - bytes(prefix).length);
+        for (uint256 i; i < out.length; ++i) out[i] = b[i + bytes(prefix).length];
+        return string(out);
+    }
+
     function test_no_event_does_not_repeat_the_surface() public {
         uint256 id = _delivering(); // _params uses eventId 0
         assertEq(_tv(id, 0).eventName, bytes32(0));

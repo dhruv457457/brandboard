@@ -46,6 +46,20 @@ export async function cardPng(svg: string, size = 1000): Promise<Buffer> {
   return Buffer.from(resvg.render().asPng());
 }
 
+/** A logo or profile picture shrunk to a small PNG data URL the SVG can embed. Null if it cannot be read in time. */
+export async function imageDataUrl(url: string | null | undefined, size = 256): Promise<string | null> {
+  if (!url || !/^https:\/\//.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
+    if (!res.ok) return null;
+    const sharp = (await import("sharp")).default;
+    const png = await sharp(Buffer.from(await res.arrayBuffer())).rotate().resize({ width: size, height: size, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** A photo as a data URL the SVG can embed (resvg does not fetch links). Null if it cannot be read in time. */
 export async function photoDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;

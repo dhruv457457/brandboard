@@ -652,10 +652,14 @@ contract PatchRenderer is Ownable, IPatchRenderer {
         return PatchArt.render(_card(market.tokenView(tokenId)));
     }
 
+    /// @notice The token's metadata. `image` is the card the website draws at <siteUrl><tokenId>/card.png (with the brand's
+    ///         logo and the creator's photo, which a contract can't hold); the picture this contract draws itself is
+    ///         always in `image_onchain`, and is `image` when no site URL is set.
     function tokenURI(address market, uint256 tokenId) external view returns (string memory) {
         PatchedMarket.TokenView memory v = PatchedMarket(market).tokenView(tokenId);
         PatchCard memory c = _card(v);
-        string memory svg = PatchArt.render(c);
+        string memory onchain = string.concat("data:image/svg+xml;base64,", Base64.encode(bytes(PatchArt.render(c))));
+        bool hosted = bytes(siteUrl).length != 0;
         return string.concat(
             "data:application/json;base64,",
             Base64.encode(
@@ -668,8 +672,10 @@ contract PatchRenderer is Ownable, IPatchRenderer {
                     c.label,
                     '","description":"',
                     _description(c, v),
-                    '","image":"data:image/svg+xml;base64,',
-                    Base64.encode(bytes(svg)),
+                    '","image":"',
+                    hosted ? string.concat(_uri(siteUrl), tokenId.toString(), "/card.png?v=", uint256(c.stage).toString()) : onchain,
+                    '","image_onchain":"',
+                    onchain,
                     '"',
                     _links(tokenId, v),
                     ',"attributes":[',
