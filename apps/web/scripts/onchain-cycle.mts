@@ -1,4 +1,4 @@
-// The on-chain test cycle (docs/final-plan.md, M1): the steps that don't need a Privy wallet in a browser, run with the
+// The on-chain test cycle (results in docs/evidence.md): the steps that don't need a Privy wallet in a browser, run with the
 // deployer (admin and creator) and the rival bot wallets on Monad testnet. Every transaction is appended to
 // docs/evidence.md with an explorer link. The browser steps (Privy test account) live in e2e/money.spec.ts.
 //
@@ -49,7 +49,7 @@ const when = (s: string) => (s.startsWith("+") ? Math.floor(Date.now() / 1000) +
 
 function evidence(actor: string, what: string, hash: string) {
   if (!existsSync(EVIDENCE)) {
-    writeFileSync(EVIDENCE, "# On-chain evidence\n\nEvery step of the test cycle in docs/final-plan.md, run on Monad testnet (chain 10143), newest last.\n\n| Step | Actor | What happened | Transaction | When (UTC) |\n|---|---|---|---|---|\n");
+    writeFileSync(EVIDENCE, "# On-chain evidence\n\nEvery step of the on-chain test cycle, run on Monad testnet (chain 10143), newest last.\n\n| Step | Actor | What happened | Transaction | When (UTC) |\n|---|---|---|---|---|\n");
   }
   appendFileSync(EVIDENCE, `| ${LABEL} | ${actor} | ${what} | [${hash.slice(0, 10)}…](${EXPLORER}/tx/${hash}) | ${new Date().toISOString().slice(0, 16).replace("T", " ")} |\n`);
   console.log(`${LABEL}: ${what}\n  ${EXPLORER}/tx/${hash}`);

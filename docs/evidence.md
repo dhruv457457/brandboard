@@ -1,6 +1,6 @@
 # On-chain evidence
 
-Every step of the test cycle in docs/final-plan.md, run on Monad testnet (chain 10143), newest last.
+Every step of the on-chain test cycle, run on Monad testnet (chain 10143), newest last.
 
 | Step | Actor | What happened | Transaction | When (UTC) |
 |---|---|---|---|---|

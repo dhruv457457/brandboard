@@ -164,3 +164,6 @@ apps/web/e2e/screens/
 
 # Sample NFT cards written by contracts/test/PreviewArt.t.sol
 contracts/out-art/
+
+# Internal notes: research, plans, task briefs and video scripts. Kept on disk, out of the public repo.
+docs/internal/

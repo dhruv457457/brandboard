@@ -59,7 +59,7 @@ The plan in the pitch deck, with what each step means in practice:
 | DMs and spreadsheets (how vanshu.eth did it) | payment rejections, a website to build, fixed prices, no trust |
 | Influencer marketplaces | built for posts, not physical attention; fiat, slow payouts, no escrow on proof |
 | Event sponsorship packages | one big buyer, no live price, no per-spot proof |
-| Track 3 rivals ([../track3-competitors.md](../track3-competitors.md)) | all digital markets (post tokens, boosts, tickets); none prices real-world attention; Privy used mostly for login; almost none on mainnet |
+| Track 3 rivals | all digital markets (post tokens, boosts, tickets); none prices real-world attention; Privy used mostly for login; almost none on mainnet |
 
 **Our edge:** physical attention as a live market, escrow that pays on proof, an on-chain record per creator, NFTs that grow with delivery, and Privy used deeper than anything else in the track.
 
@@ -109,8 +109,8 @@ Known open issue: under heavy parallel load, about 1 in 8 page loads logs React 
 - **Patchwork:** a landing hero, embeds for organisers, cross-event history.
 
 ### Reach
-- **Android app** as a Trusted Web Activity (plan: [../android-and-social-plan.md](../android-and-social-plan.md)): a web manifest, icons, `assetlinks.json`, then PWABuilder. Not started; there is no manifest yet. No iOS app (Add to Home Screen instead).
-- **Arc mirror** for Circle's Arc Microgrants (plan: [../arc-plan.md](../arc-plan.md); separate repo, Arc mainnet, USDC as gas). On hold.
+- **Android app** as a Trusted Web Activity : a web manifest, icons, `assetlinks.json`, then PWABuilder. Not started; there is no manifest yet. No iOS app (Add to Home Screen instead).
+- **Arc mirror** for Circle's Arc Microgrants (separate repo, Arc mainnet, USDC as gas). On hold.
 - **Bids from any chain:** `bidFor` already lets a relayer bid for a brand and forwards the money if the bid fails on arrival.
 - **Beyond crypto events:** sports days, college fests, marathons, car meets. Anywhere people look at people.
 

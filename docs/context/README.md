@@ -43,4 +43,4 @@ Last updated: **2026-10-09**. This folder is the one place to read to understand
 
 ## Older docs this folder summarises
 
-[SPEC.md](../SPEC.md) (V1 spec) · [SPEC-v2.md](../SPEC-v2.md) (V2 app structure) · [contracts.md](../contracts.md) (full contract API) · [privy.md](../privy.md) (the Privy table) · [evidence.md](../evidence.md) (on-chain test run) · [nft-plan.md](../nft-plan.md) · [patchwork-graph-plan.md](../patchwork-graph-plan.md) · [contest-handoff.md](../contest-handoff.md) · [final-plan.md](../final-plan.md) · [track3-competitors.md](../track3-competitors.md) · [android-and-social-plan.md](../android-and-social-plan.md) · [arc-plan.md](../arc-plan.md) · [design-system.md](../design-system.md) · [data-model.md](../data-model.md) · [TESTING.md](../TESTING.md)
+[SPEC.md](../SPEC.md) (V1 spec) · [contracts.md](../contracts.md) (full contract API) · [privy.md](../privy.md) (the Privy table) · [evidence.md](../evidence.md) (on-chain test run) · [nft-plan.md](../nft-plan.md) · [patchwork-graph-plan.md](../patchwork-graph-plan.md) · [design-system.md](../design-system.md) · [data-model.md](../data-model.md) · [TESTING.md](../TESTING.md)

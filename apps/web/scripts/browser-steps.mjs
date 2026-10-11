@@ -1,4 +1,4 @@
-// The browser half of the on-chain test cycle (docs/final-plan.md, M1): drives the app on localhost:3000 as the Privy
+// The browser half of the on-chain test cycle (results in docs/evidence.md): drives the app on localhost:3000 as the Privy
 // test account (the "Use the demo account" link), so every Privy step runs exactly as a person would do it.
 //   ACTION=bid LISTING=5 SPOT="Chest pocket" [AMOUNT=6] node scripts/browser-steps.mjs
 // Actions: bid, autobid (MAX=), sweep (SPOTS="A,B"), shot (PATH=/url, just a screenshot). Screenshots go to OUT.
