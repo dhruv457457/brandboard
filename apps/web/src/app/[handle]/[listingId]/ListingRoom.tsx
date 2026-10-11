@@ -155,6 +155,14 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
     };
   }, []);
 
+  // Fetch every view's picture up front, so turning the car never shows an empty stage while one downloads.
+  useEffect(() => {
+    for (const v of listing.views) {
+      const img = new Image();
+      img.src = v.image;
+    }
+  }, [listing.views]);
+
   const turning = listing.views.length > 1 && autoplay && !reduce && !stageHover && openId === null && !editing;
   useEffect(() => {
     if (!turning) return;
@@ -531,8 +539,8 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                     const heat = mounted && biddingOpen && !p.bought ? spotHeat(bids, p.id) : null;
                     const history = bids.filter((b) => b.patchId === p.id);
                     return (
-                      <motion.div key={p.id} id={`spot-${p.id}`} className={cn("border-b-[1.5px] border-[var(--soft)] last:border-b-0 scroll-mt-24 transition-colors", open && "bg-[var(--paper)]")}
-                        initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + (p.id % 12) * 0.05, duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}>
+                      <div key={p.id} id={`spot-${p.id}`} className={cn("row-in border-b-[1.5px] border-[var(--soft)] last:border-b-0 scroll-mt-24 transition-colors", open && "bg-[var(--paper)]")}
+                        style={{ "--d": `${0.05 + (p.id % 12) * 0.04}s` } as React.CSSProperties}>
                         <button
                           type="button"
                           aria-expanded={open}
@@ -679,7 +687,7 @@ export function ListingRoom({ initial, delivery: dw }: { initial: Wire<ListingVi
                             </motion.div>
                           )}
                         </AnimatePresence>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>

@@ -14,7 +14,7 @@ import {
   useSpring,
 } from "motion/react";
 import NumberFlow from "@number-flow/react";
-import { EASE, Reveal } from "@/components/ui/Reveal";
+import { Reveal } from "@/components/ui/Reveal";
 import { MonadLogo, MonadMark, PrivyLogo } from "@/components/brand/PartnerLogos";
 import { PoweredBy } from "@/components/brand/PoweredBy";
 import { StoryPanel } from "@/components/brand/StoryPanel";
@@ -144,13 +144,7 @@ function HeroScene({ featured, ticker, brandLogos }: Pick<LandingData, "featured
   );
 
   return (
-    <motion.div
-      ref={box}
-      className="relative w-full"
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.9, delay: 0.2, ease: EASE }}
-    >
+    <div ref={box} className="hero-scale relative w-full">
       <div className="relative h-[380px] sm:h-[480px] lg:h-[560px]">
         {/* A soft warm glow behind the object */}
         <div
@@ -231,7 +225,7 @@ function HeroScene({ featured, ticker, brandLogos }: Pick<LandingData, "featured
           })}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -254,10 +248,8 @@ function Stat({ value, label, currency }: { value: number; label: string; curren
 }
 
 function Hero({ featured, ticker, stats, brandLogos }: Pick<LandingData, "featured" | "ticker" | "stats" | "brandLogos">) {
-  const line = {
-    hidden: { opacity: 0, y: "0.5em" },
-    show: (i: number) => ({ opacity: 1, y: 0, transition: { duration: 0.7, delay: 0.1 + i * 0.12, ease: EASE } }),
-  };
+  // The entrance is CSS (hero-up, hero-pop): it plays as soon as the stylesheet loads, so the server-rendered hero is
+  // never blank while the scripts download.
   return (
     <section className="relative">
       <div
@@ -273,56 +265,32 @@ function Hero({ featured, ticker, stats, brandLogos }: Pick<LandingData, "featur
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-20">
         <div className="grid lg:grid-cols-[1fr_1.05fr] gap-10 lg:gap-6 items-center">
           <div>
-            <motion.span
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: EASE }}
-              className="inline-flex items-center gap-2 text-xs font-semibold border-[1.5px] border-[var(--line)] rounded-full px-3 py-1 bg-[var(--card)]"
-            >
+            <span className="hero-up inline-flex items-center gap-2 text-xs font-semibold border-[1.5px] border-[var(--line)] rounded-full px-3 py-1 bg-[var(--card)]">
               <MonadMark size={14} className="flex-none" />
               {CHAIN_ID === 143 ? "Live on Monad" : "On Monad testnet"} · Paid in stablecoins
-            </motion.span>
+            </span>
 
             <h1 className="text-[3.2rem] sm:text-7xl lg:text-[5.4rem] font-extrabold tracking-tight mt-6 leading-[0.95]">
-              <motion.span className="block" variants={line} initial="hidden" animate="show" custom={0}>
+              <span className="hero-up block" style={{ "--d": "0.05s", "--y": "0.4em" } as React.CSSProperties}>
                 Your fit is
-              </motion.span>
-              <motion.span className="block mt-2" variants={line} initial="hidden" animate="show" custom={1}>
+              </span>
+              <span className="hero-up block mt-2" style={{ "--d": "0.15s", "--y": "0.4em" } as React.CSSProperties}>
                 <span className="relative inline-block px-3 sm:px-4 py-1">
-                  <motion.span
+                  <span
                     aria-hidden="true"
-                    className="absolute inset-0 rounded-2xl bg-[var(--accent)] border-[3px] border-[var(--line)] shadow-[5px_5px_0_var(--shadow)]"
-                    initial={{ scale: 0.3, rotate: -14, opacity: 0 }}
-                    animate={{ scale: 1, rotate: -2, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 240, damping: 13, delay: 0.45 }}
+                    className="hero-pop absolute inset-0 rounded-2xl bg-[var(--accent)] border-[3px] border-[var(--line)] shadow-[5px_5px_0_var(--shadow)]"
                   />
-                  <motion.span
-                    aria-hidden="true"
-                    className="absolute inset-[7px] rounded-xl border-2 border-dashed border-[var(--on-accent)]/50 -rotate-2"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.95 }}
-                  />
+                  <span aria-hidden="true" className="hero-up absolute inset-[7px] rounded-xl border-2 border-dashed border-[var(--on-accent)]/50 -rotate-2" style={{ "--d": "0.5s", "--y": "0px" } as React.CSSProperties} />
                   <span className="relative text-[var(--on-accent)]">ad space.</span>
                 </span>
-              </motion.span>
+              </span>
             </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5, ease: EASE }}
-              className="text-lg sm:text-xl text-[var(--muted)] max-w-md mt-8"
-            >
+            <p className="hero-up text-lg sm:text-xl text-[var(--muted)] max-w-md mt-8" style={{ "--d": "0.2s" } as React.CSSProperties}>
               Put patches on your outfit, your car or your team hoodie. Brands bid in stablecoins (USDC) for each spot, and the money is held safely until you show up.
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.62, ease: EASE }}
-              className="flex items-center gap-3.5 flex-wrap mt-8"
-            >
+            <div className="hero-up flex items-center gap-3.5 flex-wrap mt-8" style={{ "--d": "0.3s" } as React.CSSProperties}>
               <Link href={viaSignIn("/studio")} className="btn-base btn-primary group">
                 Get patched
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
@@ -330,19 +298,14 @@ function Hero({ featured, ticker, stats, brandLogos }: Pick<LandingData, "featur
               <Link href={viaSignIn("/explore")} className="btn-base">
                 Browse live patches
               </Link>
-            </motion.div>
+            </div>
 
             {stats.bids > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="flex items-start gap-8 sm:gap-10 mt-12 flex-wrap"
-            >
+            <div className="hero-up flex items-start gap-8 sm:gap-10 mt-12 flex-wrap" style={{ "--d": "0.4s", "--y": "0px" } as React.CSSProperties}>
               <Stat value={stats.liveListings} label="live listings" />
               <Stat value={stats.escrowedUsd} label="in top bids right now" currency />
               <Stat value={stats.bids} label="bids placed" />
-            </motion.div>
+            </div>
             )}
           </div>
 

@@ -476,6 +476,32 @@ html[data-signed-in] .landing-only {
 .boot-loader {
   display: none;
 }
+
+/* The home hero's entrance. It runs in CSS, so the server-rendered page is never blank while the scripts download. */
+@keyframes hero-up {
+  from { opacity: 0; transform: translateY(var(--y, 14px)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-pop {
+  from { opacity: 0; transform: scale(0.3) rotate(-14deg); }
+  to { opacity: 1; transform: scale(1) rotate(-2deg); }
+}
+@keyframes hero-scale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.hero-up { animation: hero-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: var(--d, 0s); }
+.hero-pop { animation: hero-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.3s; }
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+/* A spot row on a listing slides in with CSS too, so the board is never blank before the scripts load. */
+.row-in { animation: row-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0s); }
+.hero-scale { animation: hero-scale 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-up, .hero-pop, .hero-scale, .row-in { animation: none; }
+}
 html[data-signed-in] body:has(.landing-only) .boot-loader {
   position: fixed;
   inset: 0;
