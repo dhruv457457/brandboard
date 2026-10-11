@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Short screens (laptops at 125-150% scaling): the sidebar tightens up so nothing falls off the bottom. */
+@custom-variant short (@media (max-height: 820px));
+
 /* Expose the next/font families as Tailwind utilities (font-display, font-mono). */
 @theme inline {
   --font-sans: var(--font-geist), system-ui, sans-serif;

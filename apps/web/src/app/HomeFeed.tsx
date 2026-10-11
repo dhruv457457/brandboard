@@ -537,7 +537,8 @@ function RailBid({ item, card, mounted }: { item: Extract<FeedItem, { kind: "bid
 
 function RailCard({ title, more, children }: { title: string; more?: { href: string; label: string }; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] overflow-hidden">
+    // flex-none: the rail is a fixed-height column, so without it short screens squeeze and clip the cards.
+    <section className="flex-none rounded-2xl border-[1.5px] border-[var(--soft)] bg-[var(--card)] overflow-hidden">
       <h2 className="text-lg font-extrabold px-4 pt-3 pb-1">{title}</h2>
       <div className="grid">{children}</div>
       {more && <Link href={more.href} className="block px-4 py-3 text-sm font-semibold text-[var(--accent-text)] no-underline hover:bg-[var(--soft)]">{more.label}</Link>}

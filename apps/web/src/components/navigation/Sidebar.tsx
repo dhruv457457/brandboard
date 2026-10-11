@@ -49,19 +49,19 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex sticky top-0 z-40 h-dvh flex-col flex-none w-[76px] xl:w-[248px] px-2 xl:px-3 py-3" aria-label="Main">
-      <Link href="/" aria-label="Patched home" className="h-[52px] flex items-center px-2.5 mb-2 no-underline rounded-full hover:bg-[var(--soft)] self-start">
+      <Link href="/" aria-label="Patched home" className="h-[52px] short:h-[44px] flex items-center px-2.5 mb-2 short:mb-1 no-underline rounded-full hover:bg-[var(--soft)] self-start">
         <span className="xl:hidden"><LogoMark size={32} /></span>
         <span className="hidden xl:inline-flex"><Logo size={30} /></span>
       </Link>
 
-      <nav className="grid gap-1">
+      <nav className="grid gap-1 short:gap-0.5">
         {items.map((it) => (
           <Link
             key={it.label}
             href={it.href}
             aria-current={it.active ? "page" : undefined}
             className={cn(
-              "group flex items-center gap-4 h-[50px] px-3 rounded-full no-underline text-[var(--ink)] text-[18px] transition-colors hover:bg-[var(--soft)] self-start xl:pr-6",
+              "group flex items-center gap-4 h-[50px] short:h-[40px] px-3 rounded-full no-underline text-[var(--ink)] text-[18px] transition-colors hover:bg-[var(--soft)] self-start xl:pr-6",
               it.active ? "font-extrabold" : "font-medium",
             )}
             title={it.label}
@@ -81,7 +81,7 @@ export function Sidebar() {
 
       {authenticated && <Suspense fallback={null}><AccountNav /></Suspense>}
 
-      <Link href="/studio" className="btn-base btn-primary mt-4 h-[50px] w-[50px] xl:w-full justify-center !rounded-full !px-0 text-[17px]" aria-label="Create a listing">
+      <Link href="/studio" className="btn-base btn-primary mt-4 short:mt-3 h-[50px] short:h-[44px] w-[50px] xl:w-full justify-center !rounded-full !px-0 text-[17px]" aria-label="Create a listing">
         <Plus size={22} className="xl:hidden" />
         <span className="hidden xl:inline">Create</span>
       </Link>
@@ -110,7 +110,7 @@ function ThemeButton() {
   const dark = theme === "dark";
   return (
     <button type="button" onClick={toggleTheme} title={dark ? "Light mode" : "Dark mode"} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      className="flex items-center gap-2 rounded-full hover:bg-[var(--soft)] px-2 h-10 w-full justify-center xl:justify-start xl:px-3">
+      className="flex items-center gap-2 rounded-full hover:bg-[var(--soft)] px-2 h-10 short:h-9 w-full justify-center xl:justify-start xl:px-3">
       <span className="w-9 grid place-items-center flex-none">{dark ? <Sun size={18} /> : <Moon size={18} />}</span>
       <span className="hidden xl:inline text-sm font-semibold">{dark ? "Light mode" : "Dark mode"}</span>
     </button>
@@ -132,7 +132,7 @@ function AccountNav() {
     { href: `${me}?tab=sponsoring`, label: "Patch NFTs", icon: Stamp, active: onMe && tab === "sponsoring" },
   ];
   return (
-    <nav className="grid gap-1 mt-2 pt-2 border-t-[1.5px] border-[var(--soft)]" aria-label="Your tools">
+    <nav className="grid gap-1 short:gap-0.5 mt-2 short:mt-1 pt-2 short:pt-1 border-t-[1.5px] border-[var(--soft)]" aria-label="Your tools">
       {items.map((it) => (
         <Link
           key={it.label}
@@ -140,7 +140,7 @@ function AccountNav() {
           aria-current={it.active ? "page" : undefined}
           title={it.label}
           className={cn(
-            "flex items-center gap-4 h-[46px] px-3 rounded-full no-underline text-[var(--ink)] text-[17px] transition-colors hover:bg-[var(--soft)] self-start xl:pr-6",
+            "flex items-center gap-4 h-[46px] short:h-[38px] px-3 rounded-full no-underline text-[var(--ink)] text-[17px] transition-colors hover:bg-[var(--soft)] self-start xl:pr-6",
             it.active ? "font-extrabold" : "font-medium",
           )}
         >
@@ -188,7 +188,7 @@ function AccountButton() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Your account and wallet"
-        className={cn("flex items-center gap-2.5 w-full h-[60px] px-2 xl:px-2.5 rounded-full text-left hover:bg-[var(--soft)]", open && "bg-[var(--soft)]")}
+        className={cn("flex items-center gap-2.5 w-full h-[60px] short:h-[52px] px-2 xl:px-2.5 rounded-full text-left hover:bg-[var(--soft)]", open && "bg-[var(--soft)]")}
       >
         <Avatar src={profile?.avatar_url} name={name} wallet={walletAddress} size={40} />
         <span className="hidden xl:grid min-w-0 flex-1">
