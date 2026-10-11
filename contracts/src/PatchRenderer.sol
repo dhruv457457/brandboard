@@ -177,7 +177,7 @@ library PatchArt {
         return string.concat(
             lights,
             '<radialGradient id="vig" cx=".5" cy=".5" r=".72"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></radialGradient>',
-            '<linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".45" stop-color="#fff" stop-opacity=".03"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>',
+            '<linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".45" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>',
             '<pattern id="weave" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 2H8M0 6H8" stroke="#fff" stroke-opacity=".045" stroke-width="2"/><path d="M2 0V8M6 0V8" stroke="#000" stroke-opacity=".16" stroke-width="2"/></pattern>',
             '<pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(38)"><rect width="2.4" height="6" fill="#000" opacity=".15"/><rect x="3.2" width="1" height="6" fill="#fff" opacity=".12"/></pattern>',
             '<pattern id="satin" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(60)"><rect width="2.4" height="7" fill="#fff" opacity=".26"/></pattern>',
@@ -194,7 +194,7 @@ library PatchArt {
     function _filters() private pure returns (string memory) {
         return string.concat(
             '<filter id="blur" x="-20%" y="-20%" width="140%" height="150%"><feGaussianBlur stdDeviation="14"/></filter>',
-            '<filter id="puff" x="-10%" y="-10%" width="120%" height="125%"><feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/><feSpecularLighting in="b" surfaceScale="5" specularConstant=".95" specularExponent="22" lighting-color="#fff" result="s"><feDistantLight azimuth="235" elevation="48"/></feSpecularLighting><feComposite in="s" in2="SourceAlpha" operator="in" result="sc"/><feComposite in="SourceGraphic" in2="sc" operator="arithmetic" k1="0" k2="1" k3=".7" k4="0"/></filter>',
+            '<filter id="puff" x="-10%" y="-10%" width="120%" height="125%"><feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/><feSpecularLighting in="b" surfaceScale="9" specularConstant="1.1" specularExponent="60" lighting-color="#fff" result="s"><feDistantLight azimuth="235" elevation="48"/></feSpecularLighting><feComposite in="s" in2="SourceAlpha" operator="in" result="sc"/><feComposite in="SourceGraphic" in2="sc" operator="arithmetic" k1="0" k2="1" k3=".7" k4="0"/></filter>',
             '<filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 6.5" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>'
         );
     }
