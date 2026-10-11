@@ -153,8 +153,10 @@ export default async function PatchPage({ params }: Params) {
               <a className="font-mono underline inline-flex items-center gap-1" href={`${EXPLORER}/address/${holder}`} target="_blank" rel="noreferrer">
                 {holder} <ExternalLink size={11} />
               </a>
-              . The explorer may not list custom NFTs on a wallet page; the receipt contract&apos;s <b>ownerOf({tokenId})</b> shows the same address.
             </p>
+            <a className="btn-base btn-small justify-self-start no-underline" href={`${EXPLORER}/nft/${page.receipt}/${tokenId}`} target="_blank" rel="noreferrer">
+              View this NFT on the explorer <ExternalLink size={13} />
+            </a>
             {resaleOpen && <ResaleBox tokenId={tokenId} holder={holder} price={page.resalePrice.toString()} label={t.label} />}
           </Card>
 
@@ -174,6 +176,7 @@ export default async function PatchPage({ params }: Params) {
             </dl>
             <p className="text-xs muted mt-1">
               Token {tokenId} on chain {CHAIN_ID}. The picture is drawn by the contract itself ·{" "}
+              <a className="underline" href={`${EXPLORER}/nft/${page.receipt}/${tokenId}`} target="_blank" rel="noreferrer">NFT on the explorer</a> ·{" "}
               <a className="underline" href={`${EXPLORER}/address/${page.receipt}`} target="_blank" rel="noreferrer">receipt contract</a> ·{" "}
               <a className="underline" href={`${EXPLORER}/address/${MARKET}`} target="_blank" rel="noreferrer">market</a>
             </p>
