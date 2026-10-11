@@ -62,6 +62,10 @@ export function Sheet({
       <aside
         role="dialog"
         aria-modal="true"
+        aria-hidden={!open}
+        // Closed means invisible from the first server render (not only moved off screen), so a slow load or a half-finished
+        // transition can never show the sheet; the delay lets it finish sliding out before it is hidden.
+        style={{ visibility: open ? "visible" : "hidden", transitionProperty: "transform, visibility", transitionDelay: open ? "0s" : "0s, 350ms" }}
         className={cn(
           "fixed z-50 bg-[var(--card)] text-[var(--ink)] flex flex-col gap-4 overflow-y-auto transition-transform duration-350 ease-[cubic-bezier(0.2,0.9,0.3,1)]",
           // Desktop: right drawer
