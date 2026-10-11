@@ -148,6 +148,13 @@ export default async function PatchPage({ params }: Params) {
               <Link href={holderHref} className="underline">{holderProfile?.brand_name || holderProfile?.display_name || formatShortAddress(holder)}</Link>
               <span className="muted"> holds this patch: refunds if the creator fails, and the right to dispute a proof.</span>
             </p>
+            <p className="text-sm muted m-0">
+              Wallet{" "}
+              <a className="font-mono underline inline-flex items-center gap-1" href={`${EXPLORER}/address/${holder}`} target="_blank" rel="noreferrer">
+                {holder} <ExternalLink size={11} />
+              </a>
+              . The explorer may not list custom NFTs on a wallet page; the receipt contract&apos;s <b>ownerOf({tokenId})</b> shows the same address.
+            </p>
             {resaleOpen && <ResaleBox tokenId={tokenId} holder={holder} price={page.resalePrice.toString()} label={t.label} />}
           </Card>
 
