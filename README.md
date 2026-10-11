@@ -174,7 +174,7 @@ The full write-up, with the problem, the lesson and the on-chain proof for each 
 
 ## The patch NFT that grows up
 
-Winning a spot mints a **Living Patch**, drawn as an embroidered patch: a big stitched patch with a raised thread border on dark cloth, the price, and a thread along the bottom that is sewn one knot further at each step. The picture is drawn by the contract itself and redraws as the creator proves each step: ink stamps land for printed and seen, and a DELIVERED stamp lands when the run is done. It *is* the spot: its holder gets the refund and the right to dispute.
+Winning a spot mints a **Living Patch**, drawn as an embroidered patch: a big stitched patch with a raised thread border on dark cloth, the price, and a thread along the bottom that is sewn one knot further at each step. The state lives on-chain and the card redraws as the creator proves each step (the token's `image` is the website's card, with the brand's logo and the creator's photo; the picture the contract draws itself is kept in `image_onchain`): ink stamps land for printed and seen, and a DELIVERED stamp lands when the run is done. It *is* the spot: its holder gets the refund and the right to dispute.
 
 <p align="center">
   <img src="docs/images/living-patch.png" alt="Patch NFT cards: embroidered patches in cotton, silk and gold thread, from won to delivered, plus refunded and disputed" width="100%">
@@ -365,7 +365,7 @@ The hard part is money moving between people who don't trust each other, through
 |---|---|---|
 | PatchedMarket | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (proxy) | `0xf10a7E612579456401E4d59df7d446158FE7ee9F` (proxy) |
 | PatchReceipt, Living Patch | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` (listings 11 and later) | `0x6a8CD838489dbafB974A2cB08C86847BE55ea95c` |
-| PatchRenderer | `0x7575E6aDe435a6790077e210b3edf6DED16c290a` | `0x1D864f5b369D63287532D0CC8ed59b057666d540` |
+| PatchRenderer | `0x4f37a9C2c93fBe6ECDedaeBb558F244C383Af703` | `0x1D864f5b369D63287532D0CC8ed59b057666d540` |
 | PatchReceipt, first version | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` (listings 1 to 10) | – |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` | `0xD0779dC4E1EE6626E76ec54E7A356877bfc0F47a` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` | `0xB508530bC1752583E6A04b1A9d6c82d9dd7eA4C5` |

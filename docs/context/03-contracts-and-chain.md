@@ -47,7 +47,7 @@ Retired mainnet markets (don't use): the TestUSD run `0xcBE6fA620fc6F61192a94CFb
 | PatchedMarket (proxy) | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (deploy block 66627600) |
 | PatchReceipt (listings 11 and later) | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` |
 | PatchReceipt, first version (listings 1 to 10) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` |
-| PatchRenderer | `0x7575E6aDe435a6790077e210b3edf6DED16c290a` |
+| PatchRenderer | `0x4f37a9C2c93fBe6ECDedaeBb558F244C383Af703` |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` |
 | PatchSpotter | `0x0C063771aFEe7f391DC4E851A39ba092ba3f3A44` |
@@ -79,6 +79,7 @@ Safety rules (from a mentor review and `Timeline.t.sol`):
 ## The Living Patch (NFT)
 
 - **Stage** comes from the listing; it isn't stored: Won → Printed → Seen n/m → Delivered, or Refunded, or Disputed.
+- `tokenURI`: `image` is the website's card (`<site>/patch/<id>/card.png?v=<stage>`, with the brand logo and creator photo a contract can't hold); `image_onchain` is the SVG the contract draws itself; with no site URL set, the SVG is the `image`.
 - The renderer draws an **embroidered patch** (design: `apps/web/src/lib/patchCard.ts`, ported to `PatchArt` in `PatchRenderer.sol`):
   - a big stitched patch with a raised merrowed border, twill cloth and the brand name in satin stitch, on dark cloth with a faint sewing pattern of the surface (tee, car or hoodie);
   - the price on the top right and the sponsor number on the top left;
