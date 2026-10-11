@@ -70,7 +70,8 @@ contract LivingPatchTest is BaseTest {
         string memory won = _svg(id, 0);
         assertTrue(_has(won, ">WON</text>"));
         assertTrue(_has(won, "Nodeflux"));
-        assertTrue(_has(won, "The first brand to back @mira."));
+        assertTrue(_has(won, ">@mira</text>"));
+        assertTrue(_has(won, "No.001")); // the first sponsor
         assertFalse(_has(won, 'id="stamp-printed"')); // no stamp before a proof
 
         _submit(id, 0);
@@ -100,6 +101,11 @@ contract LivingPatchTest is BaseTest {
         assertTrue(_has(done, ">DELIVERED</text>"));
         assertTrue(_has(done, 'id="stamp-delivered"'));
         assertTrue(_has(done, ">SEEN</text>")); // the seen stamp stays on the delivered card
+        // Tags must open cleanly: a stray quote after a tag name (<circle" cx=...) makes the whole picture fail to load.
+        assertFalse(_has(done, '<circle"'));
+        assertFalse(_has(done, '<rect"'));
+        assertFalse(_has(done, '<use"'));
+        assertTrue(_has(done, '<circle cx="')); // the stamp rings
     }
 
     function test_failed_listing_is_refunded_and_unpicked() public {
@@ -162,9 +168,8 @@ contract LivingPatchTest is BaseTest {
         market.setBrandName("Patched Test Brand Studio Ltd");
         uint256 id = _delivering();
         string memory svg = _svg(id, 0);
-        // 29 characters: on the rounded patch (420 wide) 42000 / (29 * 66) = 21px, in the card header (480 wide) 25px.
+        // 29 characters on the rounded patch (420 wide): 42000 / (29 * 66) = 21px.
         assertTrue(_has(svg, 'font-size="21"'));
-        assertTrue(_has(svg, 'font-size="25"'));
     }
 
     function test_names_keep_their_case_in_the_metadata() public {

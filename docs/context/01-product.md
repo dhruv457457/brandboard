@@ -75,7 +75,7 @@ Four steps (`apps/web/src/app/studio/StudioEditor.tsx`, `STEPS`): **What → Spo
 
 ### 4. The patch NFT (Living Patch)
 
-- A trading card drawn **by the contract** (`PatchRenderer`) and redrawn as the creator proves each step: **Won → Printed → Seen n/m → Delivered**, or grey and unpicked if **Refunded**, or hazard tape if **Disputed**.
+- An embroidered patch drawn **by the contract** (`PatchRenderer`) and redrawn as the creator proves each step: **Won → Printed → Seen n/m → Delivered**, or grey and unpicked if **Refunded**, or hazard tape if **Disputed**.
 - **Sponsor numbers:** "No.001, first sponsor of @creator".
 - **Frames by price:** cotton under $100, silk to $999, gold foil from $1,000. Five patch shapes; outfits, cars and hoodies each have their own drawing.
 - **It is the spot:** the holder gets refunds and dispute rights. It can be resold on Patched while the creator delivers, with 5% to the creator. It can't move any other way.

@@ -12,7 +12,7 @@ A live auction needs a bid to land in about a second and cost almost nothing, so
 |---|---|---|
 | `PatchedMarket` (`contracts/src/PatchedMarket.sol`) | Events, listings, per-spot auctions with anti-snipe, bids (plain, permit, `bidFor`), escrow, milestones, proofs, approvals, disputes, no-show refunds, creator stakes and records, resale with royalties, on-chain brand names, `tokenView` for the NFT. **UUPS upgradeable proxy.** | Yes, all of it |
 | `PatchReceipt` | The Living Patch ERC-721: one token per won spot. ERC-2981 royalties, ERC-4906 refresh events, ERC-7572 `contractURI`. Only the market can mint or move tokens, so the resale royalty always applies. | No |
-| `PatchRenderer` | Draws each token's SVG and metadata from the market's state, as a trading card. Swappable (`setRenderer`) so the art can change without touching a token. | No |
+| `PatchRenderer` | Draws each token's SVG and metadata from the market's state, as an embroidered patch. Swappable (`setRenderer`) so the art can change without touching a token. | No |
 | `PatchAutoBidder` | Auto-bid for outside wallets: stores each brand's maximum; `execute()` (called by the keeper) bids the next step via `bidFor`, never above the maximum. | No |
 | `PatchSweeper` | Several bids in one transaction, all or nothing (`sweep`, `sweepWithPermit`). | No |
 | `PatchSpotter` | On-chain "spotted": `spot(listingId, photoHash, photoURI)`, one per wallet per listing, not by the creator or a team payee. Feeds the Patchwork graph. | No |
@@ -47,7 +47,7 @@ Retired mainnet markets (don't use): the TestUSD run `0xcBE6fA620fc6F61192a94CFb
 | PatchedMarket (proxy) | `0x2AaC6f2E5221078982736F33271CD6484d0cd005` (deploy block 66627600) |
 | PatchReceipt (listings 11 and later) | `0x6c406F518E5A863C3c536aD398BA67F8c8Ae5F3A` |
 | PatchReceipt, first version (listings 1 to 10) | `0xC4Abf876Ef2A6FF1A324F4916c330fe01efAeD4e` |
-| PatchRenderer | `0x6277d2FddAec00DE17C3eBa299FbfAe6F6783B80` |
+| PatchRenderer | `0x7575E6aDe435a6790077e210b3edf6DED16c290a` |
 | PatchAutoBidder | `0x67dE9d8CCB7A79FF57cCf117D73135724c46Cf2c` |
 | PatchSweeper | `0x1c9F3029E4a7Bf86B4E3D7fC64C471E7DBF7cF6B` |
 | PatchSpotter | `0x0C063771aFEe7f391DC4E851A39ba092ba3f3A44` |
@@ -79,12 +79,13 @@ Safety rules (from a mentor review and `Timeline.t.sol`):
 ## The Living Patch (NFT)
 
 - **Stage** comes from the listing; it isn't stored: Won → Printed → Seen n/m → Delivered, or Refunded, or Disputed.
-- The renderer draws a **trading card**:
-  - the garment (denim, racing paint or fleece) with the brand's embroidered patch;
-  - a price coin;
-  - a four-step track;
-  - passport stamps for each proof.
-- **Thread by price:** cotton under $100, silk to $999, gold from $1,000.
+- The renderer draws an **embroidered patch** (design: `apps/web/src/lib/patchCard.ts`, ported to `PatchArt` in `PatchRenderer.sol`):
+  - a big stitched patch with a raised merrowed border, twill cloth and the brand name in satin stitch, on dark cloth with a faint sewing pattern of the surface (tee, car or hoodie);
+  - the price on the top right and the sponsor number on the top left;
+  - a thread along the bottom, sewn one knot further for each step (won, printed, seen, delivered);
+  - ink passport stamps (PRINTED, SEEN, DELIVERED) as each proof lands.
+  - Plain SVG with three filters (raised-thread lighting, worn ink, a soft shadow); system fonts, no images, no scripts.
+- **Thread by price:** cotton (white thread, warm light) under $100, silk (iridescent, violet light) to $999, gold (metallic, gold light) from $1,000.
 - **Sponsor number:** "No.001, FIRST SPONSOR OF @creator".
 - Each stage change calls `PatchReceipt.refresh(listingId)` (ERC-4906), so marketplaces redraw.
 - **Proofs are checkable:** `proofURI` is `ipfs://<record>` and `proofHash` is `keccak256` of the exact bytes. The `/patch/<id>` page re-hashes it in the browser.
