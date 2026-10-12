@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, Camera, Check, ExternalLink, Gavel, Hand, Loader2, MessageCircle, Send, Trophy } from "lucide-react";
+import { ArrowDown, Camera, Check, Download, ExternalLink, Gavel, Hand, Loader2, MessageCircle, Send, Trophy } from "lucide-react";
 import NumberFlow from "@number-flow/react";
 import { Avatar } from "@/components/ui/Avatar";
 import { usePatchedAuth } from "@/components/providers/PrivyAuthProvider";
@@ -11,7 +11,7 @@ import { DEADLINE, HASHTAG, TELEGRAM_URL, TRACKS, X_URL, type ContestData } from
 import { cn } from "@/lib/utils";
 import { Confetti, Countdown, Floaters, Heading, Patch, SpinBadge, ThreadUnderline, hand } from "@/components/contest/Decor";
 import { trackContest } from "@/lib/contestTrack";
-import { DrawStage, type DrawResult } from "@/components/contest/DrawStage";
+import type { DrawResult } from "@/components/contest/DrawStage";
 import { EntryForm } from "@/components/contest/EntryForm";
 import { ContestAdmin } from "@/components/contest/ContestAdmin";
 import "./contest.css";
@@ -94,13 +94,9 @@ export function ContestView({ cover }: { cover: string | null }) {
         <Hero data={data} cover={cover} loaded={loaded} onEnter={() => go("enter")} onJoin={countMeIn} joining={joining} />
         <Confetti fire={fire} />
         <Ticker people={data.people} />
-        {data.winners.length > 0 && <Winners data={data} />}
+        {data.winners.length > 0 && <Winners data={data} draw={draw} />}
         <Steps data={data} eventHref={eventHref} signedIn={authenticated} onSignIn={login} onForm={() => go("enter")} />
         <Tracks />
-        <section id="draw" className="grid gap-7 scroll-mt-24">
-          <Heading eyebrow="Lucky draw" title={<>Every entry is a <span className="ct-mark">ticket</span></>} note="the block hash picks, not us" />
-          <DrawStage entries={data.entries} draw={draw} />
-        </section>
         <Timeline />
         <section id="enter" className="grid gap-7 scroll-mt-24">
           <Heading eyebrow="Your turn" title={<>Get in before <span className="whitespace-nowrap">Oct 12</span></>} note="takes two minutes" />
@@ -122,7 +118,7 @@ export function ContestView({ cover }: { cover: string | null }) {
         <Faq />
         <ContestAdmin />
         <footer className="grid gap-2 text-[13px] text-[var(--muted)] max-w-[70ch]">
-          <p className="m-0">Bidding on Patched during this contest uses test USDC from the faucet. The three prizes are real USDC, paid on Monad mainnet, with the transaction links posted here and on X.</p>
+          <p className="m-0">Bidding on Patched during this contest uses test USDC from the faucet. The three prizes are real USDC, sent by the team straight to each winner&apos;s wallet.</p>
           <p className="m-0">Get Patched Week is a practice round before ETHGlobal Mumbai (Nov 5-7). It is not affiliated with ETHGlobal. Emails are only used to contact winners and are never shown.</p>
         </footer>
       </div>
@@ -133,7 +129,7 @@ export function ContestView({ cover }: { cover: string | null }) {
 /* ───────────────────────── hero ───────────────────────── */
 
 function Hero({ data, cover, loaded, onEnter, onJoin, joining }: { data: ContestData; cover: string | null; loaded: boolean; onEnter: () => void; onJoin: () => void; joining: boolean }) {
-  const stats: [string, number][] = [["Joined", data.stats.joined], ["Entries", data.stats.entries], ["Listings", data.stats.listings], ["Bids", data.stats.bids]];
+  const stats: [string, number][] = [["Joined", data.stats.joined], ["Listings", data.stats.listings], ["Bids", data.stats.bids]];
   const joined = Boolean(data.me?.joined);
   return (
     <section className="relative rounded-[28px] sm:rounded-[36px] border-[3px] border-[var(--ink)] bg-[var(--card)] shadow-[5px_5px_0_var(--shadow)] sm:shadow-[8px_8px_0_var(--shadow)] overflow-hidden">
@@ -208,7 +204,7 @@ function Hero({ data, cover, loaded, onEnter, onJoin, joining }: { data: Contest
         </div>
       </div>
 
-      <div className="relative z-10 border-t-[3px] border-[var(--ink)] grid grid-cols-2 sm:grid-cols-4 gap-[2px] bg-[color-mix(in_srgb,var(--ink)_14%,transparent)]">
+      <div className="relative z-10 border-t-[3px] border-[var(--ink)] grid grid-cols-3 gap-[2px] bg-[color-mix(in_srgb,var(--ink)_14%,transparent)]">
         {stats.map(([k, v], i) => (
           <div key={k} className="px-5 py-3.5 sm:py-4 grid gap-0.5 bg-[var(--paper)]">
             <span className="font-display font-extrabold text-[34px] leading-none tabular-nums"><NumberFlow value={loaded ? v : 0} /></span>
@@ -265,24 +261,38 @@ function Ticker({ people }: { people: ContestData["people"] }) {
 
 /* ───────────────────────── winners ───────────────────────── */
 
-function Winners({ data }: { data: ContestData }) {
+function Winners({ data, draw }: { data: ContestData; draw: DrawResult | null }) {
   return (
-    <section className="grid gap-7">
-      <Heading eyebrow="Paid on Monad" title={<>The <span className="ct-mark">winners</span></>} note="every prize has a transaction" />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        {data.winners.map((w, i) => {
-          const t = TRACKS.find((x) => x.id === w.track)!;
+    <section id="winners" className="grid gap-7 scroll-mt-24">
+      <Heading eyebrow="Get Patched Week" title={<>The <span className="ct-mark">winners</span></>} note="$10 USDC each, sent to their wallets" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {TRACKS.map((t, i) => {
+          const w = data.winners.find((x) => x.track === t.id);
+          if (!w) return null;
+          const block = t.id === "lucky" ? draw?.block : undefined;
           return (
-            <Patch key={w.track} tone={[2, 3, 1][i % 3]!} rotate={[-2, 1.5, -1][i % 3]!} hover className="p-6 gap-2 justify-items-start text-left" style={{ borderRadius: 26 }}>
+            <Patch key={t.id} tone={[2, 3, 1][i % 3]!} rotate={[-1.6, 1.2, -1][i % 3]!} hover className="p-6 sm:p-7 gap-3 justify-items-start text-left" style={{ borderRadius: 28 }}>
               <span className="ct-stamp">{t.name}</span>
-              <span className="font-display font-extrabold text-3xl leading-none mt-2">@{w.handle}</span>
-              {w.note && <span className="text-sm">{w.note}</span>}
-              <span className="font-mono font-semibold">${t.prize} USDC</span>
-              {w.tx && <a href={`https://monadvision.com/tx/${w.tx}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-[#0b0b0c]">See the payment <ExternalLink size={13} /></a>}
+              <span className="flex items-center gap-4 mt-1">
+                <Avatar src={w.avatar} name={w.name || w.handle} wallet={null} size={84} className="!border-[3px] !border-[#0b0b0c] shadow-[4px_4px_0_#0b0b0c]" />
+                <span className="grid min-w-0">
+                  <b className="font-display font-extrabold text-[26px] leading-tight break-words">{w.name || `@${w.handle}`}</b>
+                  <a href={`https://x.com/${w.handle}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[13px] font-semibold text-[#0b0b0c] opacity-70 no-underline hover:underline">@{w.handle}</a>
+                </span>
+              </span>
+              <span className="font-display font-extrabold text-[44px] leading-none mt-1">${t.prize} <span className="font-mono text-base font-bold">USDC</span></span>
+              {w.note && <span className="text-[15px] leading-snug">{w.note}</span>}
+              <span className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1">
+                {w.postUrl && <a href={w.postUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-[#0b0b0c]">Their post <ExternalLink size={13} /></a>}
+                {block && <a href={block.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-[#0b0b0c]">Block #{block.number.toLocaleString("en-US")} <ExternalLink size={13} /></a>}
+                {w.tx && <a href={`https://monadvision.com/tx/${w.tx}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-bold text-[#0b0b0c]">See the payment <ExternalLink size={13} /></a>}
+                <a href={`/contest/winners/${t.id}/card.png`} download={`get-patched-week-${t.id}.png`} className="inline-flex items-center gap-1 text-sm font-bold text-[#0b0b0c]">Download card <Download size={13} /></a>
+              </span>
             </Patch>
           );
         })}
       </div>
+      <a href="/contest/winners/card.png" download="get-patched-week-winners.png" className="btn-base btn-small justify-self-start no-underline"><Download size={14} /> Download all three as one image</a>
     </section>
   );
 }
@@ -371,7 +381,7 @@ const DAYS = [
   { at: Date.parse("2026-10-09T18:30:00Z"), date: "Oct 10", title: "Proofs and payouts", body: "Show you showed up, get paid." },
   { at: Date.parse("2026-10-10T18:30:00Z"), date: "Oct 11", title: "One more day", body: "We added a day. List, bid, post about it and send your entry. Last call in the evening." },
   { at: DEADLINE, date: "Oct 12 · 9 AM IST", title: "Entries close, the draw runs", body: "The first Monad block after the deadline picks the lucky-draw winner. Anyone can check it." },
-  { at: DEADLINE + 6 * 3_600_000, date: "Oct 12", title: "Winners paid on Monad", body: "Three payments, three transaction links, posted here and on X." },
+  { at: DEADLINE + 6 * 3_600_000, date: "Oct 12", title: "Winners announced", body: "Three winners, $10 USDC each, sent straight to their wallets." },
 ];
 
 function Timeline() {
@@ -410,7 +420,7 @@ function Timeline() {
 /* ───────────────────────── faq ───────────────────────── */
 
 const FAQ: [string, React.ReactNode][] = [
-  ["Is it real money?", "Bidding on Patched during the contest uses test USDC from the faucet, so nobody risks anything. The three prizes are real USDC, paid on Monad mainnet with the transaction links posted publicly."],
+  ["Is it real money?", "Bidding on Patched during the contest uses test USDC from the faucet, so nobody risks anything. The three prizes are real USDC, sent by the team straight to each winner's wallet."],
   ["Can I enter more than one track?", "Yes. Tick as many tracks as you like in the form. Lucky draw needs nothing more than the four steps."],
   ["How many entries can I have?", "One per person. Sending the form again before the deadline updates your entry."],
   ["Do I need followers?", "No. Best post is judged on creativity and honesty, not views, so a small account can win."],

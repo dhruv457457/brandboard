@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Caveat_Brush } from "next/font/google";
 import NumberFlow from "@number-flow/react";
@@ -46,7 +46,8 @@ export function Floaters({ items, className }: { className?: string; items: { x:
 
 /** A round badge with text running round its edge, slowly turning. */
 export function SpinBadge({ text, size = 150, children }: { text: string; size?: number; children?: React.ReactNode }) {
-  const id = useMemo(() => `ct-circle-${Math.random().toString(36).slice(2, 7)}`, []);
+  // useId, not Math.random: the server and the browser must produce the same id.
+  const id = `ct-circle-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <div className="relative grid place-items-center" style={{ width: size, height: size }} aria-hidden="true">
       <svg viewBox="0 0 200 200" width={size} height={size} className="ct-spin absolute inset-0">

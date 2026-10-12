@@ -86,7 +86,13 @@ export interface ContestSteps {
 export interface ContestWinner {
   track: TrackId;
   handle: string;
+  /** The profile's display name and picture, when the winner has a Patched profile. */
+  name: string | null;
+  avatar: string | null;
+  /** Their entry's X post (public). */
+  postUrl: string | null;
   note: string | null;
+  /** Optional: a payment link, when the prize was sent from a wallet we want to point at. */
   tx: string | null;
 }
 

@@ -93,7 +93,21 @@ export async function fetchContest(user: SessionUser | null): Promise<ContestDat
   const mine = user ? all.find((e) => e.privy_did === user.did) : undefined;
   const joined = Boolean(user && (mine || joinedRows.some((j) => j.privy_did === user.did) || (await isJoined(user.did))));
   const steps: ContestSteps = { x: Boolean(user?.xHandle), action: numbers.action };
-  const winners: ContestWinner[] = (winnerRows ?? []).map((w) => ({ track: w.track as TrackId, handle: String(w.x_handle), note: w.note as string | null, tx: w.tx_hash as string | null }));
+  const winnerHandles = (winnerRows ?? []).map((w) => String(w.x_handle).toLowerCase());
+  const { data: winnerProfiles } = winnerHandles.length
+    ? await db.from("profiles").select("x_handle, display_name, avatar_url").not("x_handle", "is", null)
+    : { data: [] as { x_handle: string; display_name: string | null; avatar_url: string | null }[] };
+  const profileOf = (h: string) => (winnerProfiles ?? []).find((p) => String(p.x_handle).toLowerCase() === h.toLowerCase());
+  const winners: ContestWinner[] = (winnerRows ?? []).map((w) => {
+    const handle = String(w.x_handle);
+    const p = profileOf(handle);
+    return {
+      track: w.track as TrackId, handle,
+      name: p?.display_name ?? null, avatar: p?.avatar_url ?? null,
+      postUrl: all.find((e) => e.x_handle.toLowerCase() === handle.toLowerCase())?.post_url ?? null,
+      note: w.note as string | null, tx: w.tx_hash as string | null,
+    };
+  });
   return {
     open: Date.now() < DEADLINE,
     deadline: DEADLINE,
