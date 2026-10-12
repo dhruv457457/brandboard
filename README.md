@@ -12,6 +12,7 @@
 <p align="center">
   <a href="https://monad.patched.world"><b>Try it live</b></a> ·
   <a href="https://youtu.be/RCh8oZUIPFw"><b>Watch the pitch</b></a> ·
+  <a href="https://youtu.be/pVGbFo1ATDU"><b>Watch the demo</b></a> ·
   <a href="https://x.com/Patched_world">X</a> ·
   <a href="https://t.me/+TrSZaCSMngo3YWQ9">Telegram</a> ·
   <a href="docs/contracts.md">Contracts</a> ·
@@ -27,6 +28,20 @@
   <img alt="Tests" src="https://img.shields.io/badge/contract%20tests-134%20passing-1F8A4C?style=flat-square">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-0B0B0C?style=flat-square">
 </p>
+
+## For judges: try it in 3 minutes
+
+Everything runs on **Monad testnet with test money**, so nothing you do can cost anyone anything.
+
+1. **Watch first, if you like:** the [2-minute pitch](https://youtu.be/RCh8oZUIPFw) and the [3-minute product demo](https://youtu.be/pVGbFo1ATDU).
+2. **Sign in with one tap.** Open [monad.patched.world](https://monad.patched.world), press **Sign in**, then **Use the demo account**. You are a brand with your own wallet. No email, no seed phrase, no extension, no gas.
+3. **Get test USDC if the wallet is low.** The demo account is shared, so its balance can run out. Go to [faucet.circle.com](https://faucet.circle.com), pick **Monad Testnet**, paste your wallet address and claim. To copy it, tap your name at the bottom of the sidebar, then **Add money → Copy my address**. The balance updates by itself within seconds. You never need MON: gas is sponsored on testnet.
+4. **Bid.** Open any listing from **Explore**, tap a spot, press **Bid**. If Patched asks for a brand name, any name works. Then try **Sweep** (several spots at once) and **Auto-bid** (Patched bids for you up to a maximum).
+5. **Look around.** **Home → Patchwork** is the live graph of an event (press **Replay**). Any patch NFT at `/patch/<id>` has **Check against the chain**, which verifies the proof itself. **Automate** has campaigns and "Patch anyone on X".
+6. **Sell something.** Press **Create**, upload any photo and publish. It goes live within seconds. Creating a listing locks a small test-USDC stake, so claim from the faucet first if needed.
+7. **See the admin side.** [monad.patched.world/admin](https://monad.patched.world/admin) is open to anyone signed in on test money: review proofs, settle disputes, manage events.
+
+Prefer your own account? Sign in with X or email instead; you get a fresh wallet, and step 3 funds it. The mainnet switch at the bottom of the sidebar uses **real USDC**, so stay on testnet to try things.
 
 ## At a glance
 
@@ -85,7 +100,7 @@ Patched is the answer to all three: USDC straight to a wallet, a page made for y
 4. Want to sell? Sign in with your own email or X, press **Create**, pick the event (the bidding time fits itself to it), upload a photo and publish. New listings go live within seconds.
 5. Look around: **Patchwork** on Home turns an event into a live graph of who sponsored whom. Press **Replay** to watch it build, and **Find me** to see where you sit.
 
-New wallet with $0? The moment a bid needs more than you have, Patched opens the steps: copy your address, paste it into [Circle's faucet](https://faucet.circle.com) on Monad Testnet, and your balance updates by itself. The demo account can't add a passkey (it would lock out the next person). Test USDC token: `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
+New wallet with $0? Claim test USDC at [faucet.circle.com](https://faucet.circle.com): pick **Monad Testnet**, paste your wallet address and claim, and your balance updates by itself. Patched also opens these steps, address included, the moment a bid needs more than you have. The demo account can't add a passkey (it would lock out the next person). Test USDC token: `0x534b2f3A21130d7a60830c2Df862319e593943A3`.
 
 ## Three surfaces
 
