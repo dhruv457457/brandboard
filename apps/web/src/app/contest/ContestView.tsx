@@ -118,7 +118,7 @@ export function ContestView({ cover }: { cover: string | null }) {
         <Faq />
         <ContestAdmin />
         <footer className="grid gap-2 text-[13px] text-[var(--muted)] max-w-[70ch]">
-          <p className="m-0">Bidding on Patched during this contest uses test USDC from the faucet. The three prizes are real USDC, sent by the team straight to each winner&apos;s wallet.</p>
+          <p className="m-0">Bidding on Patched during this contest uses test USDC from the faucet. The three prizes are real USDC, sent by the team to each winner&apos;s wallet on Nov 4.</p>
           <p className="m-0">Get Patched Week is a practice round before ETHGlobal Mumbai (Nov 5-7). It is not affiliated with ETHGlobal. Emails are only used to contact winners and are never shown.</p>
         </footer>
       </div>
@@ -264,7 +264,7 @@ function Ticker({ people }: { people: ContestData["people"] }) {
 function Winners({ data, draw }: { data: ContestData; draw: DrawResult | null }) {
   return (
     <section id="winners" className="grid gap-7 scroll-mt-24">
-      <Heading eyebrow="Get Patched Week" title={<>The <span className="ct-mark">winners</span></>} note="$10 USDC each, sent to their wallets" />
+      <Heading eyebrow="Get Patched Week" title={<>The <span className="ct-mark">winners</span></>} note="$10 USDC each, sent on Nov 4" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {TRACKS.map((t, i) => {
           const w = data.winners.find((x) => x.track === t.id);
@@ -381,7 +381,7 @@ const DAYS = [
   { at: Date.parse("2026-10-09T18:30:00Z"), date: "Oct 10", title: "Proofs and payouts", body: "Show you showed up, get paid." },
   { at: Date.parse("2026-10-10T18:30:00Z"), date: "Oct 11", title: "One more day", body: "We added a day. List, bid, post about it and send your entry. Last call in the evening." },
   { at: DEADLINE, date: "Oct 12 · 9 AM IST", title: "Entries close, the draw runs", body: "The first Monad block after the deadline picks the lucky-draw winner. Anyone can check it." },
-  { at: DEADLINE + 6 * 3_600_000, date: "Oct 12", title: "Winners announced", body: "Three winners, $10 USDC each, sent straight to their wallets." },
+  { at: DEADLINE + 6 * 3_600_000, date: "Oct 12", title: "Winners announced", body: "Three winners, $10 USDC each. Prizes are sent to their wallets on Nov 4." },
 ];
 
 function Timeline() {
@@ -420,7 +420,7 @@ function Timeline() {
 /* ───────────────────────── faq ───────────────────────── */
 
 const FAQ: [string, React.ReactNode][] = [
-  ["Is it real money?", "Bidding on Patched during the contest uses test USDC from the faucet, so nobody risks anything. The three prizes are real USDC, sent by the team straight to each winner's wallet."],
+  ["Is it real money?", "Bidding on Patched during the contest uses test USDC from the faucet, so nobody risks anything. The three prizes are real USDC, sent by the team to each winner's wallet on Nov 4."],
   ["Can I enter more than one track?", "Yes. Tick as many tracks as you like in the form. Lucky draw needs nothing more than the four steps."],
   ["How many entries can I have?", "One per person. Sending the form again before the deadline updates your entry."],
   ["Do I need followers?", "No. Best post is judged on creativity and honesty, not views, so a small account can win."],
