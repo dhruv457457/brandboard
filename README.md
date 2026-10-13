@@ -137,8 +137,8 @@ Mainnet contracts are deployed with real USDC, but no real-money listing has run
 | | |
 |---|---|
 | **Dhruv Pancholi**, engineer | Builds Patched end to end: contracts, app, indexer, keeper. 10+ hackathon wins, incubator graduate. [@dhruvpanch0li](https://x.com/dhruvpanch0li) |
-| **Suhani Sharma**, outreach | Brand and creator outreach. Network Analyst at Rogers, Canada. Presents the pitch. |
-| **Ananya Pancholi**, creator | Runs social, with 70M+ views on Instagram. Brings creators from that network. |
+| **Suhani Sharma**, outreach | Brand and creator outreach. Network Analyst at Rogers, Canada. Presents the pitch. [LinkedIn](https://www.linkedin.com/in/suhani03sharmaa/) |
+| **Ananya Pancholi**, creator | Runs social, with 70M+ views on Instagram. Brings creators from that network. [Instagram](https://www.instagram.com/ananyww/) |
 
 ## Business model and getting users
 
