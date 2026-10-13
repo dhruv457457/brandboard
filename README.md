@@ -497,12 +497,6 @@ The report is in `apps/web/e2e/report/` (`npx playwright show-report e2e/report`
 
 Patched was built for Monad Metropolis: 295 commits between Sep 23 and Oct 13, 2026. The testnet contracts were deployed and upgraded during the hackathon, and the mainnet contracts on Oct 8. Every step of the money loop is in [docs/evidence.md](docs/evidence.md), with explorer links.
 
-## Use of AI
-
-**Building it:** Claude Code (Anthropic) was the main coding tool. It wrote and reviewed contracts, tests, the app, the indexer and the docs, under Dhruv's direction; most commits carry a `Co-Authored-By: Claude` line. Every contract was deployed from our own wallet after review and tests.
-
-**Inside the product:** AI runs only on the server, through OpenRouter, using the cheapest model that does each job: the clean canvas from a photo, spot placement, outfit looks and car views.
-
 ## Documentation
 
 | Document | What it covers |
@@ -519,3 +513,16 @@ Patched was built for Monad Metropolis: 295 commits between Sep 23 and Oct 13, 2
 | [Agent guide](AGENTS.md) | How AI agents work in this repo |
 
 [X @Patched_world](https://x.com/Patched_world) · [Telegram](https://t.me/patchedworld) · [monad.patched.world](https://monad.patched.world)
+
+## AI tools disclosure
+
+**Built with AI.** Claude Code (Anthropic, Claude models) was the main coding tool for this repository. It wrote and reviewed the contracts, tests, web app, indexer, scripts and docs, under Dhruv Pancholi's direction. Dhruv reviewed the work and ran the tests. Antigravity also worked on parts of the web app, on tasks assigned in [docs/requests.md](docs/requests.md). Most commits carry a `Co-Authored-By: Claude` line. The contracts were deployed from our own wallet after review and tests.
+
+**Inside the product.** AI runs only on the server, through OpenRouter, using the cheapest model that does each job well:
+- **Clean canvas:** turns a photo of an outfit, car or hoodie into a clean white canvas.
+- **Spot placement:** suggests where the logo spots go, and checks them.
+- **Outfit styles and model shots:** suggests styles from a photo and makes front and back shots.
+- **Car views:** describes a car from one photo and generates the other sides.
+- **Event covers:** generates a cover image for an event page.
+
+AI never moves money, signs transactions or decides payouts or disputes. The contracts and Privy policies do that.
