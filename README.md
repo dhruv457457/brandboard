@@ -41,7 +41,7 @@ Creators sell the logo spots on their outfit, car or team hoodie. Every spot is 
 </tr>
 <tr>
 <td width="50%"><a href="https://youtu.be/qfHTC-Zvk14"><img src="docs/images/privy-cover.jpg" alt="Watch how Patched uses Privy (1:48)"></a></td>
-<td width="50%" align="center"><br><a href="https://medium.com/@dpancholi.pp123/no-bank-no-seed-phrase-no-gas-how-privy-runs-every-dollar-on-patched-world-002a2c185ce7"><b>No bank, no seed phrase, no gas</b></a><br>how Privy runs every dollar on Patched.world<br><br></td>
+<td width="50%"><a href="https://medium.com/@dpancholi.pp123/no-bank-no-seed-phrase-no-gas-how-privy-runs-every-dollar-on-patched-world-002a2c185ce7"><img src="docs/images/medium-cover.jpg" alt="Read the write-up on Medium: No bank, no seed phrase, no gas"></a></td>
 </tr>
 <tr>
 <td align="center"><sub><b>How Privy is used:</b> each Privy feature as it runs in the app, with what it does.</sub></td>
