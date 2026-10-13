@@ -8,6 +8,7 @@
   <a href="https://monad.patched.world"><b>Try it live</b></a> ·
   <a href="https://youtu.be/RCh8oZUIPFw"><b>Pitch (1:39)</b></a> ·
   <a href="https://youtu.be/pVGbFo1ATDU"><b>Demo (2:44)</b></a> ·
+  <a href="https://youtu.be/qfHTC-Zvk14"><b>Privy (1:48)</b></a> ·
   <a href="https://medium.com/@dpancholi.pp123/no-bank-no-seed-phrase-no-gas-how-privy-runs-every-dollar-on-patched-world-002a2c185ce7">How Privy runs Patched</a> ·
   <a href="docs/evidence.md">On-chain evidence</a> ·
   <a href="https://x.com/Patched_world">X</a> ·
@@ -37,6 +38,14 @@ Creators sell the logo spots on their outfit, car or team hoodie. Every spot is 
 <tr>
 <td align="center"><sub><b>The pitch:</b> the team, the problem and why now.</sub></td>
 <td align="center"><sub><b>The demo:</b> list an outfit, bid, auto-bid, get outbid and refunded, the NFT, Patchwork.</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="https://youtu.be/qfHTC-Zvk14"><img src="docs/images/privy-cover.jpg" alt="Watch how Patched uses Privy (1:48)"></a></td>
+<td width="50%"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>How Privy is used:</b> each Privy feature as it runs in the app, with what it does.</sub></td>
+<td></td>
 </tr>
 </table>
 
@@ -215,7 +224,11 @@ Privy is how nobody has to know they are using a wallet. **Every wallet, signatu
 </tr>
 </table>
 
-Every feature, with the problem, the lesson and the on-chain proof: [docs/privy.md](docs/privy.md). The story of building it: [No bank, no seed phrase, no gas: how Privy runs every dollar on Patched.world](https://medium.com/@dpancholi.pp123/no-bank-no-seed-phrase-no-gas-how-privy-runs-every-dollar-on-patched-world-002a2c185ce7).
+**Watch it:** [how Patched uses Privy, beyond login (1:48)](https://youtu.be/qfHTC-Zvk14), with each feature shown as it runs in the app.
+
+**Read it:** [No bank, no seed phrase, no gas: how Privy runs every dollar on Patched.world](https://medium.com/@dpancholi.pp123/no-bank-no-seed-phrase-no-gas-how-privy-runs-every-dollar-on-patched-world-002a2c185ce7) (our write-up on Medium, with 1.4K views on X).
+
+Every feature, with the problem, the lesson and the on-chain proof: [docs/privy.md](docs/privy.md).
 
 ### What we told Privy
 
